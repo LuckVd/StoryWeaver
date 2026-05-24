@@ -1,0 +1,22 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.pnpm-store/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# AI workflow
+docs/ai/change-log.md
+
+# Cache
+.cache/

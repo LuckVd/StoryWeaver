@@ -1,0 +1,34 @@
+{
+  "name": "@storyweaver/core",
+  "version": "0.1.0",
+  "description": "StoryWeaver 核心引擎 — Agent、LLM、记忆、知识库、存储",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "zod": "^3.23.0",
+    "yaml": "^2.4.0",
+    "openai": "^4.70.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsup": "^8.3.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
