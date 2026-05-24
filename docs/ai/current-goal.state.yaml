@@ -1,24 +1,24 @@
-goal_id: G01-S01
-title: "Monorepo 脚手架"
+goal_id: G01-S02
+title: "Core 类型定义"
 stage: done
 status: completed
-selected_option: G01-S01
+selected_option: G01-S02
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 根配置文件"
-  - "Step 2: packages/core 包"
-  - "Step 3: packages/studio 包"
-  - "Step 4: 验证构建流水线"
+  - "Step 1: 创建 models/ 目录结构"
+  - "Step 2: 实现各类型文件（book/chapter/config/knowledge/chat/memory/workspace/agent/api/review）"
+  - "Step 3: 统一导出（models/index.ts + src/index.ts）"
+  - "Step 4: 验证构建"
 test_scope:
-  - pnpm install 成功
   - pnpm build 零错误
-  - studio 可导入 core
+  - tsc --noEmit 通过
+  - 从 @storyweaver/core 可导入所有类型
 security_blockers: []
 dead_code_actions: []
 goal_candidates:
-  - G01-S02
+  - G01-S03
 sync_status: not_started
 last_check_at: "2026-05-24"
 last_security_scan_at: null

@@ -2,91 +2,172 @@
 
 ## Goal
 
-G01-S01 — Monorepo 脚手架
+G01-S02 — Core 类型定义
 
-创建 pnpm monorepo 项目基础结构，确保 `pnpm install && pnpm build` 零错误通过。
+在 `packages/core/src/models/` 下创建全项目共享的 TypeScript 类型定义，覆盖 Book、Chapter、Config、Knowledge、Chat、Memory、Workspace、Agent、API 等领域模型，统一导出。
 
 ## Current State
 
-从 roadmap G01-S01 激活，准备实施。
+从 roadmap G01-S02 激活，等待确认方案。
 
 ## Chosen Approach
 
-创建根配置 + 两个 workspace 包 (`@storyweaver/core`, `@storyweaver/studio`)，配置 TS 编译、ESLint、Prettier，验证构建流水线跑通。
+按领域拆分类型文件，每个文件一个关注点，通过 `models/index.ts` 统一 re-export。所有类型使用 `interface` / `type` 定义，配合 Zod schema 用于运行时校验（Phase 1 先只定义类型，Zod schema 留到后续子目标）。
 
 ## Acceptance Criteria
 
-- [ ] `pnpm install` 成功，生成 `node_modules` 和 `pnpm-lock.yaml`
-- [ ] `packages/core` 可用 `tsup` 构建出 dist
-- [ ] `packages/studio` 可用 `vite build` 构建出 dist
-- [ ] `pnpm build` 从根目录一次性构建两个包，零错误
-- [ ] `@storyweaver/studio` 可导入 `@storyweaver/core` 的导出
+- [ ] `models/` 目录下创建所有类型文件，按领域组织
+- [ ] 每个类型文件有清晰的注释说明
+- [ ] `models/index.ts` 统一导出所有类型
+- [ ] `packages/core/src/index.ts` re-export `models/index.ts`
+- [ ] `pnpm build` 零错误
+- [ ] 类型覆盖 tech-spec-v1.md 中所有定义的 interface/type/enum
 
 ## Test Plan
 
-- `pnpm install` 成功
-- `pnpm build` 零错误
-- studio 中 `import { } from '@storyweaver/core'` 编译通过
+- `pnpm build` 零错误通过
+- `tsc --noEmit` 类型检查通过
+- 从 `@storyweaver/core` 可导入所有类型（编译通过）
 
 ## Steps
 
-### Step 1: 根配置文件
-
-创建以下文件：
+### Step 1: 创建 models 目录结构
 
 ```
-StoryWeaver/
-├── package.json              # name: storyweaver, private: true, scripts: { build, dev, lint, format }
-├── pnpm-workspace.yaml       # packages: ['packages/*']
-├── tsconfig.base.json        # 共享 TS 配置 (target: ES2022, module: ESNext, strict)
-├── tsconfig.json              # extends tsconfig.base.json (根级引用)
-├── .gitignore
-├── .prettierrc
-├── .eslintrc.cjs
+packages/core/src/models/
+├── index.ts            # 统一导出
+├── book.ts             # Book 相关类型
+├── chapter.ts          # Chapter, ChapterStatus, ChapterVersion
+├── config.ts           # ModelConfig, AgentModelConfig, NovelConfig
+├── knowledge.ts        # Knowledge 各分类 + RelationEdge
+├── chat.ts             # Message, ChatSession, ChatMessage
+├── memory.ts           # ChapterSummary, BatchSummary, StoryStateSnapshot, StateChange, TokenBudget
+├── workspace.ts        # Workspace 类型
+├── agent.ts            # AgentName, AgentConfig
+└── api.ts              # SSEEvent, ErrorCode, APIError
 ```
 
-### Step 2: packages/core 包
+### Step 2: 实现各类型文件
 
-```
-packages/core/
-├── package.json              # @storyweaver/core, main/dist/module 导出
-├── tsconfig.json             # extends ../../tsconfig.base.json
-├── tsup.config.ts            # entry: src/index.ts, format: esm/cjs
-├── vitest.config.ts
-└── src/
-    └── index.ts              # export const VERSION = '0.1.0'
-```
+依据 tech-spec-v1.md 中的类型定义，逐文件编写：
 
-### Step 3: packages/studio 包
-
-```
-packages/studio/
-├── package.json              # @storyweaver/studio, deps: @storyweaver/core
-├── tsconfig.json
-├── vite.config.ts            # React plugin + dev proxy 配置
-├── index.html
-└── src/
-    ├── main.tsx              # React 入口
-    └── App.tsx               # 导入 core 验证依赖可用
+**book.ts** — Book 元信息（对应 novel.yaml）
+```typescript
+interface Book {
+  title: string;
+  genre: string;
+  language: string;
+  status: BookStatus;
+  createdAt: string;
+  updatedAt: string;
+  nextChapterId: number;
+}
+type BookStatus = 'drafting' | 'in_progress' | 'completed' | 'archived';
 ```
 
-### Step 4: 验证构建流水线
+**chapter.ts** — Chapter + ChapterVersion
+```typescript
+type ChapterStatus = 'draft' | 'approved' | 'published';
+interface Chapter {
+  id: number;
+  volume: number;
+  title: string;
+  content: string;
+  wordCount: number;
+  status: ChapterStatus;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+}
+interface ChapterVersion { ... } // 如 tech-spec 定义
+```
 
-- 运行 `pnpm install`
-- 运行 `pnpm build`
-- 确认两个包均构建成功
-- 确认 studio 可导入 core
+**config.ts** — ModelConfig, AgentModelConfig
+```typescript
+interface ModelConfig { ... }    // 如 tech-spec 定义
+interface AgentModelConfig { ... }
+interface NovelConfig { ... }    // novel.yaml 顶层结构
+```
+
+**knowledge.ts** — 所有知识库类型 + RelationEdge
+```typescript
+type KnowledgeCategory = 'characters' | 'world' | 'items' | 'outline' | 'hooks' | 'rules' | 'custom' | 'timeline';
+interface Character { ... }
+interface WorldEntry { ... }
+interface KnowledgeItem { ... }
+interface Hook { ... }            // 伏笔
+interface HookStatus = 'active' | 'resolved';
+interface OutlineNode { ... }
+interface Rule { ... }
+interface RelationEdge { ... }    // 如 tech-spec 定义
+```
+
+**chat.ts** — 对话相关
+```typescript
+interface Message { role: 'system' | 'user' | 'assistant'; content: string; }
+interface ChatSession { ... }
+interface ChatMessage { ... }
+```
+
+**memory.ts** — 记忆系统
+```typescript
+interface ChapterSummary { ... }       // 如 tech-spec 定义
+interface BatchSummary { ... }
+interface StoryStateSnapshot { ... }
+interface StateChange { ... }
+interface TokenBudget { ... }
+```
+
+**workspace.ts** — 工作区
+```typescript
+interface Workspace {
+  chapterIds: number[];
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+**agent.ts** — Agent 相关
+```typescript
+type AgentName = 'brainstormer' | 'writer' | 'auditor' | 'summarizer' | 'curator' | 'router';
+interface AgentConfig { ... }
+```
+
+**api.ts** — API 层
+```typescript
+type SSEEvent = ...;    // 如 tech-spec 定义
+enum ErrorCode { ... }  // 如 tech-spec 定义
+interface APIError { code: ErrorCode; message: string; details?: unknown; }
+```
+
+### Step 3: 统一导出
+
+- `models/index.ts` re-export 所有类型
+- 更新 `src/index.ts` 增加 `export * from './models/index.js'`
+
+### Step 4: 验证构建
+
+- `pnpm build` 零错误
+- `tsc --noEmit` 通过
 
 ## Tasks
 
-- [ ] 创建根配置文件 (package.json, pnpm-workspace.yaml, tsconfig, gitignore, prettier, eslint)
-- [ ] 创建 packages/core 包骨架
-- [ ] 创建 packages/studio 包骨架
-- [ ] 验证 pnpm install + pnpm build 通过
+- [ ] 创建 models/ 目录及 index.ts
+- [ ] 实现 book.ts
+- [ ] 实现 chapter.ts
+- [ ] 实现 config.ts
+- [ ] 实现 knowledge.ts
+- [ ] 实现 chat.ts
+- [ ] 实现 memory.ts
+- [ ] 实现 workspace.ts
+- [ ] 实现 agent.ts
+- [ ] 实现 api.ts
+- [ ] 更新 src/index.ts 统一导出
+- [ ] 验证 pnpm build 通过
 
 ## Blockers
 
-- 无
+- 无（依赖 G01-S01 已完成）
 
 ## Open Questions
 
@@ -95,8 +176,8 @@ packages/studio/
 ## Parent Goal
 
 - G01 — Phase 1: MVP (roadmap)
-- 完成后继续 → G01-S02 Core 类型定义
+- 完成后继续 → G01-S03 文件系统存储层
 
 ## Sync Notes
 
-- 目标激活自 roadmap G01-S01
+- 目标激活自 roadmap G01-S02，G01-S01 已完成

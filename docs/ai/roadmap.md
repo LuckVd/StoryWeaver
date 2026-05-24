@@ -98,7 +98,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | G01 | | Phase 1: MVP | 基本可用的写作工具 | designing | | | pending | not_started | | | 当前目标已激活，详见 current-goal.md |
 | G01 | G01-S01 | Monorepo 脚手架 | 根 package.json、pnpm-workspace、TS 配置、core/studio 包骨架、ESLint/Prettier | done | | | accepted | passed | 2026-05-24 | | |
-| G01 | G01-S02 | Core 类型定义 | models/ — Book, Chapter, Config, Knowledge, Chat 等类型 + 统一导出 | planned | G01-S01 | | pending | not_started | | | |
+| G01 | G01-S02 | Core 类型定义 | models/ — Book, Chapter, Config, Knowledge, Chat 等类型 + 统一导出 | done | G01-S01 | | accepted | passed | 2026-05-24 | | |
 | G01 | G01-S03 | 文件系统存储层 | storage/ — novel.yaml 读写、章节 .md 读写、workspace 读写、路径安全 | planned | G01-S02 | | pending | not_started | | | |
 | G01 | G01-S04 | LLM 抽象层 | llm/ — LLMClient 接口、OpenAI Provider、Token 计数 | planned | G01-S01 | | pending | not_started | | | 先只支持 OpenAI |
 | G01 | G01-S05 | BaseAgent + WriterAgent | agents/ — BaseAgent 基类、WriterAgent、关键词路由、Writer Prompt | planned | G01-S04 | | pending | not_started | | | |

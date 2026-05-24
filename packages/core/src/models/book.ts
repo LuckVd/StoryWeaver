@@ -1,0 +1,20 @@
+/**
+ * 书籍 (Book) 类型定义
+ *
+ * 对应 novel.yaml 顶层结构，每本小说一个 Book 实例。
+ */
+
+/** 书籍状态 */
+export type BookStatus = 'drafting' | 'in_progress' | 'completed' | 'archived';
+
+/** 书籍元信息（对应 novel.yaml） */
+export interface Book {
+  title: string;
+  genre: string;
+  language: string;
+  status: BookStatus;
+  createdAt: string;
+  updatedAt: string;
+  /** 自增章节 ID 计数器 */
+  nextChapterId: number;
+}
