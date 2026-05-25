@@ -101,7 +101,7 @@
 | G01 | G01-S02 | Core 类型定义 | models/ — Book, Chapter, Config, Knowledge, Chat 等类型 + 统一导出 | done | G01-S01 | | accepted | passed | 2026-05-24 | | |
 | G01 | G01-S03 | 文件系统存储层 | storage/ — novel.yaml 读写、章节 .md 读写、workspace 读写、路径安全 | done | G01-S02 | | accepted | passed | 2026-05-24 | | |
 | G01 | G01-S04 | LLM 抽象层 | llm/ — LLMClient 接口、OpenAI Provider、Token 计数 | done | G01-S01 | | accepted | passed | 2026-05-24 | | 先只支持 OpenAI |
-| G01 | G01-S05 | BaseAgent + WriterAgent | agents/ — BaseAgent 基类、WriterAgent、关键词路由、Writer Prompt | planned | G01-S04 | | pending | not_started | | | |
+| G01 | G01-S05 | BaseAgent + WriterAgent | agents/ — BaseAgent 基类、WriterAgent、关键词路由、Writer Prompt | done | G01-S04 | | accepted | passed | 2026-05-25 | | Phase 1 仅关键词路由，LLM 兜底留后续 |
 | G01 | G01-S06 | Hono API Server 基础 | api/server.ts、错误处理中间件、SSE 基础设施、全局事件流 (`GET /api/v1/events`)、AI 操作队列 (AIOperationQueue)、Zod 校验 | planned | G01-S01 | | pending | not_started | | | |
 | G01 | G01-S07 | API 章节 CRUD | api/routes/book.ts + chapters.ts — 完整 CRUD + 状态流转 | planned | G01-S03, G01-S06 | | pending | not_started | | | |
 | G01 | G01-S08 | API 对话端点 | api/routes/chat.ts — session 管理 + SSE 流式 + apply + Agent 重试策略（各 Agent 不同 timeout/retry） | planned | G01-S05, G01-S07 | | pending | not_started | | | |
