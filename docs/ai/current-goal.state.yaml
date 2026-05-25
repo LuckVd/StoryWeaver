@@ -1,26 +1,27 @@
-goal_id: G01-S02
-title: "Core 类型定义"
+goal_id: G01-S04
+title: "LLM 抽象层"
 stage: done
 status: completed
-selected_option: G01-S02
+selected_option: G01-S04
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 创建 models/ 目录结构"
-  - "Step 2: 实现各类型文件（book/chapter/config/knowledge/chat/memory/workspace/agent/api/review）"
-  - "Step 3: 统一导出（models/index.ts + src/index.ts）"
-  - "Step 4: 验证构建"
+  - "Step 1: 创建 llm/ 目录结构"
+  - "Step 2: 定义 types.ts 接口"
+  - "Step 3: 实现 OpenAIProvider"
+  - "Step 4: 实现 createLLMClient 工厂"
+  - "Step 5: 编写单元测试"
+  - "Step 6: 更新导出 + 验证构建"
 test_scope:
+  - vitest 43 个测试全部通过
   - pnpm build 零错误
-  - tsc --noEmit 通过
-  - 从 @storyweaver/core 可导入所有类型
 security_blockers: []
 dead_code_actions: []
 goal_candidates:
-  - G01-S03
-sync_status: not_started
-last_check_at: "2026-05-24"
-last_security_scan_at: null
-last_deadcode_scan_at: null
-last_synced_at: null
+  - G01-S05
+sync_status: done
+last_check_at: "2026-05-25"
+last_security_scan_at: "2026-05-25"
+last_deadcode_scan_at: "2026-05-25"
+last_synced_at: "2026-05-25"

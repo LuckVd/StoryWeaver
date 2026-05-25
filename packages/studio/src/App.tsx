@@ -1,5 +1,3 @@
-import { VERSION } from '@storyweaver/core';
-
 export default function App() {
-  return <div>StoryWeaver v{VERSION}</div>;
+  return <div>StoryWeaver v0.1.0</div>;
 }

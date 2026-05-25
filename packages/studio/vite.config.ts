@@ -15,5 +15,10 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    rollupOptions: {
+      // @storyweaver/core 包含 Node.js 运行时代码（storage/llm/agents），
+      // 浏览器端只通过 API 间接使用，不直接 bundle 这些代码。
+      external: ['@storyweaver/core'],
+    },
   },
 });

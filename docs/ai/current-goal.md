@@ -2,168 +2,127 @@
 
 ## Goal
 
-G01-S02 — Core 类型定义
+G01-S04 — LLM 抽象层
 
-在 `packages/core/src/models/` 下创建全项目共享的 TypeScript 类型定义，覆盖 Book、Chapter、Config、Knowledge、Chat、Memory、Workspace、Agent、API 等领域模型，统一导出。
+在 `packages/core/src/llm/` 下实现 LLM 抽象层，包含 LLMClient 接口、OpenAI Provider、Token 计数工具。Phase 1 仅支持 OpenAI。
 
 ## Current State
 
-从 roadmap G01-S02 激活，等待确认方案。
+G01-S04 已完成并同步。等待激活下一个目标 G01-S05 (BaseAgent + WriterAgent)。
 
 ## Chosen Approach
 
-按领域拆分类型文件，每个文件一个关注点，通过 `models/index.ts` 统一 re-export。所有类型使用 `interface` / `type` 定义，配合 Zod schema 用于运行时校验（Phase 1 先只定义类型，Zod schema 留到后续子目标）。
+按技术方案设计：定义 `LLMClient` 接口 + `LLMProvider` 接口 + `OpenAIProvider` 实现。使用 `openai` SDK 完成实际 API 调用。Token 计数通过 OpenAI 响应的 `usage` 字段获取，暂不做预估算（Phase 3 Token Budget 时再加）。
 
 ## Acceptance Criteria
 
-- [ ] `models/` 目录下创建所有类型文件，按领域组织
-- [ ] 每个类型文件有清晰的注释说明
-- [ ] `models/index.ts` 统一导出所有类型
-- [ ] `packages/core/src/index.ts` re-export `models/index.ts`
-- [ ] `pnpm build` 零错误
-- [ ] 类型覆盖 tech-spec-v1.md 中所有定义的 interface/type/enum
+- [x] `LLMClient` 接口定义：`chatCompletion` + `chatCompletionStream`
+- [x] `OpenAIProvider` 实现，支持普通补全和流式补全
+- [x] `createLLMClient` 工厂函数
+- [x] `TokenUsage` 类型 + 从响应中提取 token 使用量
+- [x] 基础重试逻辑（网络错误指数退避）
+- [x] API Key 从参数传入，不硬编码
+- [x] vitest 单元测试（mock OpenAI SDK）
+- [x] `pnpm build` 零错误
 
 ## Test Plan
 
-- `pnpm build` 零错误通过
-- `tsc --noEmit` 类型检查通过
-- 从 `@storyweaver/core` 可导入所有类型（编译通过）
+- vitest 单元测试，mock `openai` SDK：
+  - `chatCompletion` 正常返回
+  - `chatCompletionStream` 流式返回
+  - Token usage 正确提取
+  - 重试逻辑验证（模拟错误后重试成功）
+  - API Key 正确传递
+- `pnpm build` 零错误
 
 ## Steps
 
-### Step 1: 创建 models 目录结构
+### Step 1: 创建 llm 目录结构
 
 ```
-packages/core/src/models/
-├── index.ts            # 统一导出
-├── book.ts             # Book 相关类型
-├── chapter.ts          # Chapter, ChapterStatus, ChapterVersion
-├── config.ts           # ModelConfig, AgentModelConfig, NovelConfig
-├── knowledge.ts        # Knowledge 各分类 + RelationEdge
-├── chat.ts             # Message, ChatSession, ChatMessage
-├── memory.ts           # ChapterSummary, BatchSummary, StoryStateSnapshot, StateChange, TokenBudget
-├── workspace.ts        # Workspace 类型
-├── agent.ts            # AgentName, AgentConfig
-└── api.ts              # SSEEvent, ErrorCode, APIError
+packages/core/src/llm/
+├── index.ts              # 统一导出
+├── types.ts              # ChatOptions, TokenUsage, LLMClient, LLMProvider 接口
+├── openai-provider.ts    # OpenAI Provider 实现
+├── factory.ts            # createLLMClient 工厂函数
+└── __tests__/
+    ├── openai-provider.test.ts
+    └── factory.test.ts
 ```
 
-### Step 2: 实现各类型文件
+### Step 2: 定义类型和接口 (types.ts)
 
-依据 tech-spec-v1.md 中的类型定义，逐文件编写：
-
-**book.ts** — Book 元信息（对应 novel.yaml）
 ```typescript
-interface Book {
-  title: string;
-  genre: string;
-  language: string;
-  status: BookStatus;
-  createdAt: string;
-  updatedAt: string;
-  nextChapterId: number;
+interface ChatOptions {
+  model: string;
+  temperature?: number;
+  maxTokens?: number;
+  [key: string]: unknown;
 }
-type BookStatus = 'drafting' | 'in_progress' | 'completed' | 'archived';
-```
 
-**chapter.ts** — Chapter + ChapterVersion
-```typescript
-type ChapterStatus = 'draft' | 'approved' | 'published';
-interface Chapter {
-  id: number;
-  volume: number;
-  title: string;
+interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+interface ChatResult {
   content: string;
-  wordCount: number;
-  status: ChapterStatus;
-  createdAt: string;
-  updatedAt: string;
-  publishedAt?: string;
+  usage?: TokenUsage;
 }
-interface ChapterVersion { ... } // 如 tech-spec 定义
-```
 
-**config.ts** — ModelConfig, AgentModelConfig
-```typescript
-interface ModelConfig { ... }    // 如 tech-spec 定义
-interface AgentModelConfig { ... }
-interface NovelConfig { ... }    // novel.yaml 顶层结构
-```
+interface LLMClient {
+  chatCompletion(messages: Message[], options?: ChatOptions): Promise<ChatResult>;
+  chatCompletionStream(messages: Message[], options?: ChatOptions): AsyncGenerator<string>;
+}
 
-**knowledge.ts** — 所有知识库类型 + RelationEdge
-```typescript
-type KnowledgeCategory = 'characters' | 'world' | 'items' | 'outline' | 'hooks' | 'rules' | 'custom' | 'timeline';
-interface Character { ... }
-interface WorldEntry { ... }
-interface KnowledgeItem { ... }
-interface Hook { ... }            // 伏笔
-interface HookStatus = 'active' | 'resolved';
-interface OutlineNode { ... }
-interface Rule { ... }
-interface RelationEdge { ... }    // 如 tech-spec 定义
-```
-
-**chat.ts** — 对话相关
-```typescript
-interface Message { role: 'system' | 'user' | 'assistant'; content: string; }
-interface ChatSession { ... }
-interface ChatMessage { ... }
-```
-
-**memory.ts** — 记忆系统
-```typescript
-interface ChapterSummary { ... }       // 如 tech-spec 定义
-interface BatchSummary { ... }
-interface StoryStateSnapshot { ... }
-interface StateChange { ... }
-interface TokenBudget { ... }
-```
-
-**workspace.ts** — 工作区
-```typescript
-interface Workspace {
-  chapterIds: number[];
-  createdAt: string;
-  updatedAt: string;
+interface LLMProvider {
+  name: string;
+  createClient(config: ModelConfig): LLMClient;
 }
 ```
 
-**agent.ts** — Agent 相关
+### Step 3: 实现 OpenAIProvider (openai-provider.ts)
+
+- 使用 `openai` SDK 的 `OpenAI` 类
+- `chatCompletion`：调用 `client.chat.completions.create`，提取 content + usage
+- `chatCompletionStream`：调用 `client.chat.completions.create({ stream: true })`，yield 每个 chunk 的 delta content
+- 内置重试：网络错误时指数退避重试（最多 3 次，初始 1s，倍增）
+
+### Step 4: 实现 createLLMClient 工厂 (factory.ts)
+
 ```typescript
-type AgentName = 'brainstormer' | 'writer' | 'auditor' | 'summarizer' | 'curator' | 'router';
-interface AgentConfig { ... }
+const providers: Record<string, LLMProvider> = {
+  openai: new OpenAIProvider(),
+  // anthropic, ollama 等在 Phase 4 添加
+};
+
+function createLLMClient(config: ModelConfig): LLMClient {
+  const provider = providers[config.service];
+  if (!provider) throw new Error(`Unknown provider: ${config.service}`);
+  return provider.createClient(config);
+}
 ```
 
-**api.ts** — API 层
-```typescript
-type SSEEvent = ...;    // 如 tech-spec 定义
-enum ErrorCode { ... }  // 如 tech-spec 定义
-interface APIError { code: ErrorCode; message: string; details?: unknown; }
-```
+### Step 5: 编写单元测试
 
-### Step 3: 统一导出
+- mock OpenAI SDK，验证调用参数、返回值、流式输出
+- 验证重试逻辑
 
-- `models/index.ts` re-export 所有类型
-- 更新 `src/index.ts` 增加 `export * from './models/index.js'`
+### Step 6: 更新导出 + 验证构建
 
-### Step 4: 验证构建
-
+- `llm/index.ts` 统一导出
+- `src/index.ts` 增加 `export * from './llm/index.js'`
 - `pnpm build` 零错误
-- `tsc --noEmit` 通过
 
 ## Tasks
 
-- [ ] 创建 models/ 目录及 index.ts
-- [ ] 实现 book.ts
-- [ ] 实现 chapter.ts
-- [ ] 实现 config.ts
-- [ ] 实现 knowledge.ts
-- [ ] 实现 chat.ts
-- [ ] 实现 memory.ts
-- [ ] 实现 workspace.ts
-- [ ] 实现 agent.ts
-- [ ] 实现 api.ts
-- [ ] 更新 src/index.ts 统一导出
-- [ ] 验证 pnpm build 通过
+- [x] 创建 llm/ 目录结构
+- [x] 定义 types.ts 接口
+- [x] 实现 OpenAIProvider
+- [x] 实现 createLLMClient 工厂
+- [x] 编写单元测试
+- [x] 更新导出 + 验证构建
 
 ## Blockers
 
@@ -176,8 +135,9 @@ interface APIError { code: ErrorCode; message: string; details?: unknown; }
 ## Parent Goal
 
 - G01 — Phase 1: MVP (roadmap)
-- 完成后继续 → G01-S03 文件系统存储层
+- 完成后继续 → G01-S05 BaseAgent + WriterAgent
 
 ## Sync Notes
 
-- 目标激活自 roadmap G01-S02，G01-S01 已完成
+- 目标激活自 roadmap G01-S04
+- 2026-05-25: 同步完成，测试 43 pass，安全扫描无阻塞，死代码 1 HIGH（可延后）
