@@ -1,26 +1,28 @@
-goal_id: G01-S08
-title: "API 对话端点"
+goal_id: G01-S11
+title: "AI 对话面板 + 独立对话页"
 stage: done
 status: completed
-selected_option: G01-S08
+selected_option: G01-S11
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 实现 chat-service.ts (session + 对话 + apply + LLM 初始化)"
-  - "Step 2: 新增 chat schema (createSession, sendMessage, apply)"
-  - "Step 3: 实现 routes/chat.ts (6 个端点)"
-  - "Step 4: 注册路由到 server.ts"
-  - "Step 5: 编写 chat.test.ts (9 个测试)"
-  - "Step 6: 验证构建"
+  - "Step 1: 创建 SSE Hook (hooks/use-chat-sse.ts)"
+  - "Step 2: 创建 Chat Store (stores/chat-store.ts)"
+  - "Step 3: 创建 Chat 组件 (components/chat/)"
+  - "Step 4: 更新章节编辑页 — 嵌入 Chat Panel"
+  - "Step 5: 实现独立对话页 /chat"
+  - "Step 6: 验证构建 + 运行测试"
 test_scope:
-  - chat.test.ts: 9 tests (session CRUD, 发送消息, apply, 错误处理)
+  - "vitest 127 通过（core 73 + studio 54），pnpm build 零错误"
 security_blockers: []
-dead_code_actions: []
+dead_code_actions:
+  - "移除未使用的 export ChatPanelProps"
+  - "移除死变量 sessions（fetchSessions 返回 void）"
 goal_candidates:
-  - G01-S11
-sync_status: not_started
+  - G01-S12
+sync_status: completed
 last_check_at: "2026-05-27"
-last_security_scan_at: null
-last_deadcode_scan_at: null
+last_security_scan_at: "2026-05-27"
+last_deadcode_scan_at: "2026-05-27"
 last_synced_at: "2026-05-27"

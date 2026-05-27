@@ -2,10 +2,11 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useChapterStore } from '@/stores/chapter-store';
 import { ChapterEditor, countWords, getEditorHtml } from '@/components/editor/chapter-editor';
+import { ChatPanel } from '@/components/chat/chat-panel';
 import { StatusBadge } from '@/components/chapter/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, MessageSquare } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 
 export function ChapterEditPage() {
@@ -15,6 +16,7 @@ export function ChapterEditPage() {
   const [title, setTitle] = useState('');
   const [dirty, setDirty] = useState(false);
   const [wordCount, setWordCount] = useState(0);
+  const [showChat, setShowChat] = useState(false);
   const editorRef = useRef<Editor | null>(null);
 
   const chapterId = Number(id);
@@ -86,15 +88,37 @@ export function ChapterEditPage() {
             {loading ? '保存中...' : '保存'}
           </Button>
         )}
+        <Button
+          variant={showChat ? 'secondary' : 'ghost'}
+          size="icon"
+          onClick={() => setShowChat(!showChat)}
+          title="AI 对话"
+        >
+          <MessageSquare className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* 编辑器 */}
-      <div className="flex-1 overflow-auto p-6">
-        <ChapterEditor
-          content={currentChapter.content}
-          editable={!isReadonly}
-          onUpdate={handleEditorUpdate}
-        />
+      {/* 内容区 */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* 编辑器 */}
+        <div className="flex-1 overflow-auto p-6">
+          <ChapterEditor
+            content={currentChapter.content}
+            editable={!isReadonly}
+            onUpdate={handleEditorUpdate}
+          />
+        </div>
+
+        {/* Chat Panel */}
+        {showChat && (
+          <div className="w-[400px] shrink-0 border-l">
+            <ChatPanel
+              chapterId={chapterId}
+              onClose={() => setShowChat(false)}
+              embedded
+            />
+          </div>
+        )}
       </div>
     </div>
   );

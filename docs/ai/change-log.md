@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-27 — G01-S11: AI 对话面板 + 独立对话页
+
+- Goal ID: G01-S11
+- Summary: 实现前端 AI 对话完整链路。`useChatSSE` Hook（EventSource + 自动重连），`useChatStore`（sessions/messages/streaming 状态），`ChatPanel` 可复用组件（消息列表 + 输入框 + SSE 流式 + Apply append/replace），章节编辑页双栏布局（编辑器 + 可折叠 Chat Panel），独立 `/chat` 页面（session 列表 + 自由对话）
+- Impact: `packages/studio/src/{hooks/use-chat-sse,stores/chat-store,components/chat/*,pages/chapter-edit,pages/chat,components/layout/app-layout}.tsx`
+- Tests: vitest 127 通过（core 73 + studio 54），`pnpm build` 零错误
+- Dead Code: 2 项修复 — 移除未使用的 `export ChatPanelProps`，移除死变量 `sessions`
+- Security: 无阻塞项，无密钥硬编码，无 XSS 向量
+- Commit Status: 待提交
+
 ## 2026-05-27 — G01-S08: API 对话端点
 
 - Goal ID: G01-S08
