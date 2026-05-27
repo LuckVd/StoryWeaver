@@ -50,6 +50,9 @@ importers:
       react-router:
         specifier: ^7.5.0
         version: 7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
       zustand:
         specifier: ^5.0.0
         version: 5.0.13(@types/react@19.2.15)(react@19.2.6)

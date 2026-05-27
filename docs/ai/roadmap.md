@@ -96,13 +96,13 @@
 
 | 目标ID | 子目标ID | 名称 | 描述 | 状态 | 前置依赖 | 风险/阻塞 | 验收结果 | 测试状态 | 实现时间 | Commit ID | 备注 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| G01 | | Phase 1: MVP | 基本可用的写作工具 | designing | | | pending | not_started | | | 当前目标已激活，详见 current-goal.md |
+| G01 | | Phase 1: MVP | 基本可用的写作工具 | in_progress | | | pending | not_started | | | 6/12 子目标完成 |
 | G01 | G01-S01 | Monorepo 脚手架 | 根 package.json、pnpm-workspace、TS 配置、core/studio 包骨架、ESLint/Prettier | done | | | accepted | passed | 2026-05-24 | | |
 | G01 | G01-S02 | Core 类型定义 | models/ — Book, Chapter, Config, Knowledge, Chat 等类型 + 统一导出 | done | G01-S01 | | accepted | passed | 2026-05-24 | | |
 | G01 | G01-S03 | 文件系统存储层 | storage/ — novel.yaml 读写、章节 .md 读写、workspace 读写、路径安全 | done | G01-S02 | | accepted | passed | 2026-05-24 | | |
 | G01 | G01-S04 | LLM 抽象层 | llm/ — LLMClient 接口、OpenAI Provider、Token 计数 | done | G01-S01 | | accepted | passed | 2026-05-24 | | 先只支持 OpenAI |
 | G01 | G01-S05 | BaseAgent + WriterAgent | agents/ — BaseAgent 基类、WriterAgent、关键词路由、Writer Prompt | done | G01-S04 | | accepted | passed | 2026-05-25 | | Phase 1 仅关键词路由，LLM 兜底留后续 |
-| G01 | G01-S06 | Hono API Server 基础 | api/server.ts、错误处理中间件、SSE 基础设施、全局事件流 (`GET /api/v1/events`)、AI 操作队列 (AIOperationQueue)、Zod 校验 | planned | G01-S01 | | pending | not_started | | | |
+| G01 | G01-S06 | Hono API Server 基础 | api/server.ts、错误处理中间件、SSE 基础设施、全局事件流 (`GET /api/v1/events`)、AI 操作队列 (AIOperationQueue)、Zod 校验 | done | G01-S01 | | accepted | passed | 2026-05-27 | | createServer + SSEEmitter + AIOperationQueue + validate + errorHandler |
 | G01 | G01-S07 | API 章节 CRUD | api/routes/book.ts + chapters.ts — 完整 CRUD + 状态流转 | planned | G01-S03, G01-S06 | | pending | not_started | | | |
 | G01 | G01-S08 | API 对话端点 | api/routes/chat.ts — session 管理 + SSE 流式 + apply + Agent 重试策略（各 Agent 不同 timeout/retry） | planned | G01-S05, G01-S07 | | pending | not_started | | | |
 | G01 | G01-S09 | React 前端框架 | Vite + React 19 + React Router + Tailwind + shadcn/ui + Zustand + Sidebar Layout + Dashboard 页 (`/`) | planned | G01-S01 | | pending | not_started | | | |

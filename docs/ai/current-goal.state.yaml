@@ -1,29 +1,20 @@
-goal_id: G01-S05
-title: "BaseAgent + WriterAgent"
-stage: done
-status: completed
-selected_option: G01-S05
+goal_id: G01-S07
+title: "API 章节 CRUD"
+stage: planned
+status: pending
+selected_option: null
 design_confirmed: false
-blocked_by: []
+blocked_by:
+  - G01-S03 (done)
+  - G01-S06 (done)
 open_questions: []
-implementation_steps:
-  - "Step 1: 创建 agents/ 目录结构"
-  - "Step 2: 检查并安装 zod 依赖"
-  - "Step 3: 实现 BaseAgent 抽象基类"
-  - "Step 4: 实现 prompts（默认 Prompt + loadPrompt）"
-  - "Step 5: 实现 WriterAgent"
-  - "Step 6: 实现关键词路由 router"
-  - "Step 7: 编写单元测试"
-  - "Step 8: 更新导出 + 验证构建"
-test_scope:
-  - vitest 73 个测试全部通过
-  - pnpm build 零错误
+implementation_steps: []
+test_scope: []
 security_blockers: []
 dead_code_actions: []
-goal_candidates:
-  - G01-S06
-sync_status: done
-last_check_at: "2026-05-25"
-last_security_scan_at: "2026-05-25"
-last_deadcode_scan_at: "2026-05-25"
-last_synced_at: "2026-05-25"
+goal_candidates: []
+sync_status: not_started
+last_check_at: "2026-05-27"
+last_security_scan_at: "2026-05-27"
+last_deadcode_scan_at: "2026-05-27"
+last_synced_at: "2026-05-27"
