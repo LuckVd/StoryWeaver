@@ -281,4 +281,91 @@ describe('Chapters Routes', () => {
     });
     expect(res.status).toBe(423);
   });
+
+  // --- Version endpoints ---
+
+  async function createChapterWithContent(app: ReturnType<typeof server>, content: string) {
+    await setup(app);
+    await app.request('/api/v1/chapters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volume: 1, title: '第一章' }),
+    });
+    await app.request('/api/v1/chapters/1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  it('GET /chapters/:id/versions — 更新后自动创建版本快照', async () => {
+    const app = server();
+    await createChapterWithContent(app, '初始内容');
+
+    const res = await app.request('/api/v1/chapters/1/versions');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.length).toBe(1);
+    expect(body[0].trigger).toBe('save');
+    expect(body[0].content).toBe(''); // snapshot of empty content before update
+  });
+
+  it('GET /chapters/:id/versions/:vid — 获取指定版本', async () => {
+    const app = server();
+    await createChapterWithContent(app, '初始内容');
+
+    const res = await app.request('/api/v1/chapters/1/versions/1');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe(1);
+    expect(body.content).toBe('');
+  });
+
+  it('POST /chapters/:id/versions/:vid/restore — 恢复到指定版本', async () => {
+    const app = server();
+    await createChapterWithContent(app, '初始内容');
+
+    // Update again to create another version
+    await app.request('/api/v1/chapters/1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: '第二次更新' }),
+    });
+
+    // Restore to version 1 (empty content)
+    const res = await app.request('/api/v1/chapters/1/versions/1/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // After restore, content should be empty (version 1 had empty content)
+    expect(body.content).toBe('');
+  });
+
+  it('published 时清空版本历史', async () => {
+    const app = server();
+    await createChapterWithContent(app, '初始内容');
+
+    // Verify versions exist
+    const beforePublish = await app.request('/api/v1/chapters/1/versions');
+    expect((await beforePublish.json()).length).toBeGreaterThan(0);
+
+    // Approve and publish
+    await app.request('/api/v1/chapters/1/status', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'approved' }),
+    });
+    await app.request('/api/v1/chapters/1/status', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'published' }),
+    });
+
+    // Versions should be purged
+    const afterPublish = await app.request('/api/v1/chapters/1/versions');
+    expect((await afterPublish.json())).toEqual([]);
+  });
 });

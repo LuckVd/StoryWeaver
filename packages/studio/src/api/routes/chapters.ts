@@ -4,7 +4,7 @@ import type { ChapterService } from '../services/chapter-service.js';
 import { APIError } from '../error-handler.js';
 import { ErrorCode } from '@storyweaver/core';
 import { validate } from '../validate.js';
-import { createChapterSchema, updateChapterSchema, updateStatusSchema } from '../schemas.js';
+import { createChapterSchema, updateChapterSchema, updateStatusSchema, restoreVersionSchema } from '../schemas.js';
 
 /**
  * 章节路由
@@ -131,6 +131,62 @@ export function chaptersRoute(bookService: BookService, chapterService: ChapterS
       }
       throw err;
     }
+  });
+
+  // GET /chapters/:id/versions — 列出版本历史
+  app.get('/:id/versions', async (c) => {
+    const chapterId = Number(c.req.param('id'));
+    if (!Number.isInteger(chapterId) || chapterId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '章节 ID 必须为正整数');
+    }
+    const volume = await chapterService.findVolume(chapterId);
+    if (volume === null) {
+      throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
+    }
+    const versions = await chapterService.listVersions(volume, chapterId);
+    return c.json(versions);
+  });
+
+  // GET /chapters/:id/versions/:vid — 获取指定版本
+  app.get('/:id/versions/:vid', async (c) => {
+    const chapterId = Number(c.req.param('id'));
+    const versionId = Number(c.req.param('vid'));
+    if (!Number.isInteger(chapterId) || chapterId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '章节 ID 必须为正整数');
+    }
+    if (!Number.isInteger(versionId) || versionId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '版本 ID 必须为正整数');
+    }
+    const volume = await chapterService.findVolume(chapterId);
+    if (volume === null) {
+      throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
+    }
+    const version = await chapterService.readVersion(volume, chapterId, versionId);
+    if (!version) {
+      throw new APIError(ErrorCode.NOT_FOUND, `版本 ${versionId} 不存在`);
+    }
+    return c.json(version);
+  });
+
+  // POST /chapters/:id/versions/:vid/restore — 恢复到指定版本
+  app.post('/:id/versions/:vid/restore', validate(restoreVersionSchema), async (c) => {
+    const chapterId = Number(c.req.param('id'));
+    const versionId = Number(c.req.param('vid'));
+    if (!Number.isInteger(chapterId) || chapterId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '章节 ID 必须为正整数');
+    }
+    if (!Number.isInteger(versionId) || versionId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '版本 ID 必须为正整数');
+    }
+    const volume = await chapterService.findVolume(chapterId);
+    if (volume === null) {
+      throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
+    }
+    const chapter = await chapterService.restoreVersion(volume, chapterId, versionId);
+    if (!chapter) {
+      throw new APIError(ErrorCode.NOT_FOUND, `版本 ${versionId} 不存在`);
+    }
+    return c.json(chapter);
   });
 
   return app;

@@ -1,4 +1,4 @@
-import { ChapterStorage, VolumeIndexStorage, type ChapterMeta, type Chapter, type ChapterStatus } from '@storyweaver/core';
+import { ChapterStorage, VolumeIndexStorage, VersionStorage, type ChapterMeta, type Chapter, type ChapterStatus, type VersionTrigger } from '@storyweaver/core';
 
 /**
  * 章节业务逻辑层
@@ -9,6 +9,8 @@ export class ChapterService {
   constructor(
     private readonly indexStorage: VolumeIndexStorage,
     private readonly chapterStorage: ChapterStorage,
+    private readonly versionStorage: VersionStorage,
+    private readonly projectRoot: string,
   ) {}
 
   /** 列出章节元信息（可选按卷过滤） */
@@ -55,13 +57,20 @@ export class ChapterService {
   }
 
   /** 更新章节标题/内容（published 不可修改） */
-  async update(volume: number, chapterId: number, patch: { title?: string; content?: string }): Promise<Chapter | null> {
+  async update(volume: number, chapterId: number, patch: { title?: string; content?: string }, trigger?: VersionTrigger): Promise<Chapter | null> {
     const meta = await this.indexStorage.readChapter(volume, chapterId);
     if (!meta) {
       return null;
     }
     if (meta.status === 'published') {
       throw new Error('CHAPTER_LOCKED');
+    }
+    // 更新前创建版本快照（仅内容变更时）
+    if (patch.content !== undefined) {
+      const current = await this.chapterStorage.readChapter(volume, chapterId);
+      if (current !== null && current !== patch.content) {
+        await this.createSnapshot(volume, chapterId, current, trigger ?? 'save');
+      }
     }
     const now = new Date().toISOString();
     const metaPatch: Partial<ChapterMeta> = { updatedAt: now };
@@ -105,6 +114,11 @@ export class ChapterService {
     if (expected !== newStatus) {
       throw new Error('INVALID_STATUS_TRANSITION');
     }
+    // 状态变更前创建快照
+    const content = await this.chapterStorage.readChapter(volume, chapterId);
+    if (content !== null) {
+      await this.createSnapshot(volume, chapterId, content, 'status_change', `状态变更为 ${newStatus}`);
+    }
     const now = new Date().toISOString();
     const patch: Partial<ChapterMeta> = {
       status: newStatus,
@@ -114,6 +128,10 @@ export class ChapterService {
       patch.publishedAt = now;
     }
     await this.indexStorage.updateChapter(volume, chapterId, patch);
+    // published 时清空版本历史
+    if (newStatus === 'published') {
+      await this.versionStorage.purgeAll(this.projectRoot, volume, chapterId);
+    }
     return { ...meta, ...patch };
   }
 
@@ -127,5 +145,29 @@ export class ChapterService {
       }
     }
     return null;
+  }
+
+  /** 创建版本快照 */
+  async createSnapshot(volume: number, chapterId: number, content: string, trigger: VersionTrigger, description?: string): Promise<void> {
+    await this.versionStorage.write(this.projectRoot, volume, chapterId, { content, trigger, description });
+  }
+
+  /** 列出章节版本历史 */
+  async listVersions(volume: number, chapterId: number) {
+    return this.versionStorage.list(this.projectRoot, volume, chapterId);
+  }
+
+  /** 读取指定版本 */
+  async readVersion(volume: number, chapterId: number, versionId: number) {
+    return this.versionStorage.read(this.projectRoot, volume, chapterId, versionId);
+  }
+
+  /** 恢复到指定版本 */
+  async restoreVersion(volume: number, chapterId: number, versionId: number): Promise<Chapter | null> {
+    const version = await this.versionStorage.read(this.projectRoot, volume, chapterId, versionId);
+    if (!version) {
+      return null;
+    }
+    return this.update(volume, chapterId, { content: version.content }, 'save');
   }
 }

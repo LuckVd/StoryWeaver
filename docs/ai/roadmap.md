@@ -96,7 +96,7 @@
 
 | 目标ID | 子目标ID | 名称 | 描述 | 状态 | 前置依赖 | 风险/阻塞 | 验收结果 | 测试状态 | 实现时间 | Commit ID | 备注 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| G01 | | Phase 1: MVP | 基本可用的写作工具 | in_progress | | | pending | not_started | | | 11/12 子目标完成 |
+| G01 | | Phase 1: MVP | 基本可用的写作工具 | done | | | accepted | passed | 2026-05-27 | | 12/12 子目标完成，MVP 完成 |
 | G01 | G01-S01 | Monorepo 脚手架 | 根 package.json、pnpm-workspace、TS 配置、core/studio 包骨架、ESLint/Prettier | done | | | accepted | passed | 2026-05-24 | | |
 | G01 | G01-S02 | Core 类型定义 | models/ — Book, Chapter, Config, Knowledge, Chat 等类型 + 统一导出 | done | G01-S01 | | accepted | passed | 2026-05-24 | | |
 | G01 | G01-S03 | 文件系统存储层 | storage/ — novel.yaml 读写、章节 .md 读写、workspace 读写、路径安全 | done | G01-S02 | | accepted | passed | 2026-05-24 | | |
@@ -108,7 +108,7 @@
 | G01 | G01-S09 | React 前端框架 | Vite + React 19 + React Router + Tailwind + shadcn/ui + Zustand + Sidebar Layout + Dashboard 页 (`/`) | done | G01-S01 | | accepted | passed | 2026-05-27 | | Sidebar + Dashboard + Zustand book-store + React Router v7 + shadcn/ui |
 | G01 | G01-S10 | 章节列表 + 编辑器 | ChapterList 页 + ChapterEditor 页 (Tiptap HTML 模式) | done | G01-S09 | | accepted | passed | 2026-05-27 | | 按卷分组列表 + Tiptap 编辑器 + 创建/删除 + 字数统计 |
 | G01 | G01-S11 | AI 对话面板 + 独立对话页 | 编辑器内 chat 组件 + 独立 `/chat` 页面（不绑定章节的自由对话）— 消息列表 + 输入框 + SSE 流式显示 + Apply 按钮 | done | G01-S08, G01-S10 | | accepted | passed | 2026-05-27 | | SSE Hook + ChatStore + ChatPanel + 编辑器双栏 + 独立对话页 + append/replace |
-| G01 | G01-S12 | 版本控制 + 基础测试 | 章节版本快照/回退 API + 前端历史面板 + core/api 测试 | planned | G01-S07, G01-S11 | | pending | not_started | | | |
+| G01 | G01-S12 | 版本控制 + 基础测试 | 章节版本快照/回退 API + 前端历史面板 + core/api 测试 | done | G01-S07, G01-S11 | | accepted | passed | 2026-05-27 | | VersionStorage + 3 API 端点 + 自动快照 + published 清空 + 前端面板 |
 | G02 | | Phase 2: 核心流水线 | 完整的知识库 + 审稿 + 工作区 | planned | G01 | 依赖 MVP 稳定 | pending | not_started | | | |
 | G02 | G02-S01 | 知识库系统 | knowledge/ — 角色/世界观/物品/伏笔/规则 CRUD | planned | G01-S03 | | pending | not_started | | | |
 | G02 | G02-S02 | 关系图 + 可视化 | 邻接表存储 + React Flow 前端 | planned | G02-S01 | | pending | not_started | | | |

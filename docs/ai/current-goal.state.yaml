@@ -1,26 +1,26 @@
-goal_id: G01-S11
-title: "AI 对话面板 + 独立对话页"
+goal_id: G01-S12
+title: "版本控制 + 基础测试"
 stage: done
 status: completed
-selected_option: G01-S11
+selected_option: G01-S12
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 创建 SSE Hook (hooks/use-chat-sse.ts)"
-  - "Step 2: 创建 Chat Store (stores/chat-store.ts)"
-  - "Step 3: 创建 Chat 组件 (components/chat/)"
-  - "Step 4: 更新章节编辑页 — 嵌入 Chat Panel"
-  - "Step 5: 实现独立对话页 /chat"
+  - "Step 1: 添加路径辅助函数 + VersionStorage (core/storage/)"
+  - "Step 2: 集成快照到 Service 层 (ChapterService + ChatService)"
+  - "Step 3: 添加版本 API 端点 (3 个端点 + schema)"
+  - "Step 4: 前端版本历史面板 (store + component + page)"
+  - "Step 5: 编写测试 (version-storage + chapters 版本端点)"
   - "Step 6: 验证构建 + 运行测试"
 test_scope:
-  - "vitest 127 通过（core 73 + studio 54），pnpm build 零错误"
+  - "vitest 141 通过（core 83 + studio 58），pnpm build 零错误"
 security_blockers: []
 dead_code_actions:
-  - "移除未使用的 export ChatPanelProps"
-  - "移除死变量 sessions（fetchSessions 返回 void）"
+  - "移除未使用 import resolveSafe"
+  - "将动态 import unlink 改为静态 import"
 goal_candidates:
-  - G01-S12
+  - G02-S01
 sync_status: completed
 last_check_at: "2026-05-27"
 last_security_scan_at: "2026-05-27"

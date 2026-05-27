@@ -90,9 +90,33 @@ export function parseVolumeNumber(dirName: string): number | null {
 }
 
 /**
+ * 生成章节版本目录：volumes/vXX/chXXX.versions/
+ */
+export function chapterVersionsDir(projectRoot: string, volume: number, chapterId: number): string {
+  const dir = volumeDir(projectRoot, volume);
+  return resolve(dir, `ch${String(chapterId).padStart(3, '0')}.versions`);
+}
+
+/**
+ * 生成版本文件路径：volumes/vXX/chXXX.versions/vNNN.json
+ */
+export function versionFilePath(projectRoot: string, volume: number, chapterId: number, versionId: number): string {
+  const dir = chapterVersionsDir(projectRoot, volume, chapterId);
+  return resolve(dir, `v${String(versionId).padStart(3, '0')}.json`);
+}
+
+/**
  * 解析章节 ID（从文件名 "ch001.md" → 1）
  */
 export function parseChapterId(fileName: string): number | null {
   const match = /^ch(\d{3,})\.md$/.exec(fileName);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * 解析版本 ID（从文件名 "v001.json" → 1）
+ */
+export function parseVersionId(fileName: string): number | null {
+  const match = /^v(\d{3,})\.json$/.exec(fileName);
   return match ? parseInt(match[1], 10) : null;
 }

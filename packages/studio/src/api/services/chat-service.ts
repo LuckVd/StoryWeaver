@@ -158,11 +158,11 @@ export class ChatService {
       }
       await this.chapterService.update(volume, target.chapterId, {
         content: chapter.content + '\n' + aiContent,
-      });
+      }, 'ai_apply');
     } else {
       await this.chapterService.update(volume, target.chapterId, {
         content: aiContent,
-      });
+      }, 'ai_apply');
     }
   }
 

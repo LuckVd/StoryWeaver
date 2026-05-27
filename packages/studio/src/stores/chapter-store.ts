@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api-client';
-import type { Book, VolumeMeta, ChapterMeta, Chapter, ChapterStatus } from '@storyweaver/core';
+import type { Book, VolumeMeta, ChapterMeta, Chapter, ChapterStatus, ChapterVersion } from '@storyweaver/core';
 
 interface ChapterState {
   volumes: VolumeMeta[];
   chaptersByVolume: Record<number, ChapterMeta[]>;
   currentChapter: Chapter | null;
+  versions: ChapterVersion[];
   loading: boolean;
   error: string | null;
 
@@ -16,12 +17,15 @@ interface ChapterState {
   createChapter: (volume: number, title: string) => Promise<void>;
   deleteChapter: (id: number) => Promise<void>;
   updateChapterStatus: (id: number, status: ChapterStatus) => Promise<void>;
+  fetchVersions: (chapterId: number) => Promise<void>;
+  restoreVersion: (chapterId: number, versionId: number) => Promise<void>;
 }
 
 export const useChapterStore = create<ChapterState>((set, get) => ({
   volumes: [],
   chaptersByVolume: {},
   currentChapter: null,
+  versions: [],
   loading: false,
   error: null,
 
@@ -106,6 +110,27 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       set({ error: message, loading: false });
+    }
+  },
+
+  fetchVersions: async (chapterId) => {
+    set({ loading: true, error: null });
+    try {
+      const versions = await api.get<ChapterVersion[]>(`/chapters/${chapterId}/versions`);
+      set({ versions, loading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Unknown error', loading: false });
+    }
+  },
+
+  restoreVersion: async (chapterId, versionId) => {
+    set({ loading: true, error: null });
+    try {
+      const chapter = await api.post<Chapter>(`/chapters/${chapterId}/versions/${versionId}/restore`, {});
+      set({ currentChapter: chapter, loading: false });
+      await get().fetchVersions(chapterId);
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Unknown error', loading: false });
     }
   },
 }));

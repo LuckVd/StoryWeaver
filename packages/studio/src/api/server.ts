@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { BookStorage, ChapterStorage, VolumeIndexStorage } from '@storyweaver/core';
+import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage } from '@storyweaver/core';
 import { SSEEmitter } from './sse.js';
 import { AIOperationQueue } from './queue.js';
 import { errorHandler } from './error-handler.js';
@@ -28,10 +28,11 @@ export function createServer(projectRoot: string = process.cwd()) {
   const bookStorage = new BookStorage(projectRoot);
   const chapterStorage = new ChapterStorage(projectRoot);
   const indexStorage = new VolumeIndexStorage(projectRoot);
+  const versionStorage = new VersionStorage();
 
   // 服务层
   const bookService = new BookService(bookStorage);
-  const chapterService = new ChapterService(indexStorage, chapterStorage);
+  const chapterService = new ChapterService(indexStorage, chapterStorage, versionStorage, projectRoot);
   const chatService = new ChatService(aiQueue, sseEmitter, chapterService);
 
   // 全局错误处理

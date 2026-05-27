@@ -2,11 +2,12 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useChapterStore } from '@/stores/chapter-store';
 import { ChapterEditor, countWords, getEditorHtml } from '@/components/editor/chapter-editor';
+import { VersionPanel } from '@/components/editor/version-panel';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { StatusBadge } from '@/components/chapter/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Save, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Save, MessageSquare, History } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 
 export function ChapterEditPage() {
@@ -17,6 +18,7 @@ export function ChapterEditPage() {
   const [dirty, setDirty] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [showChat, setShowChat] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
   const editorRef = useRef<Editor | null>(null);
 
   const chapterId = Number(id);
@@ -96,6 +98,14 @@ export function ChapterEditPage() {
         >
           <MessageSquare className="h-4 w-4" />
         </Button>
+        <Button
+          variant={showVersions ? 'secondary' : 'ghost'}
+          size="icon"
+          onClick={() => setShowVersions(!showVersions)}
+          title="版本历史"
+        >
+          <History className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* 内容区 */}
@@ -116,6 +126,16 @@ export function ChapterEditPage() {
               chapterId={chapterId}
               onClose={() => setShowChat(false)}
               embedded
+            />
+          </div>
+        )}
+
+        {/* Version Panel */}
+        {showVersions && (
+          <div className="w-[300px] shrink-0 border-l">
+            <VersionPanel
+              chapterId={chapterId}
+              onClose={() => setShowVersions(false)}
             />
           </div>
         )}

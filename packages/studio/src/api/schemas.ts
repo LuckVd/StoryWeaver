@@ -62,3 +62,7 @@ export const applySchema = z.object({
   mode: z.enum(['append', 'replace'], { message: '模式只能为 append 或 replace' }),
   content: z.string().optional(),
 });
+
+// --- Versions ---
+
+export const restoreVersionSchema = z.object({});

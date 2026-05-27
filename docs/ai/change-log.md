@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-27 — G01-S12: 版本控制 + 基础测试
+
+- Goal ID: G01-S12
+- Summary: 实现章节版本控制完整链路。`VersionStorage`（core 存储层，自增 ID + pruneOld + purgeAll），`ChapterService` 集成自动快照（save/ai_apply/status_change 触发），3 个 API 端点（list/read/restore），前端版本历史面板（version-panel.tsx），published 时自动清空版本
+- Impact: `packages/core/src/storage/{version-storage,path,index}.ts`, `packages/studio/src/api/{services/chapter-service,services/chat-service,routes/chapters,schemas,server}.ts`, `packages/studio/src/{stores/chapter-store,components/editor/version-panel,pages/chapter-edit}.tsx`
+- Tests: vitest 141 通过（core 83 + studio 58，含 10 个新增 version-storage 测试 + 4 个新增 chapters 版本端点测试），`pnpm build` 零错误
+- Dead Code: 2 项修复 — 移除未使用 import `resolveSafe`，将动态 import `unlink` 改为静态 import
+- Security: 无阻塞项，无密钥硬编码，路径遍历防护完善
+- Commit Status: 待提交
+
 ## 2026-05-27 — G01-S11: AI 对话面板 + 独立对话页
 
 - Goal ID: G01-S11
