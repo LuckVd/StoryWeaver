@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-27 — G01-S09: React 前端框架
+
+- Goal ID: G01-S09
+- Summary: 搭建 React 前端应用骨架。初始化 shadcn/ui（New York 风格 + Tailwind v4 CSS 变量），配置 React Router v7 路由（Dashboard/章节/对话/设置/404），实现 Sidebar 导航布局，Dashboard 页面（书籍概览卡片 + 创建表单），Zustand `useBookStore` 状态管理，API 客户端封装
+- Impact: `packages/studio/src/{App,main}.tsx`, `components/{layout,ui}`, `pages/*`, `stores/book-store.ts`, `lib/api-client.ts`, `styles/globals.css`, `vite.config.ts`, `tsconfig.json`, `components.json`
+- Tests: vitest 118 通过（core 73 + studio 45），`pnpm build` 零错误
+- Dead Code: 未扫描（前端 UI 组件为主）
+- Security: 无阻塞项，无密钥硬编码
+- Commit Status: 待提交
+
 ## 2026-05-27 — G01-S07: API 章节 CRUD
 
 - Goal ID: G01-S07
