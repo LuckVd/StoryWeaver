@@ -40,3 +40,25 @@ export const updateChapterSchema = z.object({
 export const updateStatusSchema = z.object({
   status: z.enum(['approved', 'published'], { message: '状态只能转为 approved 或 published' }),
 });
+
+// --- Chat ---
+
+export const createSessionSchema = z.object({
+  chapterId: z.number().int().positive().optional(),
+  title: z.string().min(1).optional(),
+});
+
+export const sendMessageSchema = z.object({
+  message: z.string().min(1, '消息不能为空'),
+  context: z.object({
+    chapterRef: z.number().int().positive().optional(),
+    agentOverride: z.enum(['writer', 'brainstormer', 'auditor', 'summarizer', 'curator']).optional(),
+  }).optional(),
+});
+
+export const applySchema = z.object({
+  messageId: z.string().min(1, '消息 ID 不能为空'),
+  chapterId: z.number().int().positive('章节 ID 必须为正整数'),
+  mode: z.enum(['append', 'replace'], { message: '模式只能为 append 或 replace' }),
+  content: z.string().optional(),
+});

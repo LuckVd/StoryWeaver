@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-27 — G01-S08: API 对话端点
+
+- Goal ID: G01-S08
+- Summary: 实现对话 API 完整链路。`ChatService`（内存 session 管理 + LLM 懒初始化 + Agent 路由 + 流式对话 + apply 到章节），6 个端点（session CRUD + messages + apply），复用 SSEEmitter 广播流式 token，AIOperationQueue 串行执行，Zod 校验
+- Impact: `packages/studio/src/api/{services/chat-service,routes/chat,schemas,server}.ts`
+- Tests: vitest 127 通过（core 73 + studio 54，含 9 个新增 chat 测试），`pnpm build` 零错误
+- Dead Code: 未扫描
+- Security: API Key 从 `process.env.OPENAI_API_KEY` 读取，无硬编码
+- Commit Status: 待提交
+
 ## 2026-05-27 — G01-S10: 章节列表 + 编辑器
 
 - Goal ID: G01-S10

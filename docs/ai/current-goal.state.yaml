@@ -1,28 +1,24 @@
-goal_id: G01-S10
-title: "章节列表 + 编辑器"
+goal_id: G01-S08
+title: "API 对话端点"
 stage: done
 status: completed
-selected_option: G01-S10
+selected_option: G01-S08
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 安装 Tiptap 依赖"
-  - "Step 2: 实现 chapter-store"
-  - "Step 3: 实现章节列表组件 (status-badge, chapter-row, chapter-list)"
-  - "Step 4: 实现创建对话框 (volume, chapter)"
-  - "Step 5: 重写 chapters 页面"
-  - "Step 6: 实现 Tiptap 编辑器组件"
-  - "Step 7: 实现编辑页"
-  - "Step 8: 更新路由"
-  - "Step 9: 验证构建"
+  - "Step 1: 实现 chat-service.ts (session + 对话 + apply + LLM 初始化)"
+  - "Step 2: 新增 chat schema (createSession, sendMessage, apply)"
+  - "Step 3: 实现 routes/chat.ts (6 个端点)"
+  - "Step 4: 注册路由到 server.ts"
+  - "Step 5: 编写 chat.test.ts (9 个测试)"
+  - "Step 6: 验证构建"
 test_scope:
-  - pnpm build 零错误
-  - pnpm test 118 通过
+  - chat.test.ts: 9 tests (session CRUD, 发送消息, apply, 错误处理)
 security_blockers: []
 dead_code_actions: []
 goal_candidates:
-  - G01-S08
+  - G01-S11
 sync_status: not_started
 last_check_at: "2026-05-27"
 last_security_scan_at: null
