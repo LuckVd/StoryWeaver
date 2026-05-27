@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-27 — G01-S10: 章节列表 + 编辑器
+
+- Goal ID: G01-S10
+- Summary: 实现章节列表页（按卷分组展示，创建/删除章节）和章节编辑页（Tiptap 编辑器，HTML 模式）。新增 `useChapterStore` 管理卷宗/章节状态，实现状态标签、创建对话框、字数统计、published 只读
+- Impact: `packages/studio/src/{stores/chapter-store,components/chapter/*,components/editor/*,pages/chapters,pages/chapter-edit,App}.tsx`
+- Tests: vitest 118 通过（core 73 + studio 45），`pnpm build` 零错误
+- Dead Code: 未扫描（前端 UI 组件为主）
+- Security: 无阻塞项
+- Commit Status: 待提交
+
 ## 2026-05-27 — G01-S09: React 前端框架
 
 - Goal ID: G01-S09
