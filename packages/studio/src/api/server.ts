@@ -1,20 +1,35 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { BookStorage, ChapterStorage, VolumeIndexStorage } from '@storyweaver/core';
 import { SSEEmitter } from './sse.js';
 import { AIOperationQueue } from './queue.js';
 import { errorHandler } from './error-handler.js';
 import { eventsRoute } from './routes/events.js';
+import { bookRoute } from './routes/book.js';
+import { volumesRoute } from './routes/volumes.js';
+import { chaptersRoute } from './routes/chapters.js';
+import { BookService } from './services/book-service.js';
+import { ChapterService } from './services/chapter-service.js';
 
 /**
  * 创建 Hono API Server 实例
  *
- * 组装中间件（CORS）和路由（events），注册全局错误处理器，
- * 导出 app + sseEmitter + aiQueue 供路由注册和外部使用。
+ * 组装中间件（CORS）、服务层和路由，注册全局错误处理器，
+ * 导出 app + sseEmitter + aiQueue 供外部使用。
  */
-export function createServer() {
+export function createServer(projectRoot: string = process.cwd()) {
   const app = new Hono();
   const sseEmitter = new SSEEmitter();
   const aiQueue = new AIOperationQueue();
+
+  // 存储层
+  const bookStorage = new BookStorage(projectRoot);
+  const chapterStorage = new ChapterStorage(projectRoot);
+  const indexStorage = new VolumeIndexStorage(projectRoot);
+
+  // 服务层
+  const bookService = new BookService(bookStorage);
+  const chapterService = new ChapterService(indexStorage, chapterStorage);
 
   // 全局错误处理
   app.onError(errorHandler);
@@ -24,6 +39,9 @@ export function createServer() {
 
   // 路由
   app.route('/api/v1', eventsRoute(sseEmitter));
+  app.route('/api/v1/book', bookRoute(bookService));
+  app.route('/api/v1/volumes', volumesRoute(bookService));
+  app.route('/api/v1/chapters', chaptersRoute(bookService, chapterService));
 
   // 健康检查
   app.get('/api/v1/health', (c) => c.json({ status: 'ok' }));

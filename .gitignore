@@ -15,8 +15,5 @@ Thumbs.db
 .env
 .env.local
 
-# AI workflow
-docs/ai/change-log.md
-
 # Cache
 .cache/

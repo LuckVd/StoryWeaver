@@ -2,13 +2,13 @@
 
 ## Goal
 
-G01-S07 — API 章节 CRUD
-
-在 `packages/studio/src/api/routes/` 下实现 `book.ts` 和 `chapters.ts` 路由：完整的书籍/章节 CRUD + 章节状态流转端点。
+G01-S08 — API 对话端点（或 G01-S09 — React 前端框架）
 
 ## Current State
 
-G01-S06 已同步完成。当前无活跃目标。下一个候选：G01-S07 (API 章节 CRUD)，依赖 G01-S03 (done) 和 G01-S06 (done)，可立即启动。
+G01-S07 已同步完成。当前无活跃目标。下一候选：
+- G01-S08 (API 对话端点) — 依赖 G01-S05 (done) + G01-S07 (done)，可启动
+- G01-S09 (React 前端框架) — 依赖 G01-S01 (done)，可并行启动
 
 ## Parent Goal
 
@@ -16,4 +16,4 @@ G01-S06 已同步完成。当前无活跃目标。下一个候选：G01-S07 (API
 
 ## Sync Notes
 
-- G01-S06 同步完成于 2026-05-27
+- G01-S07 同步完成于 2026-05-27

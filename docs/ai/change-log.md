@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-27 — G01-S07: API 章节 CRUD
+
+- Goal ID: G01-S07
+- Summary: 实现书籍/卷宗/章节完整 CRUD API。扩展 core 类型（`VolumeMeta`、`ChapterMeta`），新增 `VolumeIndexStorage`（per-volume `index.json`），创建 studio service 层（`BookService`、`ChapterService`）拆分业务逻辑，实现 3 组路由（book/volumes/chapters）+ Zod 校验 schema，章节状态流转 draft→approved→published（不可逆）
+- Impact: `packages/core/src/models/book.ts`, `chapter.ts`, `storage/volume-index-storage.ts`, `path.ts`, `packages/studio/src/api/{services,routes,schemas,server}.ts`
+- Tests: vitest 118 个测试全部通过（core 73 + studio 45），`pnpm build` 零错误
+- Dead Code: `VersionTrigger` + `ChapterVersion` 未使用（G01-S12 预留），其余无死代码
+- Security: 无阻塞项，无密钥硬编码
+- Commit Status: 待提交
+
 ## 2026-05-27 — G01-S06: Hono API Server 基础
 
 - Goal ID: G01-S06

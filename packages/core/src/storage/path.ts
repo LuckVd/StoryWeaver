@@ -56,7 +56,15 @@ export function volumeDir(projectRoot: string, volume: number): string {
  */
 export function chapterPath(projectRoot: string, volume: number, chapterId: number): string {
   const dir = volumeDir(projectRoot, volume);
-  return resolve(projectRoot, dir, `ch${String(chapterId).padStart(3, '0')}.md`);
+  return resolve(dir, `ch${String(chapterId).padStart(3, '0')}.md`);
+}
+
+/**
+ * 生成卷索引文件路径：volumes/vXX/index.json
+ */
+export function volumeIndexPath(projectRoot: string, volume: number): string {
+  const dir = volumeDir(projectRoot, volume);
+  return resolve(dir, 'index.json');
 }
 
 /**

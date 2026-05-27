@@ -7,6 +7,14 @@
 /** 书籍状态 */
 export type BookStatus = 'drafting' | 'in_progress' | 'completed' | 'archived';
 
+/** 卷宗元信息 */
+export interface VolumeMeta {
+  /** 卷号（1-based，作为唯一标识） */
+  id: number;
+  title: string;
+  createdAt: string;
+}
+
 /** 书籍元信息（对应 novel.yaml） */
 export interface Book {
   title: string;
@@ -17,4 +25,8 @@ export interface Book {
   updatedAt: string;
   /** 自增章节 ID 计数器 */
   nextChapterId: number;
+  /** 自增卷号计数器 */
+  nextVolumeId: number;
+  /** 卷宗列表 */
+  volumes: VolumeMeta[];
 }

@@ -1,18 +1,27 @@
 goal_id: G01-S07
 title: "API 章节 CRUD"
-stage: planned
-status: pending
-selected_option: null
-design_confirmed: false
-blocked_by:
-  - G01-S03 (done)
-  - G01-S06 (done)
+stage: done
+status: completed
+selected_option: G01-S07
+design_confirmed: true
+blocked_by: []
 open_questions: []
-implementation_steps: []
-test_scope: []
+implementation_steps:
+  - "Step 1: 扩展 Book 类型 (VolumeMeta, ChapterMeta)"
+  - "Step 2: 新增 VolumeIndexStorage (per-volume index.json)"
+  - "Step 3: 创建 studio service 层 (BookService, ChapterService)"
+  - "Step 4: 实现 book/volumes/chapters 路由"
+  - "Step 5: 注册路由到 server.ts"
+  - "Step 6: 编写测试 (25 个新测试)"
+  - "Step 7: 验证构建"
+test_scope:
+  - book.test.ts: 6 tests (CRUD, 重复创建, 不存在)
+  - volumes.test.ts: 5 tests (列表, 创建, 自增, 更新, 不存在)
+  - chapters.test.ts: 14 tests (CRUD, 状态流转, 权限控制, 按卷过滤)
 security_blockers: []
 dead_code_actions: []
-goal_candidates: []
+goal_candidates:
+  - G01-S08
 sync_status: not_started
 last_check_at: "2026-05-27"
 last_security_scan_at: "2026-05-27"
