@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import {
   createLLMClient,
   WriterAgent,
+  BrainstormerAgent,
+  AuditorAgent,
   routeUserMessage,
   type LLMClient,
   type AgentName,
@@ -10,11 +14,14 @@ import {
   type ChatMessage,
   type ModelConfig,
   type AgentConfig,
-  type SSEEvent,
+  type ReviewReport,
 } from '@storyweaver/core';
 import type { AIOperationQueue } from '../queue.js';
 import type { SSEEmitter } from '../sse.js';
 import type { ChapterService } from './chapter-service.js';
+
+/** 支持 Agent 类型联合 */
+type AnyAgent = WriterAgent | BrainstormerAgent | AuditorAgent;
 
 /**
  * 对话服务层
@@ -24,7 +31,7 @@ import type { ChapterService } from './chapter-service.js';
 export class ChatService {
   private sessions = new Map<string, ChatSession>();
   private llmClient: LLMClient | null = null;
-  private writerAgent: WriterAgent | null = null;
+  private agents: Partial<Record<AgentName, AnyAgent>> = {};
 
   constructor(
     private readonly aiQueue: AIOperationQueue,
@@ -90,7 +97,7 @@ export class ChatService {
 
     // 入队执行
     this.aiQueue.enqueue(async () => {
-      const agent = this.getAgent();
+      const agent = this.getAgentForName(agentName);
       const messages: Message[] = session.messages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -101,7 +108,8 @@ export class ChatService {
 
       let fullContent = '';
       try {
-        for await (const token of agent.writeStream(messages)) {
+        const stream = getStream(agent, messages);
+        for await (const token of stream) {
           fullContent += token;
           this.sseEmitter.emit({ type: 'agent:token', data: { agent: agentName, token } });
         }
@@ -124,6 +132,18 @@ export class ChatService {
 
       // 广播完成
       this.sseEmitter.emit({ type: 'agent:complete', data: { agent: agentName, result: null } });
+
+      // Auditor: 额外生成结构化审稿报告
+      if (agentName === 'auditor') {
+        try {
+          const chapterId = session.chapterId ?? context?.chapterRef ?? 0;
+          const report = await (agent as AuditorAgent).audit(messages, chapterId);
+          await this.saveReviewReport(report);
+          this.sseEmitter.emit({ type: 'review:score', data: { score: report.overallScore, issues: report.issues } });
+        } catch {
+          // 审稿报告生成失败不影响对话流程
+        }
+      }
     });
   }
 
@@ -168,8 +188,10 @@ export class ChatService {
 
   // --- LLM 初始化 ---
 
-  private getAgent(): WriterAgent {
-    if (this.writerAgent) return this.writerAgent;
+  private initLLM(): { client: LLMClient; model: string } {
+    if (this.llmClient) {
+      return { client: this.llmClient, model: process.env.OPENAI_MODEL ?? 'gpt-4o' };
+    }
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -187,8 +209,51 @@ export class ChatService {
     };
 
     this.llmClient = createLLMClient(config);
-    const agentConfig: AgentConfig = { model, temperature: 0.7 };
-    this.writerAgent = new WriterAgent(this.llmClient, agentConfig);
-    return this.writerAgent;
+    return { client: this.llmClient, model };
   }
+
+  /** 根据 Agent 名称获取对应 Agent 实例（懒初始化） */
+  private getAgentForName(name: AgentName): AnyAgent {
+    const cached = this.agents[name];
+    if (cached) return cached;
+
+    const { client, model } = this.initLLM();
+
+    let agent: AnyAgent;
+    switch (name) {
+      case 'brainstormer':
+        agent = new BrainstormerAgent(client, { model, temperature: 1.0 });
+        break;
+      case 'auditor':
+        agent = new AuditorAgent(client, { model, temperature: 0.3 });
+        break;
+      default:
+        agent = new WriterAgent(client, { model, temperature: 0.7 });
+        break;
+    }
+
+    this.agents[name] = agent;
+    return agent;
+  }
+
+  /** 保存审稿报告到 reviews/ 目录 */
+  private async saveReviewReport(report: ReviewReport): Promise<void> {
+    const dir = resolve(process.cwd(), 'reviews');
+    const filePath = resolve(dir, `ch${String(report.chapterId).padStart(3, '0')}-review-${report.id.slice(0, 8)}.json`);
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(dir, { recursive: true });
+    await writeFile(filePath, JSON.stringify(report, null, 2), 'utf-8');
+  }
+}
+
+/** 获取 Agent 的流式输出 */
+function getStream(agent: AnyAgent, messages: Message[]): AsyncGenerator<string> {
+  const a = agent as Record<string, unknown>;
+  if (a.name === 'brainstormer') {
+    return (agent as BrainstormerAgent).brainstormStream(messages);
+  }
+  if (a.name === 'auditor') {
+    return (agent as AuditorAgent).auditStream(messages);
+  }
+  return (agent as WriterAgent).writeStream(messages);
 }

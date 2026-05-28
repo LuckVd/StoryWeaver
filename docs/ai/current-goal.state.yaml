@@ -1,37 +1,25 @@
-goal_id: G02-S01
-title: "知识库系统"
+goal_id: G02-S03
+title: "Brainstormer + Auditor Agent"
 stage: done
 status: completed
-selected_option: G02-S01
+selected_option: G02-S03
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: path helpers — knowledgeDir/knowledgeFilePath/worldFilePath/customFilePath/outlineFilePath/relationsFilePath/characterDir/characterIndexPath/characterFilePath"
-  - "Step 2: KnowledgeStorage — characters 目录 + world 子分类 + items/hooks/rules 单文件 + custom 目录"
-  - "Step 3: OutlineStorage — 大纲树读写"
-  - "Step 4: RelationStorage — 关系边 CRUD"
-  - "Step 5: 存储层测试 — knowledge(17)/outline(3)/relation(8) = 28 个测试"
-  - "Step 6: KnowledgeService — Service 层整合 3 个 Storage"
-  - "Step 7: API schemas — Zod 校验（含 world sub / custom name 校验）"
-  - "Step 8: API 路由 — knowledge route + 注册到 server"
-  - "Step 9: API 测试 — 32 个路由测试"
-  - "Step 10: 构建验证 — pnpm build 零错误 + pnpm test 201 通过"
+  - "Step 1: BrainstormerAgent — brainstormer-agent.ts（温度 1.0，BRAINSTORMER_PROMPT，流式）"
+  - "Step 2: AuditorAgent — auditor-agent.ts（温度 0.3，chatStructured + auditStream + ReviewReport Zod schema）"
+  - "Step 3: Agent 导出 — agents/index.ts 新增 2 个导出"
+  - "Step 4: Agent 测试 — brainstormer(6) + auditor(6) = 12 个测试"
+  - "Step 5: ChatService 多 Agent 调度 — getAgentForName + getStream + 审稿报告保存"
+  - "Step 6: ChatService 测试更新 — 新增 brainstormer/auditor/agentOverride 3 个测试"
+  - "Step 7: 构建验证 — pnpm build 零错误 + pnpm test 216 通过"
 test_scope:
-  - "vitest 201 通过（core 111 + studio 90），pnpm build 零错误"
+  - "vitest 216 通过（core 123 + studio 93），pnpm build 零错误"
 security_blockers: []
-security_fixes:
-  - "S2/S3/S4: world sub 和 custom name query param 添加 Zod 校验"
-  - "S8: API 服务器默认绑定 127.0.0.1"
-dead_code_actions:
-  - "移除未使用 import rm"
-  - "移除未使用 import characterDir"
-  - "5 个 getter 方法预留（getWorld/getSimple/getCustom/OutlineStorage.exists/RelationStorage.get），待后续 API 扩展使用"
+dead_code_actions: []
 goal_candidates:
-  - G02-S02
-  - G02-S03
+  - G02-S04
+  - G02-S10
 sync_status: completed
 last_check_at: "2026-05-28"
-last_security_scan_at: "2026-05-28"
-last_deadcode_scan_at: "2026-05-28"
-last_synced_at: "2026-05-28"

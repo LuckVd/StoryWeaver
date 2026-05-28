@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { routeUserMessage } from '@storyweaver/core';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -11,11 +12,35 @@ vi.mock('@storyweaver/core', async (importOriginal) => {
     ...actual,
     routeUserMessage: vi.fn().mockResolvedValue('writer'),
     WriterAgent: vi.fn().mockImplementation(() => ({
+      name: 'writer',
       writeStream: async function* () {
         yield '你好';
         yield '，';
         yield '世界';
       },
+    })),
+    BrainstormerAgent: vi.fn().mockImplementation(() => ({
+      name: 'brainstormer',
+      brainstormStream: async function* () {
+        yield '构思';
+        yield '结果';
+      },
+    })),
+    AuditorAgent: vi.fn().mockImplementation(() => ({
+      name: 'auditor',
+      auditStream: async function* () {
+        yield '审稿';
+        yield '结果';
+      },
+      audit: vi.fn().mockResolvedValue({
+        id: 'test-review-id',
+        chapterId: 1,
+        overallScore: 7.5,
+        scores: [],
+        issues: [],
+        summary: '测试报告',
+        createdAt: new Date().toISOString(),
+      }),
     })),
     createLLMClient: vi.fn().mockReturnValue({
       chatCompletion: vi.fn(),
@@ -165,5 +190,75 @@ describe('Chat Routes', () => {
       body: JSON.stringify({ message: '' }),
     });
     expect(res.status).toBe(400);
+  });
+
+  it('POST /api/v1/chat/sessions/:id/messages — brainstormer 路由', async () => {
+    vi.mocked(routeUserMessage).mockResolvedValueOnce('brainstormer');
+    const app = server();
+    const createRes = await app.request('/api/v1/chat/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const { id } = await createRes.json();
+    const res = await app.request(`/api/v1/chat/sessions/${id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: '构思一个修仙设定' }),
+    });
+    expect(res.status).toBe(200);
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    const sessionRes = await app.request(`/api/v1/chat/sessions/${id}`);
+    const session = await sessionRes.json();
+    expect(session.messages[1].role).toBe('assistant');
+    expect(session.messages[1].agent).toBe('brainstormer');
+  });
+
+  it('POST /api/v1/chat/sessions/:id/messages — auditor 路由', async () => {
+    vi.mocked(routeUserMessage).mockResolvedValueOnce('auditor');
+    const app = server();
+    const createRes = await app.request('/api/v1/chat/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const { id } = await createRes.json();
+    const res = await app.request(`/api/v1/chat/sessions/${id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: '审稿这段内容' }),
+    });
+    expect(res.status).toBe(200);
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    const sessionRes = await app.request(`/api/v1/chat/sessions/${id}`);
+    const session = await sessionRes.json();
+    expect(session.messages[1].role).toBe('assistant');
+    expect(session.messages[1].agent).toBe('auditor');
+  });
+
+  it('POST /api/v1/chat/sessions/:id/messages — agentOverride 覆盖路由', async () => {
+    const app = server();
+    const createRes = await app.request('/api/v1/chat/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const { id } = await createRes.json();
+    const res = await app.request(`/api/v1/chat/sessions/${id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'test', context: { agentOverride: 'brainstormer' } }),
+    });
+    expect(res.status).toBe(200);
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    const sessionRes = await app.request(`/api/v1/chat/sessions/${id}`);
+    const session = await sessionRes.json();
+    expect(session.messages[1].agent).toBe('brainstormer');
   });
 });

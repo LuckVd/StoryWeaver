@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-28 — G02-S03: Brainstormer + Auditor Agent
+
+- Goal ID: G02-S03
+- Summary: 实现 BrainstormerAgent（高温度 1.0，发散创意流式输出）和 AuditorAgent（低温度 0.3，流式审稿 + chatStructured 结构化 ReviewReport），重构 ChatService 从单一 WriterAgent 改为多 Agent 调度（根据 router 结果分发 brainstormer/writer/auditor），审稿报告自动保存到 reviews/ 目录
+- Impact: `core/src/agents/{brainstormer-agent,auditor-agent,index}.ts`, `studio/src/api/services/chat-service.ts`, `studio/src/api/__tests__/chat.test.ts`
+- Tests: vitest 216 通过（core 123 + studio 93，新增 15 个），`pnpm build` 零错误
+- Dead Code: 无新增
+- Security: 无阻塞项
+- Commit Status: 待提交
+
 ## 2026-05-28 — G02-S01: 知识库系统
 
 - Goal ID: G02-S01
