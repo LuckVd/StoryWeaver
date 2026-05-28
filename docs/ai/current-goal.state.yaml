@@ -1,25 +1,27 @@
-goal_id: G02-S03
-title: "Brainstormer + Auditor Agent"
+goal_id: G02-S04
+title: "审稿报告页面"
 stage: done
 status: completed
-selected_option: G02-S03
+selected_option: G02-S04
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: BrainstormerAgent — brainstormer-agent.ts（温度 1.0，BRAINSTORMER_PROMPT，流式）"
-  - "Step 2: AuditorAgent — auditor-agent.ts（温度 0.3，chatStructured + auditStream + ReviewReport Zod schema）"
-  - "Step 3: Agent 导出 — agents/index.ts 新增 2 个导出"
-  - "Step 4: Agent 测试 — brainstormer(6) + auditor(6) = 12 个测试"
-  - "Step 5: ChatService 多 Agent 调度 — getAgentForName + getStream + 审稿报告保存"
-  - "Step 6: ChatService 测试更新 — 新增 brainstormer/auditor/agentOverride 3 个测试"
-  - "Step 7: 构建验证 — pnpm build 零错误 + pnpm test 216 通过"
+  - "Step 1: reviews API 路由 — GET /chapters/:id/reviews"
+  - "Step 2: API 测试 — 5 个测试"
+  - "Step 3: score-card 组件 — 综合评分 + 7 维度评分条"
+  - "Step 4: issues-list 组件 — 按 severity 分组"
+  - "Step 5: review 页面 — 组合组件 + 历史切换"
+  - "Step 6: 路由注册 — App.tsx + server.ts"
+  - "Step 7: 构建验证 — pnpm build 零错误 + pnpm test 221 通过"
 test_scope:
-  - "vitest 216 通过（core 123 + studio 93），pnpm build 零错误"
+  - "vitest 221 通过（core 123 + studio 98），pnpm build 零错误"
 security_blockers: []
 dead_code_actions: []
 goal_candidates:
-  - G02-S04
+  - G02-S02
+  - G02-S05
+  - G02-S06
   - G02-S10
 sync_status: completed
 last_check_at: "2026-05-28"

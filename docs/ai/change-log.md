@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-28 — G02-S04: 审稿报告页面
+
+- Goal ID: G02-S04
+- Summary: 实现审稿报告 API 端点和前端页面。GET /chapters/:id/reviews 读取 reviews/ 目录返回报告列表（时间倒序），前端 score-card 组件（综合评分 + 7 维度评分条 + 颜色标识），issues-list 组件（按 severity 分组 + 维度标签 + 修改建议），review 页面（历史报告切换 + 返回编辑按钮）
+- Impact: `studio/src/api/routes/reviews.ts`, `studio/src/pages/review.tsx`, `studio/src/components/review/{score-card,issues-list}.tsx`, `studio/src/{App,api/server}.tsx`
+- Tests: vitest 221 通过（core 123 + studio 98，新增 5 个），`pnpm build` 零错误
+- Dead Code: 无新增
+- Security: 无阻塞项
+- Commit Status: 待提交
+
 ## 2026-05-28 — G02-S03: Brainstormer + Auditor Agent
 
 - Goal ID: G02-S03

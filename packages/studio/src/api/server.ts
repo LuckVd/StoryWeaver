@@ -10,6 +10,7 @@ import { volumesRoute } from './routes/volumes.js';
 import { chaptersRoute } from './routes/chapters.js';
 import { chatRoute } from './routes/chat.js';
 import { knowledgeRoute } from './routes/knowledge.js';
+import { reviewsRoute } from './routes/reviews.js';
 import { BookService } from './services/book-service.js';
 import { ChapterService } from './services/chapter-service.js';
 import { ChatService } from './services/chat-service.js';
@@ -55,6 +56,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   app.route('/api/v1/chapters', chaptersRoute(bookService, chapterService));
   app.route('/api/v1/chat', chatRoute(chatService));
   app.route('/api/v1/knowledge', knowledgeRoute(knowledgeService));
+  app.route('/api/v1', reviewsRoute(projectRoot));
 
   // 健康检查
   app.get('/api/v1/health', (c) => c.json({ status: 'ok' }));

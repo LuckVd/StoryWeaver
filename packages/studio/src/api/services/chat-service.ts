@@ -248,7 +248,7 @@ export class ChatService {
 
 /** 获取 Agent 的流式输出 */
 function getStream(agent: AnyAgent, messages: Message[]): AsyncGenerator<string> {
-  const a = agent as Record<string, unknown>;
+  const a = agent as unknown as Record<string, unknown>;
   if (a.name === 'brainstormer') {
     return (agent as BrainstormerAgent).brainstormStream(messages);
   }
