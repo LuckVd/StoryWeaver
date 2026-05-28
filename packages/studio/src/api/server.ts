@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage, WorkspaceStorage, SummaryStorage } from '@storyweaver/core';
+import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage, WorkspaceStorage, SummaryStorage, InMemorySearchEngine } from '@storyweaver/core';
 import { SSEEmitter } from './sse.js';
 import { AIOperationQueue } from './queue.js';
 import { errorHandler } from './error-handler.js';
@@ -12,6 +12,7 @@ import { chatRoute } from './routes/chat.js';
 import { knowledgeRoute } from './routes/knowledge.js';
 import { reviewsRoute } from './routes/reviews.js';
 import { workspaceRoute } from './routes/workspace.js';
+import { searchRoute } from './routes/search.js';
 import { BookService } from './services/book-service.js';
 import { ChapterService } from './services/chapter-service.js';
 import { ChatService } from './services/chat-service.js';
@@ -66,6 +67,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   app.route('/api/v1/chat', chatRoute(chatService));
   app.route('/api/v1/knowledge', knowledgeRoute(knowledgeService));
   app.route('/api/v1/workspace', workspaceRoute(workspaceService));
+  app.route('/api/v1/search', searchRoute(new InMemorySearchEngine()));
   app.route('/api/v1', reviewsRoute(projectRoot));
 
   // 健康检查

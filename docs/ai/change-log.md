@@ -1,6 +1,14 @@
 # Change Log
 
-## 2026-05-28 — G02-S05: 工作区管理 + 发布流程
+## 2026-05-28 — G02-S08: 内存搜索引擎
+
+- Goal ID: G02-S08
+- Summary: 实现 InMemorySearchEngine（倒排索引 + 中英文分词 + scope 过滤）和搜索 API 端点 GET /search?q=...&scope=all。支持 chapters/knowledge/summaries 三种文档类型索引，多关键词取交集，标题匹配加分，结果含上下文片段
+- Impact: `core/src/search/{search-engine,index}.ts`, `studio/src/api/routes/search.ts`, `core/src/index.ts`, `studio/src/api/{server,schemas}.ts`
+- Tests: vitest 286 通过（core 172 + studio 114，新增 26 个），`pnpm build` 零错误
+- Dead Code: 无新增（indexSummary/remove 为合理预留 API）
+- Security: 无阻塞项（纯内存计算，无 I/O/密钥/环境变量）
+- Commit Status: 待提交
 
 - Goal ID: G02-S05
 - Summary: 实现 WorkspaceService（工作区 CRUD + 发布流程）和 workspace API 路由（4 端点）。发布流程：校验 approved 状态 → 逐章状态锁定 published → SummarizerAgent 生成 ChapterSummary → 更新 StoryStateSnapshot → 从工作区移除 → SSE 广播进度/完成。无 LLM 时自动降级跳过摘要

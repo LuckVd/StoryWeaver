@@ -197,6 +197,10 @@ export const publishSchema = z.object({
   skipSummary: z.boolean().optional(),
 });
 
+// --- Search ---
+
+export const VALID_SEARCH_SCOPES = ['all', 'chapters', 'knowledge', 'summaries'] as const;
+
 // --- Query param helpers ---
 
 export const VALID_WORLD_SUBS = ['geography', 'power-system', 'factions', 'history', 'glossary'] as const;
