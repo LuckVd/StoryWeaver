@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage } from '@storyweaver/core';
+import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage } from '@storyweaver/core';
 import { SSEEmitter } from './sse.js';
 import { AIOperationQueue } from './queue.js';
 import { errorHandler } from './error-handler.js';
@@ -9,9 +9,11 @@ import { bookRoute } from './routes/book.js';
 import { volumesRoute } from './routes/volumes.js';
 import { chaptersRoute } from './routes/chapters.js';
 import { chatRoute } from './routes/chat.js';
+import { knowledgeRoute } from './routes/knowledge.js';
 import { BookService } from './services/book-service.js';
 import { ChapterService } from './services/chapter-service.js';
 import { ChatService } from './services/chat-service.js';
+import { KnowledgeService } from './services/knowledge-service.js';
 
 /**
  * 创建 Hono API Server 实例
@@ -34,6 +36,11 @@ export function createServer(projectRoot: string = process.cwd()) {
   const bookService = new BookService(bookStorage);
   const chapterService = new ChapterService(indexStorage, chapterStorage, versionStorage, projectRoot);
   const chatService = new ChatService(aiQueue, sseEmitter, chapterService);
+  const knowledgeService = new KnowledgeService(
+    new KnowledgeStorage(projectRoot),
+    new OutlineStorage(projectRoot),
+    new RelationStorage(projectRoot),
+  );
 
   // 全局错误处理
   app.onError(errorHandler);
@@ -47,6 +54,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   app.route('/api/v1/volumes', volumesRoute(bookService));
   app.route('/api/v1/chapters', chaptersRoute(bookService, chapterService));
   app.route('/api/v1/chat', chatRoute(chatService));
+  app.route('/api/v1/knowledge', knowledgeRoute(knowledgeService));
 
   // 健康检查
   app.get('/api/v1/health', (c) => c.json({ status: 'ok' }));

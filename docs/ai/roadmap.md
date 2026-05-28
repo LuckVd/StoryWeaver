@@ -110,7 +110,7 @@
 | G01 | G01-S11 | AI 对话面板 + 独立对话页 | 编辑器内 chat 组件 + 独立 `/chat` 页面（不绑定章节的自由对话）— 消息列表 + 输入框 + SSE 流式显示 + Apply 按钮 | done | G01-S08, G01-S10 | | accepted | passed | 2026-05-27 | | SSE Hook + ChatStore + ChatPanel + 编辑器双栏 + 独立对话页 + append/replace |
 | G01 | G01-S12 | 版本控制 + 基础测试 | 章节版本快照/回退 API + 前端历史面板 + core/api 测试 | done | G01-S07, G01-S11 | | accepted | passed | 2026-05-27 | | VersionStorage + 3 API 端点 + 自动快照 + published 清空 + 前端面板 |
 | G02 | | Phase 2: 核心流水线 | 完整的知识库 + 审稿 + 工作区 | planned | G01 | 依赖 MVP 稳定 | pending | not_started | | | |
-| G02 | G02-S01 | 知识库系统 | knowledge/ — 角色/世界观/物品/伏笔/规则 CRUD | planned | G01-S03 | | pending | not_started | | | |
+| G02 | G02-S01 | 知识库系统 | knowledge/ — 角色/世界观/物品/伏笔/规则 CRUD | done | G01-S03 | | accepted | passed | 2026-05-28 | | KnowledgeStorage + OutlineStorage + RelationStorage + API 路由 |
 | G02 | G02-S02 | 关系图 + 可视化 | 邻接表存储 + React Flow 前端 | planned | G02-S01 | | pending | not_started | | | |
 | G02 | G02-S03 | Brainstormer + Auditor Agent | 构思 Agent + 审稿 Agent 实现 | planned | G01-S05 | | pending | not_started | | | |
 | G02 | G02-S04 | 审稿报告页面 | 评分卡 + 问题列表 + 原文对照 | planned | G02-S03, G01-S10 | | pending | not_started | | | |

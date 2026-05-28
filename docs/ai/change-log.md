@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-28 — G02-S01: 知识库系统
+
+- Goal ID: G02-S01
+- Summary: 实现知识库完整存储层 + API CRUD。`KnowledgeStorage`（characters 目录结构 + world 5 子分类 + items/hooks/rules 单文件 + custom 自定义目录），`OutlineStorage`（大纲树整棵读写），`RelationStorage`（关系边 CRUD），`KnowledgeService` 业务层，knowledge API 路由（概览 + 6 分类 CRUD + 大纲 + 关系，共 30+ 端点），Zod 校验 schemas。同时添加了 API 服务器启动入口（start.ts）、OPENAI_BASE_URL 环境变量支持、dev:api/dev:all 脚本
+- Impact: `core/src/storage/{knowledge-storage,outline-storage,relation-storage,path,index}.ts`, `studio/src/api/{services/knowledge-service,routes/knowledge,schemas,server,start}.ts`, `studio/package.json`, `.env`
+- Tests: vitest 201 通过（core 111 + studio 90，新增 60 个），`pnpm build` 零错误
+- Dead Code: 2 项修复 — 移除未使用 import `rm`/`characterDir`；5 个 getter 方法预留给后续 API 扩展
+- Security: 3 项修复 — world `sub` 参数 Zod 校验、custom `name` 参数 Zod 校验、API 绑定 127.0.0.1。无阻塞项，.env 已在 .gitignore 中
+- Commit Status: 待提交
+
 ## 2026-05-27 — G01-S12: 版本控制 + 基础测试
 
 - Goal ID: G01-S12

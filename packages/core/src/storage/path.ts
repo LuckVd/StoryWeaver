@@ -105,6 +105,72 @@ export function versionFilePath(projectRoot: string, volume: number, chapterId: 
   return resolve(dir, `v${String(versionId).padStart(3, '0')}.json`);
 }
 
+// ── 知识库路径 ──
+
+/**
+ * 生成知识库根目录：knowledge/
+ */
+export function knowledgeDir(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'knowledge');
+}
+
+/**
+ * 生成知识库单文件路径：knowledge/{category}.json
+ * 用于 items / hooks / rules
+ */
+export function knowledgeFilePath(projectRoot: string, category: string): string {
+  return resolveSafe(projectRoot, `knowledge/${category}.json`);
+}
+
+/**
+ * 生成世界观子文件路径：knowledge/world/{sub}.json
+ */
+export function worldFilePath(projectRoot: string, subCategory: string): string {
+  return resolveSafe(projectRoot, `knowledge/world/${subCategory}.json`);
+}
+
+/**
+ * 生成自定义分类文件路径：knowledge/custom/{name}.json
+ */
+export function customFilePath(projectRoot: string, name: string): string {
+  return resolveSafe(projectRoot, `knowledge/custom/${name}.json`);
+}
+
+/**
+ * 生成大纲文件路径：knowledge/outline.json
+ */
+export function outlineFilePath(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'knowledge/outline.json');
+}
+
+/**
+ * 生成关系图文件路径：knowledge/relations.json
+ */
+export function relationsFilePath(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'knowledge/relations.json');
+}
+
+/**
+ * 生成角色目录：knowledge/characters/
+ */
+export function characterDir(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'knowledge/characters');
+}
+
+/**
+ * 生成角色索引文件：knowledge/characters/_index.json
+ */
+export function characterIndexPath(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'knowledge/characters/_index.json');
+}
+
+/**
+ * 生成角色详细档案路径：knowledge/characters/{slug}.json
+ */
+export function characterFilePath(projectRoot: string, slug: string): string {
+  return resolveSafe(projectRoot, `knowledge/characters/${slug}.json`);
+}
+
 /**
  * 解析章节 ID（从文件名 "ch001.md" → 1）
  */

@@ -177,11 +177,13 @@ export class ChatService {
     }
 
     const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
+    const baseUrl = process.env.OPENAI_BASE_URL;
     const config: ModelConfig = {
       id: model,
       name: model,
       service: 'openai',
       apiKey,
+      ...(baseUrl ? { baseUrl } : {}),
     };
 
     this.llmClient = createLLMClient(config);

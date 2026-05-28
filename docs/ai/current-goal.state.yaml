@@ -1,28 +1,37 @@
-goal_id: G01-S12
-title: "版本控制 + 基础测试"
+goal_id: G02-S01
+title: "知识库系统"
 stage: done
 status: completed
-selected_option: G01-S12
+selected_option: G02-S01
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 添加路径辅助函数 + VersionStorage (core/storage/)"
-  - "Step 2: 集成快照到 Service 层 (ChapterService + ChatService)"
-  - "Step 3: 添加版本 API 端点 (3 个端点 + schema)"
-  - "Step 4: 前端版本历史面板 (store + component + page)"
-  - "Step 5: 编写测试 (version-storage + chapters 版本端点)"
-  - "Step 6: 验证构建 + 运行测试"
+  - "Step 1: path helpers — knowledgeDir/knowledgeFilePath/worldFilePath/customFilePath/outlineFilePath/relationsFilePath/characterDir/characterIndexPath/characterFilePath"
+  - "Step 2: KnowledgeStorage — characters 目录 + world 子分类 + items/hooks/rules 单文件 + custom 目录"
+  - "Step 3: OutlineStorage — 大纲树读写"
+  - "Step 4: RelationStorage — 关系边 CRUD"
+  - "Step 5: 存储层测试 — knowledge(17)/outline(3)/relation(8) = 28 个测试"
+  - "Step 6: KnowledgeService — Service 层整合 3 个 Storage"
+  - "Step 7: API schemas — Zod 校验（含 world sub / custom name 校验）"
+  - "Step 8: API 路由 — knowledge route + 注册到 server"
+  - "Step 9: API 测试 — 32 个路由测试"
+  - "Step 10: 构建验证 — pnpm build 零错误 + pnpm test 201 通过"
 test_scope:
-  - "vitest 141 通过（core 83 + studio 58），pnpm build 零错误"
+  - "vitest 201 通过（core 111 + studio 90），pnpm build 零错误"
 security_blockers: []
+security_fixes:
+  - "S2/S3/S4: world sub 和 custom name query param 添加 Zod 校验"
+  - "S8: API 服务器默认绑定 127.0.0.1"
 dead_code_actions:
-  - "移除未使用 import resolveSafe"
-  - "将动态 import unlink 改为静态 import"
+  - "移除未使用 import rm"
+  - "移除未使用 import characterDir"
+  - "5 个 getter 方法预留（getWorld/getSimple/getCustom/OutlineStorage.exists/RelationStorage.get），待后续 API 扩展使用"
 goal_candidates:
-  - G02-S01
+  - G02-S02
+  - G02-S03
 sync_status: completed
-last_check_at: "2026-05-27"
-last_security_scan_at: "2026-05-27"
-last_deadcode_scan_at: "2026-05-27"
-last_synced_at: "2026-05-27"
+last_check_at: "2026-05-28"
+last_security_scan_at: "2026-05-28"
+last_deadcode_scan_at: "2026-05-28"
+last_synced_at: "2026-05-28"
