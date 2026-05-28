@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-28 — G02-S10: 路由层完善
+
+- Goal ID: G02-S10
+- Summary: 完善 routeUserMessage 路由层。新增 LLM 兜底分类（可选 LLMClient，3s 超时降级为 writer），补充关键词规则（展开/删掉/比较/挑错/建议/回顾），新增斜杠命令 /summarize /curate，ChatService 传入 llmClient。向后兼容
+- Impact: `core/src/agents/router.ts`, `core/src/agents/__tests__/router.test.ts`, `studio/src/api/services/chat-service.ts`
+- Tests: vitest 301 通过（core 187 + studio 114，新增 15 个），`pnpm build` 零错误
+- Dead Code: 无新增（改动范围小，纯逻辑改进）
+- Security: 无阻塞项（LLM 调用复用已有 client，无新密钥/路径暴露）
+- Commit Status: 待提交
+
 ## 2026-05-28 — G02-S08: 内存搜索引擎
 
 - Goal ID: G02-S08

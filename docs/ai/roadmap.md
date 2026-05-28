@@ -119,7 +119,7 @@
 | G02 | G02-S07 | 章节状态流转 | draft → approved → published 完整流程 | planned | G02-S05 | | pending | not_started | | | |
 | G02 | G02-S08 | 内存搜索引擎 | 倒排索引 + 分词 + 搜索 API | done | G01-S03 | | accepted | passed | 2026-05-28 | | InMemorySearchEngine + 中英文分词 + scope 过滤 + search API |
 | G02 | G02-S09 | 文件监听 | chokidar 监听 volumes/ + knowledge/ + SSE 通知 | planned | G02-S08 | | pending | not_started | | | |
-| G02 | G02-S10 | 路由层完善 | 关键词路由 + LLM 兜底路由 | planned | G02-S03 | | pending | not_started | | | |
+| G02 | G02-S10 | 路由层完善 | 关键词路由 + LLM 兜底路由 | done | G02-S03 | | accepted | passed | 2026-05-28 | | LLM 兜底分类 + 3s 超时降级 + 补充关键词 + 新斜杠命令 |
 | G03 | | Phase 3: 长篇记忆 | 支持百万字长篇 | planned | G02 | 依赖知识库和 Summarizer | pending | not_started | | | |
 | G03 | G03-S01 | 三层记忆系统 | Layer 1 永久记忆 + Layer 2 近期 + Layer 3 远期 + 对话上下文压缩（>10 轮自动摘要） | planned | G02-S06 | | pending | not_started | | | |
 | G03 | G03-S02 | 章节摘要结构化 | ChapterSummary 结构化生成 | planned | G02-S06 | | pending | not_started | | | |

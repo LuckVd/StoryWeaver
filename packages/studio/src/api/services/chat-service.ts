@@ -93,7 +93,8 @@ export class ChatService {
     session.updatedAt = new Date().toISOString();
 
     // 确定 Agent
-    const agentName: AgentName = context?.agentOverride ?? await routeUserMessage(userContent);
+    const llmClient = this.llmClient ?? undefined;
+    const agentName: AgentName = context?.agentOverride ?? await routeUserMessage(userContent, undefined, llmClient);
 
     // 入队执行
     this.aiQueue.enqueue(async () => {
