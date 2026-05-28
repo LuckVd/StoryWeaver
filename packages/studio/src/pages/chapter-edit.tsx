@@ -7,13 +7,13 @@ import { ChatPanel } from '@/components/chat/chat-panel';
 import { StatusBadge } from '@/components/chapter/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Save, MessageSquare, History } from 'lucide-react';
+import { ArrowLeft, Save, MessageSquare, History, CheckCircle, Send } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 
 export function ChapterEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentChapter, loading, error, fetchChapter, saveChapter } = useChapterStore();
+  const { currentChapter, loading, error, fetchChapter, saveChapter, updateChapterStatus } = useChapterStore();
   const [title, setTitle] = useState('');
   const [dirty, setDirty] = useState(false);
   const [wordCount, setWordCount] = useState(0);
@@ -48,6 +48,17 @@ export function ChapterEditPage() {
     const content = editorRef.current ? getEditorHtml(editorRef.current) : currentChapter.content;
     await saveChapter(currentChapter.id, { title, content });
     setDirty(false);
+  };
+
+  const handleApprove = async () => {
+    if (!currentChapter) return;
+    await updateChapterStatus(currentChapter.id, 'approved');
+  };
+
+  const handlePublish = async () => {
+    if (!currentChapter) return;
+    if (!window.confirm('定稿发布后章节将不可修改，确定继续？')) return;
+    await updateChapterStatus(currentChapter.id, 'published');
   };
 
   if (error) {
@@ -88,6 +99,18 @@ export function ChapterEditPage() {
           <Button onClick={handleSave} disabled={!dirty || loading}>
             <Save className="mr-1 h-4 w-4" />
             {loading ? '保存中...' : '保存'}
+          </Button>
+        )}
+        {currentChapter.status === 'draft' && !dirty && (
+          <Button variant="outline" onClick={handleApprove} disabled={loading}>
+            <CheckCircle className="mr-1 h-4 w-4" />
+            提交审阅
+          </Button>
+        )}
+        {currentChapter.status === 'approved' && (
+          <Button variant="outline" onClick={handlePublish} disabled={loading}>
+            <Send className="mr-1 h-4 w-4" />
+            定稿发布
           </Button>
         )}
         <Button

@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-28 — G02-S07: 章节状态流转
+
+- Goal ID: G02-S07
+- Summary: 前端章节状态流转交互。编辑页添加"提交审阅"（draft→approved）和"定稿发布"（approved→published）按钮，发布前 window.confirm 确认；章节列表 approved 行显示快捷发布按钮；chapter-store updateChapterStatus 刷新 currentChapter
+- Impact: `studio/src/pages/chapter-edit.tsx`, `studio/src/pages/chapters.tsx`, `studio/src/components/chapter/{chapter-row,chapter-list}.tsx`, `studio/src/stores/chapter-store.ts`
+- Tests: vitest 301 通过（core 187 + studio 114），`pnpm build` 零错误
+- Dead Code: 无新增
+- Security: 无阻塞项
+- Commit Status: 待提交
+
 ## 2026-05-28 — G02-S10: 路由层完善
 
 - Goal ID: G02-S10

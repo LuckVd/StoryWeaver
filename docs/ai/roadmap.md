@@ -116,7 +116,7 @@
 | G02 | G02-S04 | 审稿报告页面 | 评分卡 + 问题列表 + 原文对照 | done | G02-S03, G01-S10 | | accepted | passed | 2026-05-28 | | reviews API + score-card + issues-list + review 页面 |
 | G02 | G02-S05 | 工作区管理 + 发布流程 | workspace 管理 + publish 流程 + SSE 进度 | done | G01-S07 | | accepted | passed | 2026-05-28 | | WorkspaceService + workspace 路由（4 端点）+ 发布流程（状态锁定 + AI 摘要 + SSE） |
 | G02 | G02-S06 | Summarizer Agent | 章节摘要 + 时间线 + 角色状态 + 综合总结 | done | G01-S05 | | accepted | passed | 2026-05-28 | | SummarizerAgent + SummaryStorage + memory 路径函数，Timeline/API 留到后续子目标 |
-| G02 | G02-S07 | 章节状态流转 | draft → approved → published 完整流程 | planned | G02-S05 | | pending | not_started | | | |
+| G02 | G02-S07 | 章节状态流转 | draft → approved → published 完整流程 | done | G02-S05 | | accepted | passed | 2026-05-28 | | 前端状态流转按钮 + 确认提示 + 列表快捷发布 + store 刷新 |
 | G02 | G02-S08 | 内存搜索引擎 | 倒排索引 + 分词 + 搜索 API | done | G01-S03 | | accepted | passed | 2026-05-28 | | InMemorySearchEngine + 中英文分词 + scope 过滤 + search API |
 | G02 | G02-S09 | 文件监听 | chokidar 监听 volumes/ + knowledge/ + SSE 通知 | planned | G02-S08 | | pending | not_started | | | |
 | G02 | G02-S10 | 路由层完善 | 关键词路由 + LLM 兜底路由 | done | G02-S03 | | accepted | passed | 2026-05-28 | | LLM 兜底分类 + 3s 超时降级 + 补充关键词 + 新斜杠命令 |

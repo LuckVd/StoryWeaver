@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 export function ChaptersPage() {
-  const { volumes, chaptersByVolume, loading, fetchVolumesAndChapters, createVolume, createChapter, deleteChapter } = useChapterStore();
+  const { volumes, chaptersByVolume, loading, fetchVolumesAndChapters, createVolume, createChapter, deleteChapter, updateChapterStatus } = useChapterStore();
   const [showCreateVolume, setShowCreateVolume] = useState(false);
   const [showCreateChapter, setShowCreateChapter] = useState(false);
 
@@ -18,6 +18,12 @@ export function ChaptersPage() {
   const handleDelete = async (id: number) => {
     if (confirm('确定删除此章节？此操作不可撤销。')) {
       await deleteChapter(id);
+    }
+  };
+
+  const handlePublish = async (id: number) => {
+    if (confirm('定稿发布后章节将不可修改，确定继续？')) {
+      await updateChapterStatus(id, 'published');
     }
   };
 
@@ -40,7 +46,7 @@ export function ChaptersPage() {
       {loading && volumes.length === 0 ? (
         <div className="py-8 text-center text-muted-foreground">加载中...</div>
       ) : (
-        <ChapterList volumes={volumes} chaptersByVolume={chaptersByVolume} onDelete={handleDelete} />
+        <ChapterList volumes={volumes} chaptersByVolume={chaptersByVolume} onDelete={handleDelete} onPublish={handlePublish} />
       )}
 
       <CreateVolumeDialog

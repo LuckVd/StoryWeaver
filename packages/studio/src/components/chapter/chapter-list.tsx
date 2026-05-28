@@ -5,9 +5,10 @@ interface ChapterListProps {
   volumes: VolumeMeta[];
   chaptersByVolume: Record<number, ChapterMeta[]>;
   onDelete?: (id: number) => void;
+  onPublish?: (id: number) => void;
 }
 
-export function ChapterList({ volumes, chaptersByVolume, onDelete }: ChapterListProps) {
+export function ChapterList({ volumes, chaptersByVolume, onDelete, onPublish }: ChapterListProps) {
   if (volumes.length === 0) {
     return <div className="py-8 text-center text-muted-foreground">暂无卷宗，请先创建一个卷宗</div>;
   }
@@ -24,7 +25,7 @@ export function ChapterList({ volumes, chaptersByVolume, onDelete }: ChapterList
                 <p className="py-2 text-sm text-muted-foreground">暂无章节</p>
               ) : (
                 chapters.map((ch) => (
-                  <ChapterRow key={ch.id} chapter={ch} onDelete={onDelete} />
+                  <ChapterRow key={ch.id} chapter={ch} onDelete={onDelete} onPublish={onPublish} />
                 ))
               )}
             </div>

@@ -1,25 +1,22 @@
-goal_id: G02-S10
-title: "路由层完善：关键词路由 + LLM 兜底路由"
+goal_id: G02-S07
+title: "章节状态流转：前端 draft → approved → published 交互"
 stage: done
 status: completed
-selected_option: G02-S10
+selected_option: G02-S07
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 补充关键词规则（展开/删掉/比较/挑错/建议/回顾）✅"
-  - "Step 2: 实现 classifyIntentWithLLM + 3s 超时降级 ✅"
-  - "Step 3: routeUserMessage 签名扩展（可选 LLMClient）✅"
-  - "Step 4: ChatService 传入 llmClient ✅"
-  - "Step 5: 新增测试（15 个）✅"
-  - "Step 6: 构建验证 pnpm build + pnpm test ✅"
+  - "Step 1: chapter-store — updateChapterStatus 刷新 currentChapter ✅"
+  - "Step 2: chapter-edit — 添加状态流转按钮 + 确认提示 ✅"
+  - "Step 3: chapter-row — approved 状态快捷操作 ✅"
+  - "Step 4: 构建验证 pnpm build + pnpm test ✅"
 test_scope:
-  - "301 通过（core 187 + studio 114），新增 15 个路由测试，pnpm build 零错误"
+  - "301 通过（core 187 + studio 114），pnpm build 零错误"
 security_blockers: []
 dead_code_actions: []
 goal_candidates:
   - G02-S02
-  - G02-S07
   - G02-S09
 sync_status: completed
 last_check_at: "2026-05-28"

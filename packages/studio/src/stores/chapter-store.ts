@@ -107,6 +107,10 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
     try {
       await api.put(`/chapters/${id}/status`, { status });
       await get().fetchVolumesAndChapters();
+      // 如果正在查看此章节，刷新 currentChapter
+      if (get().currentChapter?.id === id) {
+        await get().fetchChapter(id);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       set({ error: message, loading: false });
