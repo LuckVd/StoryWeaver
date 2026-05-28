@@ -6,6 +6,7 @@ import { ChapterEditPage } from '@/pages/chapter-edit';
 import { ReviewPage } from '@/pages/review';
 import { ChatPage } from '@/pages/chat';
 import { SettingsPage } from '@/pages/settings';
+import { KnowledgePage } from '@/pages/knowledge';
 import { NotFoundPage } from '@/pages/not-found';
 
 const router = createBrowserRouter([
@@ -18,6 +19,7 @@ const router = createBrowserRouter([
       { path: 'chapters/:id/review', element: <ReviewPage /> },
       { path: 'chat', element: <ChatPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'knowledge', element: <KnowledgePage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

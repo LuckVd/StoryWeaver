@@ -1,22 +1,22 @@
-goal_id: G02-S09
-title: "文件监听：chokidar + 增量索引 + SSE 通知"
+goal_id: G02-S02
+title: "关系图 + 可视化：邻接表存储 + React Flow 前端"
 stage: done
 status: completed
-selected_option: G02-S09
+selected_option: G02-S02
 design_confirmed: false
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 安装 chokidar 依赖"
-  - "Step 2: SearchEngine 增量更新方法 + 测试"
-  - "Step 3: FileWatcher 实现 + 测试"
-  - "Step 4: server.ts 集成"
-  - "Step 5: 构建验证 pnpm build + pnpm test"
+  - "Step 1: 安装 @xyflow/react 依赖"
+  - "Step 2: 创建 knowledge-store.ts"
+  - "Step 3: 创建 relation-graph.tsx"
+  - "Step 4: 创建 knowledge.tsx 页面"
+  - "Step 5: 更新路由和侧边栏"
+  - "Step 6: 构建验证 pnpm build + pnpm test"
 test_scope:
-  - "SearchEngine 增量更新测试 + FileWatcher 事件分发测试"
+  - "前端构建验证 + 后端 API 现有测试"
 security_blockers: []
 dead_code_actions: []
-goal_candidates:
-  - G02-S02
+goal_candidates: []
 sync_status: done
 last_check_at: "2026-05-28"

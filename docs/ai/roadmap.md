@@ -15,7 +15,7 @@
 - **技术目标**：构建一套个人 AI 辅助小说创作系统，通过多 Agent 协作实现"构思 → 写作 → 审稿 → 修订"全流程辅助，纯本地部署，人主导 AI 辅助
 - **技术栈**：TypeScript + Node.js + React 19 + Hono + pnpm monorepo
 - **详细方案**：`docs/ai/tech-spec-v1.md`
-- **当前阶段**：bootstrap → Phase 1 MVP
+- **当前阶段**：Phase 2 完成 → Phase 3 长篇记忆
 
 ## 2. 总体技术架构
 
@@ -109,9 +109,9 @@
 | G01 | G01-S10 | 章节列表 + 编辑器 | ChapterList 页 + ChapterEditor 页 (Tiptap HTML 模式) | done | G01-S09 | | accepted | passed | 2026-05-27 | | 按卷分组列表 + Tiptap 编辑器 + 创建/删除 + 字数统计 |
 | G01 | G01-S11 | AI 对话面板 + 独立对话页 | 编辑器内 chat 组件 + 独立 `/chat` 页面（不绑定章节的自由对话）— 消息列表 + 输入框 + SSE 流式显示 + Apply 按钮 | done | G01-S08, G01-S10 | | accepted | passed | 2026-05-27 | | SSE Hook + ChatStore + ChatPanel + 编辑器双栏 + 独立对话页 + append/replace |
 | G01 | G01-S12 | 版本控制 + 基础测试 | 章节版本快照/回退 API + 前端历史面板 + core/api 测试 | done | G01-S07, G01-S11 | | accepted | passed | 2026-05-27 | | VersionStorage + 3 API 端点 + 自动快照 + published 清空 + 前端面板 |
-| G02 | | Phase 2: 核心流水线 | 完整的知识库 + 审稿 + 工作区 | planned | G01 | 依赖 MVP 稳定 | pending | not_started | | | |
+| G02 | | Phase 2: 核心流水线 | 完整的知识库 + 审稿 + 工作区 | done | G01 | | accepted | passed | 2026-05-28 | | 10/10 子目标完成，Phase 2 完成 |
 | G02 | G02-S01 | 知识库系统 | knowledge/ — 角色/世界观/物品/伏笔/规则 CRUD | done | G01-S03 | | accepted | passed | 2026-05-28 | | KnowledgeStorage + OutlineStorage + RelationStorage + API 路由 |
-| G02 | G02-S02 | 关系图 + 可视化 | 邻接表存储 + React Flow 前端 | planned | G02-S01 | | pending | not_started | | | |
+| G02 | G02-S02 | 关系图 + 可视化 | 邻接表存储 + React Flow 前端 | done | G02-S01 | | accepted | passed | 2026-05-28 | | React Flow 关系图 + 全实体类型节点 + 添加/删除关系 + 知识库导航 |
 | G02 | G02-S03 | Brainstormer + Auditor Agent | 构思 Agent + 审稿 Agent 实现 | done | G01-S05 | | accepted | passed | 2026-05-28 | | BrainstormerAgent + AuditorAgent + ChatService 多 Agent 调度 |
 | G02 | G02-S04 | 审稿报告页面 | 评分卡 + 问题列表 + 原文对照 | done | G02-S03, G01-S10 | | accepted | passed | 2026-05-28 | | reviews API + score-card + issues-list + review 页面 |
 | G02 | G02-S05 | 工作区管理 + 发布流程 | workspace 管理 + publish 流程 + SSE 进度 | done | G01-S07 | | accepted | passed | 2026-05-28 | | WorkspaceService + workspace 路由（4 端点）+ 发布流程（状态锁定 + AI 摘要 + SSE） |
