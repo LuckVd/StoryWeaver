@@ -1,25 +1,26 @@
-goal_id: G02-S06
-title: "Summarizer Agent：章节摘要 + 时间线 + 角色状态 + 综合总结"
+goal_id: G02-S05
+title: "工作区管理 + 发布流程"
 stage: done
 status: completed
-selected_option: G02-S06
+selected_option: G02-S05
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: path.ts 新增 6 个 memory 路径函数 + 测试 ✅"
-  - "Step 2: SummaryStorage 实现 + 测试 ✅"
-  - "Step 3: SummarizerAgent 实现 + Zod schemas + 测试 ✅"
-  - "Step 4: summarizer 默认 prompt ✅"
-  - "Step 5: index.ts 导出更新 ✅"
+  - "Step 1: schemas.ts 添加 addChapterSchema + publishSchema ✅"
+  - "Step 2: WorkspaceService 实现（getWorkspace / addChapter / removeChapter / publish）✅"
+  - "Step 3: workspace 路由（4 个端点）✅"
+  - "Step 4: server.ts 注册 workspace 路由 ✅"
+  - "Step 5: API 测试（10 个）✅"
   - "Step 6: 构建验证 pnpm build + pnpm test ✅"
 test_scope:
-  - "250 通过（core 152 + studio 98），新增 29 个测试，pnpm build 零错误"
+  - "260 通过（core 152 + studio 108），新增 10 个测试，pnpm build 零错误"
 security_blockers: []
 dead_code_actions: []
 goal_candidates:
   - G02-S02
-  - G02-S05
+  - G02-S07
+  - G02-S08
   - G02-S10
 sync_status: completed
 last_check_at: "2026-05-28"

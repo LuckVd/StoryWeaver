@@ -186,6 +186,17 @@ export const updateRelationSchema = z.object({
   note: z.string().optional(),
 });
 
+// --- Workspace ---
+
+export const addChapterSchema = z.object({
+  chapterId: z.number().int().positive('章节 ID 必须为正整数'),
+});
+
+export const publishSchema = z.object({
+  chapterIds: z.array(z.number().int().positive()).min(1, '至少选择一个章节'),
+  skipSummary: z.boolean().optional(),
+});
+
 // --- Query param helpers ---
 
 export const VALID_WORLD_SUBS = ['geography', 'power-system', 'factions', 'history', 'glossary'] as const;

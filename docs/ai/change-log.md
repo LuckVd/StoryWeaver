@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-28 — G02-S05: 工作区管理 + 发布流程
+
+- Goal ID: G02-S05
+- Summary: 实现 WorkspaceService（工作区 CRUD + 发布流程）和 workspace API 路由（4 端点）。发布流程：校验 approved 状态 → 逐章状态锁定 published → SummarizerAgent 生成 ChapterSummary → 更新 StoryStateSnapshot → 从工作区移除 → SSE 广播进度/完成。无 LLM 时自动降级跳过摘要
+- Impact: `studio/src/api/services/workspace-service.ts`, `studio/src/api/routes/workspace.ts`, `studio/src/api/{server,schemas}.ts`
+- Tests: vitest 260 通过（core 152 + studio 108，新增 10 个），`pnpm build` 零错误
+- Dead Code: 1 项修复 — 移除未使用 import `StoryStateSnapshot`
+- Security: 无新增阻塞项（.env API key 为既有问题，已在 .gitignore 中）
+- Commit Status: 待提交
+
 ## 2026-05-28 — G02-S06: Summarizer Agent
 
 - Goal ID: G02-S06

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage } from '@storyweaver/core';
+import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage, WorkspaceStorage, SummaryStorage } from '@storyweaver/core';
 import { SSEEmitter } from './sse.js';
 import { AIOperationQueue } from './queue.js';
 import { errorHandler } from './error-handler.js';
@@ -11,10 +11,12 @@ import { chaptersRoute } from './routes/chapters.js';
 import { chatRoute } from './routes/chat.js';
 import { knowledgeRoute } from './routes/knowledge.js';
 import { reviewsRoute } from './routes/reviews.js';
+import { workspaceRoute } from './routes/workspace.js';
 import { BookService } from './services/book-service.js';
 import { ChapterService } from './services/chapter-service.js';
 import { ChatService } from './services/chat-service.js';
 import { KnowledgeService } from './services/knowledge-service.js';
+import { WorkspaceService } from './services/workspace-service.js';
 
 /**
  * 创建 Hono API Server 实例
@@ -42,6 +44,13 @@ export function createServer(projectRoot: string = process.cwd()) {
     new OutlineStorage(projectRoot),
     new RelationStorage(projectRoot),
   );
+  const workspaceService = new WorkspaceService(
+    new WorkspaceStorage(projectRoot),
+    chapterService,
+    new SummaryStorage(),
+    sseEmitter,
+    projectRoot,
+  );
 
   // 全局错误处理
   app.onError(errorHandler);
@@ -56,6 +65,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   app.route('/api/v1/chapters', chaptersRoute(bookService, chapterService));
   app.route('/api/v1/chat', chatRoute(chatService));
   app.route('/api/v1/knowledge', knowledgeRoute(knowledgeService));
+  app.route('/api/v1/workspace', workspaceRoute(workspaceService));
   app.route('/api/v1', reviewsRoute(projectRoot));
 
   // 健康检查
