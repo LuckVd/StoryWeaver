@@ -171,6 +171,52 @@ export function characterFilePath(projectRoot: string, slug: string): string {
   return resolveSafe(projectRoot, `knowledge/characters/${slug}.json`);
 }
 
+// ── Memory 路径 ──
+
+/**
+ * 生成 memory 根目录：memory/
+ */
+export function memoryDir(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'memory');
+}
+
+/**
+ * 生成章节摘要目录：memory/summaries/
+ */
+export function summariesDir(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'memory/summaries');
+}
+
+/**
+ * 生成章节摘要文件路径：memory/summaries/chXXX.json
+ */
+export function summaryFilePath(projectRoot: string, chapter: number): string {
+  return resolveSafe(projectRoot, `memory/summaries/ch${String(chapter).padStart(3, '0')}.json`);
+}
+
+/**
+ * 生成多章综合总结目录：memory/batch-summaries/
+ */
+export function batchSummariesDir(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'memory/batch-summaries');
+}
+
+/**
+ * 生成多章综合总结文件路径：memory/batch-summaries/batch-XXX-XXX.json
+ */
+export function batchSummaryFilePath(projectRoot: string, from: number, to: number): string {
+  return resolveSafe(projectRoot, `memory/batch-summaries/batch-${String(from).padStart(3, '0')}-${String(to).padStart(3, '0')}.json`);
+}
+
+/**
+ * 生成剧情状态快照文件路径：memory/story-state.json
+ */
+export function storyStateFilePath(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'memory/story-state.json');
+}
+
+// ── 解析工具 ──
+
 /**
  * 解析章节 ID（从文件名 "ch001.md" → 1）
  */

@@ -1,27 +1,25 @@
-goal_id: G02-S04
-title: "审稿报告页面"
+goal_id: G02-S06
+title: "Summarizer Agent：章节摘要 + 时间线 + 角色状态 + 综合总结"
 stage: done
 status: completed
-selected_option: G02-S04
+selected_option: G02-S06
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: reviews API 路由 — GET /chapters/:id/reviews"
-  - "Step 2: API 测试 — 5 个测试"
-  - "Step 3: score-card 组件 — 综合评分 + 7 维度评分条"
-  - "Step 4: issues-list 组件 — 按 severity 分组"
-  - "Step 5: review 页面 — 组合组件 + 历史切换"
-  - "Step 6: 路由注册 — App.tsx + server.ts"
-  - "Step 7: 构建验证 — pnpm build 零错误 + pnpm test 221 通过"
+  - "Step 1: path.ts 新增 6 个 memory 路径函数 + 测试 ✅"
+  - "Step 2: SummaryStorage 实现 + 测试 ✅"
+  - "Step 3: SummarizerAgent 实现 + Zod schemas + 测试 ✅"
+  - "Step 4: summarizer 默认 prompt ✅"
+  - "Step 5: index.ts 导出更新 ✅"
+  - "Step 6: 构建验证 pnpm build + pnpm test ✅"
 test_scope:
-  - "vitest 221 通过（core 123 + studio 98），pnpm build 零错误"
+  - "250 通过（core 152 + studio 98），新增 29 个测试，pnpm build 零错误"
 security_blockers: []
 dead_code_actions: []
 goal_candidates:
   - G02-S02
   - G02-S05
-  - G02-S06
   - G02-S10
 sync_status: completed
 last_check_at: "2026-05-28"

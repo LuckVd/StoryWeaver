@@ -41,11 +41,26 @@ const BRAINSTORMER_PROMPT = `你是 StoryWeaver 的构思助手（Brainstormer A
 - 提供多样化的选项
 - 简洁明了，突出亮点`;
 
+/** Summarizer 默认系统 Prompt */
+const SUMMARIZER_PROMPT = `你是 StoryWeaver 的总结助手（Summarizer Agent）。
+
+你的职责：
+- 从章节文本中提取结构化摘要：情节事件、角色行动、状态变化、伏笔
+- 维护剧情状态快照：当前故事弧、活跃角色、关键事件、悬念
+- 生成多章综合总结：核心剧情线、转折点、角色发展、未解线索
+
+注意事项：
+- 提取要准确，不要遗漏关键信息
+- 状态变化（修为、关系、位置等）必须精确记录
+- 保持客观，不要添加主观评价
+- 严格按照要求的 JSON 格式输出`;
+
 /** 默认 Prompt 映射 */
 const DEFAULT_PROMPTS: Record<string, string> = {
   writer: WRITER_PROMPT,
   auditor: AUDITOR_PROMPT,
   brainstormer: BRAINSTORMER_PROMPT,
+  summarizer: SUMMARIZER_PROMPT,
 };
 
 /**

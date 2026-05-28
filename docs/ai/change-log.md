@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-05-28 — G02-S06: Summarizer Agent
+
+- Goal ID: G02-S06
+- Summary: 实现 SummarizerAgent（章节摘要 / 剧情状态快照 / 多章综合总结）和 SummaryStorage（memory/summaries + memory/batch-summaries + memory/story-state.json 的 CRUD），6 个 memory 路径函数，summarizer 默认 prompt。Timeline 类型设计和 API 路由不含，留到 G03-S04 / G02-S05
+- Impact: `core/src/agents/summarizer-agent.ts`, `core/src/storage/summary-storage.ts`, `core/src/storage/path.ts`, `core/src/agents/prompts.ts`, `core/src/agents/index.ts`, `core/src/storage/index.ts`
+- Tests: vitest 250 通过（core 152 + studio 98，新增 29 个），`pnpm build` 零错误
+- Dead Code: 无新增（SummarizerAgent/SummaryStorage 为 core 导出模块，供 G02-S05 调用）
+- Security: 无阻塞项（路径遍历防护通过 resolveSafe，Zod schema 校验 LLM 输出，无密钥硬编码）
+- Commit Status: 待提交
+
 ## 2026-05-28 — G02-S04: 审稿报告页面
 
 - Goal ID: G02-S04

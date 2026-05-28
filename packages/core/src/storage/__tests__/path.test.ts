@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSafe, chapterPath, novelYamlPath, workspaceJsonPath, parseVolumeNumber, parseChapterId } from '../path.js';
+import { resolveSafe, chapterPath, novelYamlPath, workspaceJsonPath, parseVolumeNumber, parseChapterId, memoryDir, summariesDir, summaryFilePath, batchSummariesDir, batchSummaryFilePath, storyStateFilePath } from '../path.js';
 import { PathTraversalError } from '../path.js';
 import { resolve } from 'node:path';
 
@@ -88,5 +88,35 @@ describe('parseChapterId', () => {
     expect(parseChapterId('chapter001.md')).toBeNull();
     expect(parseChapterId('ch1.md')).toBeNull();
     expect(parseChapterId('ch001.txt')).toBeNull();
+  });
+});
+
+describe('memory paths', () => {
+  const root = '/tmp/test-project';
+
+  it('memoryDir should return memory/ path', () => {
+    expect(memoryDir(root)).toBe(resolve(root, 'memory'));
+  });
+
+  it('summariesDir should return memory/summaries/ path', () => {
+    expect(summariesDir(root)).toBe(resolve(root, 'memory/summaries'));
+  });
+
+  it('summaryFilePath should pad chapter number', () => {
+    expect(summaryFilePath(root, 1)).toBe(resolve(root, 'memory/summaries/ch001.json'));
+    expect(summaryFilePath(root, 42)).toBe(resolve(root, 'memory/summaries/ch042.json'));
+  });
+
+  it('batchSummariesDir should return memory/batch-summaries/ path', () => {
+    expect(batchSummariesDir(root)).toBe(resolve(root, 'memory/batch-summaries'));
+  });
+
+  it('batchSummaryFilePath should pad range numbers', () => {
+    expect(batchSummaryFilePath(root, 21, 30))
+      .toBe(resolve(root, 'memory/batch-summaries/batch-021-030.json'));
+  });
+
+  it('storyStateFilePath should return memory/story-state.json', () => {
+    expect(storyStateFilePath(root)).toBe(resolve(root, 'memory/story-state.json'));
   });
 });
