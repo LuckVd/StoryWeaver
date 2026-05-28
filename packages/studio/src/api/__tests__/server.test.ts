@@ -28,4 +28,9 @@ describe('createServer', () => {
     const { aiQueue } = createServer();
     expect(aiQueue.isIdle).toBe(true);
   });
+
+  it('should return fileWatcher instance', () => {
+    const { fileWatcher } = createServer();
+    expect(fileWatcher).toBeDefined();
+  });
 });

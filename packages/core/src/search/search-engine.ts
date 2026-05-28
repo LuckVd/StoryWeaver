@@ -132,6 +132,45 @@ export class InMemorySearchEngine {
     this.index({ type: 'summary', id: String(chapter), title, content: content.slice(0, 500) });
   }
 
+  /** 更新已有章节索引（先移除再重新索引） */
+  updateChapter(id: number, title: string, content: string): void {
+    this.remove('chapter', String(id));
+    this.indexChapter(id, title, content);
+  }
+
+  /** 更新已有知识库条目索引 */
+  updateKnowledge(id: string, title: string, content: string): void {
+    this.remove('knowledge', id);
+    this.indexKnowledge(id, title, content);
+  }
+
+  /** 根据文件路径移除文档 */
+  removeByPath(filePath: string): void {
+    const parsed = this.parsePath(filePath);
+    if (!parsed) return;
+    this.remove(parsed.type, parsed.id);
+  }
+
+  /** 解析文件路径，提取类型和 ID */
+  parsePath(filePath: string): { type: string; id: string } | null {
+    // volumes/v01/ch001.md → chapter, 1 (标准化为数字 ID)
+    const chapterMatch = filePath.match(/volumes[/\\]v\d+[/\\]ch(\d+)\.md$/);
+    if (chapterMatch) {
+      return { type: 'chapter', id: String(parseInt(chapterMatch[1], 10)) };
+    }
+    // knowledge/characters/xxx.json → knowledge, xxx (仅取文件名作为 ID)
+    const knowledgeMatch = filePath.match(/knowledge[/\\].*[/\\]([^/\\]+)\.json$/);
+    if (knowledgeMatch) {
+      return { type: 'knowledge', id: knowledgeMatch[1] };
+    }
+    // knowledge/xxx.json (flat) → knowledge, xxx
+    const knowledgeFlatMatch = filePath.match(/knowledge[/\\]([^/\\]+)\.json$/);
+    if (knowledgeFlatMatch) {
+      return { type: 'knowledge', id: knowledgeFlatMatch[1] };
+    }
+    return null;
+  }
+
   /** 移除文档 */
   remove(type: string, id: string): void {
     const key = docKey(type, id);

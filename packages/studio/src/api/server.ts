@@ -18,6 +18,7 @@ import { ChapterService } from './services/chapter-service.js';
 import { ChatService } from './services/chat-service.js';
 import { KnowledgeService } from './services/knowledge-service.js';
 import { WorkspaceService } from './services/workspace-service.js';
+import { FileWatcher } from './services/file-watcher.js';
 
 /**
  * 创建 Hono API Server 实例
@@ -53,6 +54,12 @@ export function createServer(projectRoot: string = process.cwd()) {
     projectRoot,
   );
 
+  // 搜索引擎（全局共享实例）
+  const searchEngine = new InMemorySearchEngine();
+
+  // 文件监听
+  const fileWatcher = new FileWatcher(searchEngine, sseEmitter, projectRoot);
+
   // 全局错误处理
   app.onError(errorHandler);
 
@@ -67,11 +74,11 @@ export function createServer(projectRoot: string = process.cwd()) {
   app.route('/api/v1/chat', chatRoute(chatService));
   app.route('/api/v1/knowledge', knowledgeRoute(knowledgeService));
   app.route('/api/v1/workspace', workspaceRoute(workspaceService));
-  app.route('/api/v1/search', searchRoute(new InMemorySearchEngine()));
+  app.route('/api/v1/search', searchRoute(searchEngine));
   app.route('/api/v1', reviewsRoute(projectRoot));
 
   // 健康检查
   app.get('/api/v1/health', (c) => c.json({ status: 'ok' }));
 
-  return { app, sseEmitter, aiQueue };
+  return { app, sseEmitter, aiQueue, fileWatcher };
 }

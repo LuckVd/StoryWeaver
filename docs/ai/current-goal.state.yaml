@@ -1,22 +1,22 @@
-goal_id: G02-S07
-title: "章节状态流转：前端 draft → approved → published 交互"
+goal_id: G02-S09
+title: "文件监听：chokidar + 增量索引 + SSE 通知"
 stage: done
 status: completed
-selected_option: G02-S07
-design_confirmed: true
+selected_option: G02-S09
+design_confirmed: false
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: chapter-store — updateChapterStatus 刷新 currentChapter ✅"
-  - "Step 2: chapter-edit — 添加状态流转按钮 + 确认提示 ✅"
-  - "Step 3: chapter-row — approved 状态快捷操作 ✅"
-  - "Step 4: 构建验证 pnpm build + pnpm test ✅"
+  - "Step 1: 安装 chokidar 依赖"
+  - "Step 2: SearchEngine 增量更新方法 + 测试"
+  - "Step 3: FileWatcher 实现 + 测试"
+  - "Step 4: server.ts 集成"
+  - "Step 5: 构建验证 pnpm build + pnpm test"
 test_scope:
-  - "301 通过（core 187 + studio 114），pnpm build 零错误"
+  - "SearchEngine 增量更新测试 + FileWatcher 事件分发测试"
 security_blockers: []
 dead_code_actions: []
 goal_candidates:
   - G02-S02
-  - G02-S09
-sync_status: completed
+sync_status: done
 last_check_at: "2026-05-28"

@@ -139,6 +139,55 @@ describe('InMemorySearchEngine', () => {
     expect(engine.size).toBe(6);
   });
 
+  it('should update a chapter index', () => {
+    const engine = createEngine();
+    engine.updateChapter(1, '第一章 新起点', '张三离开了村庄，踏上了旅途。');
+    const results = engine.search('新起点');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('1');
+    expect(results[0].title).toBe('第一章 新起点');
+    // 旧内容不再匹配
+    const oldResults = engine.search('村庄 天元宗');
+    const ids = oldResults.map((r) => r.id);
+    expect(ids).not.toContain('1');
+  });
+
+  it('should update a knowledge entry index', () => {
+    const engine = createEngine();
+    engine.updateKnowledge('char-zhangsan', '张三', '主角，已经突破金丹境。');
+    const results = engine.search('金丹');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe('char-zhangsan');
+  });
+
+  it('should remove by file path', () => {
+    const engine = createEngine();
+    engine.removeByPath('volumes/v01/ch001.md');
+    const results = engine.search('起点');
+    const ids = results.map((r) => r.id);
+    expect(ids).not.toContain('1');
+  });
+
+  it('should remove knowledge by file path', () => {
+    const engine = createEngine();
+    engine.removeByPath('knowledge/characters/char-zhangsan.json');
+    const results = engine.search('天赋异禀');
+    expect(results.length).toBe(0);
+  });
+
+  it('should handle nested knowledge path', () => {
+    const engine = createEngine();
+    engine.removeByPath('knowledge\\characters\\char-lisi.json');
+    const results = engine.search('好友 阵法');
+    const ids = results.map((r) => r.id);
+    expect(ids).not.toContain('char-lisi');
+  });
+
+  it('should return null for unrecognized path', () => {
+    const engine = createEngine();
+    expect(engine.parsePath('some/random/file.txt')).toBeNull();
+  });
+
   it('should handle English search', () => {
     const engine = new InMemorySearchEngine();
     engine.indexChapter(1, 'The Beginning', 'A young hero discovers a magical sword.');
