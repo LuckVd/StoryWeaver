@@ -15,7 +15,7 @@ export type AgentStage = 'thinking' | 'generating' | 'reviewing' | 'summarizing'
 export type SSEEvent =
   | { type: 'agent:start'; data: { agent: AgentName; stage: string } }
   | { type: 'agent:token'; data: { agent: AgentName; token: string } }
-  | { type: 'agent:complete'; data: { agent: AgentName; result: unknown } }
+  | { type: 'agent:complete'; data: { agent: AgentName; result: unknown; messageId: string } }
   | { type: 'review:score'; data: { score: number; issues: unknown[] } }
   | { type: 'chapter:complete'; data: { chapterId: number; wordCount: number } }
   | { type: 'publish:progress'; data: { step: string; current: number; total: number } }

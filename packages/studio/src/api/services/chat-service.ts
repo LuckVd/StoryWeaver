@@ -15,6 +15,7 @@ import {
   type ModelConfig,
   type AgentConfig,
   type ReviewReport,
+  type Chapter,
 } from '@storyweaver/core';
 import type { AIOperationQueue } from '../queue.js';
 import type { SSEEmitter } from '../sse.js';
@@ -99,10 +100,30 @@ export class ChatService {
     // 入队执行
     this.aiQueue.enqueue(async () => {
       const agent = this.getAgentForName(agentName);
-      const messages: Message[] = session.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+      const messages: Message[] = [];
+
+      // 如果绑定了章节，加载章节内容作为上下文
+      const chapterRef = context?.chapterRef ?? session.chapterId;
+      if (chapterRef) {
+        const volume = await this.chapterService.findVolume(chapterRef);
+        if (volume !== null) {
+          const chapter = await this.chapterService.read(volume, chapterRef);
+          if (chapter) {
+            const textContent = chapter.content.replace(/<[^>]*>/g, '').trim();
+            if (textContent) {
+              messages.push({
+                role: 'system',
+                content: `以下是当前章节「${chapter.title}」的已有内容（共${textContent.length}字）：\n\n${textContent}`,
+              });
+            }
+          }
+        }
+      }
+
+      // 追加聊天历史
+      for (const m of session.messages) {
+        messages.push({ role: m.role, content: m.content });
+      }
 
       // 广播开始
       this.sseEmitter.emit({ type: 'agent:start', data: { agent: agentName, stage: 'generating' } });
@@ -132,7 +153,7 @@ export class ChatService {
       session.updatedAt = new Date().toISOString();
 
       // 广播完成
-      this.sseEmitter.emit({ type: 'agent:complete', data: { agent: agentName, result: null } });
+      this.sseEmitter.emit({ type: 'agent:complete', data: { agent: agentName, result: null, messageId: assistantMsg.id } });
 
       // Auditor: 额外生成结构化审稿报告
       if (agentName === 'auditor') {
@@ -150,12 +171,22 @@ export class ChatService {
 
   // --- Apply ---
 
+  /** 将 AI 纯文本转为 HTML（段落用 <p> 包裹） */
+  private textToHtml(text: string): string {
+    return text
+      .split(/\n\n+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0)
+      .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+      .join('');
+  }
+
   /** 将 AI 回复应用到章节 */
   async applyMessage(
     sessionId: string,
     messageId: string,
     target: { chapterId: number; mode: 'append' | 'replace'; content?: string },
-  ): Promise<void> {
+  ): Promise<{ content: string }> {
     const session = this.sessions.get(sessionId);
     if (!session) {
       throw new Error('SESSION_NOT_FOUND');
@@ -167,24 +198,27 @@ export class ChatService {
     }
 
     const aiContent = target.content ?? message.content;
+    const aiHtml = this.textToHtml(aiContent);
     const volume = await this.chapterService.findVolume(target.chapterId);
     if (volume === null) {
       throw new Error('CHAPTER_NOT_FOUND');
     }
 
+    let updated: Chapter | null;
     if (target.mode === 'append') {
       const chapter = await this.chapterService.read(volume, target.chapterId);
       if (!chapter) {
         throw new Error('CHAPTER_NOT_FOUND');
       }
-      await this.chapterService.update(volume, target.chapterId, {
-        content: chapter.content + '\n' + aiContent,
+      updated = await this.chapterService.update(volume, target.chapterId, {
+        content: chapter.content + aiHtml,
       }, 'ai_apply');
     } else {
-      await this.chapterService.update(volume, target.chapterId, {
-        content: aiContent,
+      updated = await this.chapterService.update(volume, target.chapterId, {
+        content: aiHtml,
       }, 'ai_apply');
     }
+    return { content: updated?.content ?? aiHtml };
   }
 
   // --- LLM 初始化 ---

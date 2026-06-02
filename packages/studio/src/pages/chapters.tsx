@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 export function ChaptersPage() {
-  const { volumes, chaptersByVolume, loading, fetchVolumesAndChapters, createVolume, createChapter, deleteChapter, updateChapterStatus } = useChapterStore();
+  const { volumes, chaptersByVolume, loading, error, fetchVolumesAndChapters, createVolume, createChapter, deleteChapter, updateChapterStatus } = useChapterStore();
   const [showCreateVolume, setShowCreateVolume] = useState(false);
   const [showCreateChapter, setShowCreateChapter] = useState(false);
 
@@ -43,6 +43,12 @@ export function ChaptersPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       {loading && volumes.length === 0 ? (
         <div className="py-8 text-center text-muted-foreground">加载中...</div>
       ) : (
@@ -59,7 +65,10 @@ export function ChaptersPage() {
         open={showCreateChapter}
         volumes={volumes}
         onClose={() => setShowCreateChapter(false)}
-        onSubmit={async (vol, title) => { await createChapter(vol, title); setShowCreateChapter(false); }}
+        onSubmit={async (vol, title) => {
+          await createChapter(vol, title);
+          if (!useChapterStore.getState().error) setShowCreateChapter(false);
+        }}
         loading={loading}
       />
     </div>

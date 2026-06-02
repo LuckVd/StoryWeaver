@@ -128,3 +128,17 @@
     @apply font-sans;
     }
 }
+
+/* Tiptap editor styles */
+.tiptap {
+  min-height: 60vh;
+  outline: none;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}

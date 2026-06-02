@@ -38,7 +38,7 @@ export function useChatSSE() {
             appendStreamToken(event.data.token);
             break;
           case 'agent:complete':
-            completeStream();
+            completeStream(event.data.messageId ?? `temp-${Date.now()}`);
             break;
           case 'error':
             if (event.data.recoverable) {

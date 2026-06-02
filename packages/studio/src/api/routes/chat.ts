@@ -71,8 +71,8 @@ export function chatRoute(service: ChatService): Hono {
     const id = c.req.param('id');
     const { messageId, chapterId, mode, content } = c.get('validated');
     try {
-      await service.applyMessage(id, messageId, { chapterId, mode, content });
-      return c.json({ ok: true });
+      const result = await service.applyMessage(id, messageId, { chapterId, mode, content });
+      return c.json(result);
     } catch (err) {
       if (err instanceof Error) {
         if (err.message === 'SESSION_NOT_FOUND') {

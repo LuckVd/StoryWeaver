@@ -1,22 +1,21 @@
-goal_id: G02-S02
-title: "关系图 + 可视化：邻接表存储 + React Flow 前端"
-stage: done
-status: completed
-selected_option: G02-S02
+goal_id: G02-S11
+title: "知识库前端管理 UI：实体 CRUD 界面"
+stage: confirm_plan
+status: in_progress
+selected_option: G02-S11
 design_confirmed: false
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 安装 @xyflow/react 依赖"
-  - "Step 2: 创建 knowledge-store.ts"
-  - "Step 3: 创建 relation-graph.tsx"
-  - "Step 4: 创建 knowledge.tsx 页面"
-  - "Step 5: 更新路由和侧边栏"
-  - "Step 6: 构建验证 pnpm build + pnpm test"
+  - "Step 1: 扩展 knowledge-store.ts — 5 种实体 CRUD actions"
+  - "Step 2: 创建 entity-form-dialog.tsx — 通用表单 Dialog"
+  - "Step 3: 创建 entity-list.tsx — 通用实体列表"
+  - "Step 4: 重构 knowledge.tsx — Tab 布局"
+  - "Step 5: 构建验证 pnpm build + pnpm test"
 test_scope:
   - "前端构建验证 + 后端 API 现有测试"
 security_blockers: []
 dead_code_actions: []
 goal_candidates: []
-sync_status: done
-last_check_at: "2026-05-28"
+sync_status: pending
+last_check_at: "2026-05-31"

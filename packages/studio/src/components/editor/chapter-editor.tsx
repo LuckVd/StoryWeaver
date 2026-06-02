@@ -1,5 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect } from 'react';
 import type { Editor } from '@tiptap/react';
 
@@ -11,7 +12,12 @@ interface ChapterEditorProps {
 
 export function ChapterEditor({ content, editable, onUpdate }: ChapterEditorProps) {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      Placeholder.configure({
+        placeholder: '开始写作...',
+      }),
+    ],
     content,
     editable,
     onUpdate: ({ editor }) => {
@@ -32,7 +38,7 @@ export function ChapterEditor({ content, editable, onUpdate }: ChapterEditorProp
   if (!editor) return null;
 
   return (
-    <div className="prose prose-sm max-w-none">
+    <div className="prose prose-sm max-w-none rounded-md border p-4">
       <EditorContent editor={editor} />
     </div>
   );

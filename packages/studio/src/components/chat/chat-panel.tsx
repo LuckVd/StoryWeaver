@@ -64,7 +64,10 @@ export function ChatPanel({ chapterId, onClose, embedded }: ChatPanelProps) {
     await applyMessage(currentSession.id, messageId, chapterId, mode);
   };
 
-  const messages = currentSession?.messages ?? [];
+  // 判断 session 是否与当前章节匹配，不匹配时显示 loading 避免旧数据闪现
+  const sessionReady = !chapterId || currentSession?.chapterId === chapterId;
+  const messages = sessionReady ? (currentSession?.messages ?? []) : [];
+
   // The last assistant message displayed during streaming
   const lastAssistantIdx = [...messages].map((m, i) => ({ m, i }))
     .filter(({ m }) => m.role === 'assistant')
@@ -92,7 +95,12 @@ export function ChatPanel({ chapterId, onClose, embedded }: ChatPanelProps) {
 
       {/* Messages */}
       <div className="flex-1 overflow-auto">
-        {messages.length === 0 && !isStreaming && (
+        {!sessionReady && (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            加载中…
+          </div>
+        )}
+        {sessionReady && messages.length === 0 && !isStreaming && (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             发送消息开始对话
           </div>

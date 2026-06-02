@@ -31,6 +31,12 @@ export function ChapterEditPage() {
 
   useEffect(() => {
     if (currentChapter) {
+      // AI apply 时只更新内容，不重置编辑器状态
+      if ((window as unknown as Record<string, unknown>).__skipEditorReset) {
+        (window as unknown as Record<string, unknown>).__skipEditorReset = false;
+        setWordCount(countWords(currentChapter.content));
+        return;
+      }
       setTitle(currentChapter.title);
       setDirty(false);
       setWordCount(countWords(currentChapter.content));
@@ -61,11 +67,15 @@ export function ChapterEditPage() {
     await updateChapterStatus(currentChapter.id, 'published');
   };
 
+  // currentChapter 是全局 zustand 状态，从其他章节跳转过来时会残留旧数据
+  // 必须同时检查 id 是否匹配，否则会闪现旧章节内容
+  const chapterReady = currentChapter?.id === chapterId;
+
   if (error) {
     return <div className="flex h-full items-center justify-center text-destructive">{error}</div>;
   }
 
-  if (loading && !currentChapter) {
+  if (loading || !chapterReady) {
     return <div className="flex h-full items-center justify-center text-muted-foreground">加载中...</div>;
   }
 

@@ -10,7 +10,7 @@ const port = Number(process.env.API_PORT ?? 3001);
 
 const { app } = createServer(process.cwd());
 
-serve({ fetch: app.fetch, port, hostname: process.env.API_HOST ?? '127.0.0.1' }, (info) => {
+serve({ fetch: app.fetch, port, hostname: process.env.API_HOST ?? '0.0.0.0' }, (info) => {
   console.log(`StoryWeaver API running at http://localhost:${info.port}`);
   console.log(`  Health: http://localhost:${info.port}/api/v1/health`);
 });

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api-client';
 import type { ChatSession, ChatMessage } from '@storyweaver/core';
+import { useChapterStore } from './chapter-store';
 
 interface ChatState {
   sessions: ChatSession[];
@@ -33,7 +34,7 @@ interface ChatState {
   // Stream actions (called by useChatSSE)
   startStream: (agent: string) => void;
   appendStreamToken: (token: string) => void;
-  completeStream: () => void;
+  completeStream: (messageId: string) => void;
   setStreamError: (message: string) => void;
 }
 
@@ -118,7 +119,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
       // Set streaming target
       set({ streamingSessionId: sessionId, streamingText: '', isStreaming: false });
-      await api.post(`/chat/sessions/${sessionId}/messages`, { message });
+      await api.post(`/chat/sessions/${sessionId}/messages`, {
+        message,
+        context: { chapterRef: currentSession?.chapterId ?? undefined },
+      });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Unknown error', streamingSessionId: null });
     }
@@ -127,7 +131,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   applyMessage: async (sessionId, messageId, chapterId, mode) => {
     set({ loading: true, error: null });
     try {
-      await api.post(`/chat/sessions/${sessionId}/apply`, { messageId, chapterId, mode });
+      const res = await api.post<{ content: string }>(`/chat/sessions/${sessionId}/apply`, { messageId, chapterId, mode });
+      // 用标记位通知 chapter-edit 跳过 useEffect 重置
+      (window as unknown as Record<string, unknown>).__skipEditorReset = true;
+      const chapter = useChapterStore.getState().currentChapter;
+      if (chapter && chapter.id === chapterId) {
+        useChapterStore.setState({
+          currentChapter: { ...chapter, content: res.content, updatedAt: new Date().toISOString() },
+        });
+      }
       set({ loading: false });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Unknown error', loading: false });
@@ -144,12 +156,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((s) => ({ streamingText: s.streamingText + token }));
   },
 
-  completeStream: () => {
+  completeStream: (messageId: string) => {
     const { streamingSessionId, streamingText, currentSession } = get();
     // Append assistant message to current session
     if (streamingSessionId && currentSession?.id === streamingSessionId) {
       const assistantMsg: ChatMessage = {
-        id: `temp-assistant-${Date.now()}`,
+        id: messageId,
         role: 'assistant',
         content: streamingText,
         createdAt: new Date().toISOString(),
