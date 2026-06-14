@@ -51,13 +51,22 @@ vi.mock('@storyweaver/core', async (importOriginal) => {
 
 describe('Chat Routes', () => {
   let projectRoot: string;
+  let originalApiKey: string | undefined;
 
   beforeEach(() => {
     projectRoot = mkdtempSync(join(tmpdir(), 'sw-chat-test-'));
+    // initLLM() 在调用被 mock 的 createLLMClient 之前会检查 OPENAI_API_KEY，测试需提供
+    originalApiKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = 'test-key';
   });
 
   afterEach(() => {
     rmSync(projectRoot, { recursive: true, force: true });
+    if (originalApiKey === undefined) {
+      delete process.env.OPENAI_API_KEY;
+    } else {
+      process.env.OPENAI_API_KEY = originalApiKey;
+    }
   });
 
   function server() {
