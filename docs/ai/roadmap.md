@@ -109,7 +109,7 @@
 | G01 | G01-S10 | 章节列表 + 编辑器 | ChapterList 页 + ChapterEditor 页 (Tiptap HTML 模式) | done | G01-S09 | | accepted | passed | 2026-05-27 | | 按卷分组列表 + Tiptap 编辑器 + 创建/删除 + 字数统计 |
 | G01 | G01-S11 | AI 对话面板 + 独立对话页 | 编辑器内 chat 组件 + 独立 `/chat` 页面（不绑定章节的自由对话）— 消息列表 + 输入框 + SSE 流式显示 + Apply 按钮 | done | G01-S08, G01-S10 | | accepted | passed | 2026-05-27 | | SSE Hook + ChatStore + ChatPanel + 编辑器双栏 + 独立对话页 + append/replace |
 | G01 | G01-S12 | 版本控制 + 基础测试 | 章节版本快照/回退 API + 前端历史面板 + core/api 测试 | done | G01-S07, G01-S11 | | accepted | passed | 2026-05-27 | | VersionStorage + 3 API 端点 + 自动快照 + published 清空 + 前端面板 |
-| G02 | | Phase 2: 核心流水线 | 完整的知识库 + 审稿 + 工作区 | done | G01 | | accepted | passed | 2026-05-28 | | 10/10 子目标完成，Phase 2 完成 |
+| G02 | | Phase 2: 核心流水线 | 完整的知识库 + 审稿 + 工作区 | done | G01 | | accepted | passed | 2026-05-28 | | 11/11 子目标完成，Phase 2 完成（G02-S11 补全知识库前端管理） |
 | G02 | G02-S01 | 知识库系统 | knowledge/ — 角色/世界观/物品/伏笔/规则 CRUD | done | G01-S03 | | accepted | passed | 2026-05-28 | | KnowledgeStorage + OutlineStorage + RelationStorage + API 路由 |
 | G02 | G02-S02 | 关系图 + 可视化 | 邻接表存储 + React Flow 前端 | done | G02-S01 | | accepted | passed | 2026-05-28 | | React Flow 关系图 + 全实体类型节点 + 添加/删除关系 + 知识库导航 |
 | G02 | G02-S03 | Brainstormer + Auditor Agent | 构思 Agent + 审稿 Agent 实现 | done | G01-S05 | | accepted | passed | 2026-05-28 | | BrainstormerAgent + AuditorAgent + ChatService 多 Agent 调度 |
@@ -120,6 +120,7 @@
 | G02 | G02-S08 | 内存搜索引擎 | 倒排索引 + 分词 + 搜索 API | done | G01-S03 | | accepted | passed | 2026-05-28 | | InMemorySearchEngine + 中英文分词 + scope 过滤 + search API |
 | G02 | G02-S09 | 文件监听 | chokidar 监听 volumes/ + knowledge/ + SSE 通知 | done | G02-S08 | | accepted | passed | 2026-05-28 | | FileWatcher + SearchEngine 增量更新 + SSE 广播 + server.ts 集成 |
 | G02 | G02-S10 | 路由层完善 | 关键词路由 + LLM 兜底路由 | done | G02-S03 | | accepted | passed | 2026-05-28 | | LLM 兜底分类 + 3s 超时降级 + 补充关键词 + 新斜杠命令 |
+| G02 | G02-S11 | 知识库前端管理 UI | /knowledge 7-Tab 布局 + 6 实体 CRUD + 关系图 | done | G02-S01, G02-S02 | | accepted | passed | 2026-06-02 | c4ef4c9 | EntityList + EntityFormDialog（含 entitySelect 模糊搜索）+ knowledge-store 懒加载 CRUD + 世界观/自定义子 Tab；build 通过，全量 suite 存在 4 个与 G02-S11 无关的既有 chat 路由测试失败 |
 | G03 | | Phase 3: 长篇记忆 | 支持百万字长篇 | planned | G02 | 依赖知识库和 Summarizer | pending | not_started | | | |
 | G03 | G03-S01 | 三层记忆系统 | Layer 1 永久记忆 + Layer 2 近期 + Layer 3 远期 + 对话上下文压缩（>10 轮自动摘要） | planned | G02-S06 | | pending | not_started | | | |
 | G03 | G03-S02 | 章节摘要结构化 | ChapterSummary 结构化生成 | planned | G02-S06 | | pending | not_started | | | |

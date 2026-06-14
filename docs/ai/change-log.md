@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-06-02 — G02-S11: 知识库前端管理 UI
+
+- Goal ID: G02-S11
+- Summary: 知识库 `/knowledge` 页面重构为 7-Tab 布局（角色 | 世界观 | 物品 | 伏笔 | 规则 | 自定义 | 关系图），新增通用 `EntityList` + `EntityFormDialog`（含 `entitySelect` 模糊搜索关联字段），扩展 `knowledge-store` 为 6 种实体懒加载 CRUD；世界观/自定义 Tab 内嵌子分类子 Tab，关系图保留为末位 Tab。附带 chat SSE 改用原生 EventSource、`applyMessage` 返回 HTML
+- Impact: `studio/src/pages/knowledge.tsx`, `studio/src/components/knowledge/{entity-list,entity-form-dialog}.tsx`, `studio/src/stores/knowledge-store.ts`, `studio/src/api/services/chat-service.ts`, `studio/src/api/routes/chat.ts`
+- Tests: `pnpm build` 通过（tsc -b + Vite，2090 模块）；`pnpm test` 全量 `4 failed | 119 passed` —— 4 个失败均在 `chat.test.ts`（brainstormer/auditor/agentOverride 路由，症状为发消息后未追加 assistant 消息），**与 G02-S11 无关且早于 G02-S11 已存在**（父提交 976fc77 下同样 4 failed，已隔离验证）
+- Dead Code: 未扫描（前端 UI 为主）
+- Security: 无阻塞项（纯前端组件 + store；chat-service 改动不涉及密钥/路径暴露）
+- Commit Status: 已提交 c4ef4c9
+
 ## 2026-05-28 — G02-S07: 章节状态流转
 
 - Goal ID: G02-S07

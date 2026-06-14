@@ -1,9 +1,9 @@
 goal_id: G02-S11
 title: "知识库前端管理 UI：实体 CRUD 界面"
-stage: confirm_plan
-status: in_progress
+stage: done
+status: completed
 selected_option: G02-S11
-design_confirmed: false
+design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
@@ -14,8 +14,11 @@ implementation_steps:
   - "Step 5: 构建验证 pnpm build + pnpm test"
 test_scope:
   - "前端构建验证 + 后端 API 现有测试"
+test_result: "pnpm build 通过；pnpm test 全量 4 failed | 119 passed（4 个失败为既有 chat 路由测试，与 G02-S11 无关）"
 security_blockers: []
 dead_code_actions: []
 goal_candidates: []
-sync_status: pending
-last_check_at: "2026-05-31"
+sync_status: done
+last_check_at: "2026-06-14"
+commit_id: c4ef4c9
+implemented_at: "2026-06-02"
