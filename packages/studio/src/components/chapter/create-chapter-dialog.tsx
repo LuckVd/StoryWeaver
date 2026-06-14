@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,13 @@ interface CreateChapterDialogProps {
 export function CreateChapterDialog({ open, volumes, onClose, onSubmit, loading }: CreateChapterDialogProps) {
   const [volume, setVolume] = useState(volumes[0]?.id ?? 0);
   const [title, setTitle] = useState('');
+
+  // 选中卷宗被从列表移除时回退到第一个，避免提交无效 volume
+  useEffect(() => {
+    if (volumes.length > 0 && !volumes.some((v) => v.id === volume)) {
+      setVolume(volumes[0].id);
+    }
+  }, [volumes, volume]);
 
   if (!open) return null;
 

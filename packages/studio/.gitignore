@@ -1,0 +1,7 @@
+# 运行时生成的小说数据（由 BookStorage / KnowledgeStorage 等写入 projectRoot）
+novel.yaml
+volumes/
+workspace/
+knowledge/
+memory/
+reviews/
