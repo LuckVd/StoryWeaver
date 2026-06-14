@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-06-14 — bugfix: chat 路由测试修复
+
+- Goal ID: bugfix（非路线图目标，技术债清理）
+- Summary: 修复 `chat.test.ts` 4 个既有失败（writer/brainstormer/auditor/agentOverride 路由）。根因：`initLLM()` 的 `OPENAI_API_KEY` 门禁先于被 mock 的 `createLLMClient` 触发，`getAgentForName` 在 try/catch 外抛错，enqueue 回调 reject 导致 assistant 消息不 push。测试侧 `beforeEach` 提供 dummy key、`afterEach` 还原，生产代码零改动
+- Impact: `studio/src/api/__tests__/chat.test.ts`
+- Tests: vitest 全量通过（core 193 + studio 123，共 316）
+- Dead Code: 无
+- Security: 无（dummy key 不触发真实网络，`createLLMClient` 已 mock）
+- Commit Status: 待提交
+
 ## 2026-06-02 — G02-S11: 知识库前端管理 UI
 
 - Goal ID: G02-S11

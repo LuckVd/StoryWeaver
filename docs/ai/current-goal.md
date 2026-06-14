@@ -1,7 +1,7 @@
 # Current Goal
 
 > **状态：已完成（synced 2026-06-14）** — 已提交 `c4ef4c9`（2026-06-02），`pnpm build` 通过。
-> 已知遗留：全量 `pnpm test` 存在 4 个**与 G02-S11 无关**的既有 chat 路由测试失败（G02-S11 前后均存在），建议用 `/ai-bugfix` 单独修复。
+> 测试债务已清：G02-S11 同步时全量 `pnpm test` 有 4 个既有 chat 路由测试失败，已于 2026-06-14 修复（`chat.test.ts` 提供 dummy `OPENAI_API_KEY`），现 core 193 + studio 123 全绿。
 > 下一目标待定（Phase 2 已全部完成，可进入 G03 — Phase 3: 长篇记忆）。
 
 ## Goal

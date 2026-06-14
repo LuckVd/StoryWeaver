@@ -14,7 +14,7 @@ implementation_steps:
   - "Step 5: 构建验证 pnpm build + pnpm test"
 test_scope:
   - "前端构建验证 + 后端 API 现有测试"
-test_result: "pnpm build 通过；pnpm test 全量 4 failed | 119 passed（4 个失败为既有 chat 路由测试，与 G02-S11 无关）"
+test_result: "pnpm build 通过；pnpm test 全量修复后 316 passed（G02-S11 同步时存在 4 个既有 chat 路由失败，已于 2026-06-14 修复）"
 security_blockers: []
 dead_code_actions: []
 goal_candidates: []
