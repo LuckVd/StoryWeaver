@@ -137,6 +137,7 @@
 | G04 | G04-S04 | 大纲编辑器 | 树状大纲编辑 + 与知识库联动 | planned | G02-S01, G01-S09 | | pending | not_started | | | |
 | G04 | G04-S05 | 导出功能 | TXT / EPUB / Markdown 导出 | planned | G01-S03 | | pending | not_started | | | |
 | G04 | G04-S06 | 数据统计看板 | 字数/进度/活动等数据图表 | planned | G01-S09 | | pending | not_started | | | |
+| G04 | G04-S07 | AI 工具调用 / 对话主动操作章节 | 赋予 Agent function calling 能力：用户在对话中让 AI 读/改章节时，AI 主动调用工具读取（注意章节状态，published 只读），改正文时显性提示用户确认。需定义工具清单（读章节/改章节/查知识库）、权限边界、二次确认机制 | planned | G01-S08, G01-S05 | 架构性扩展：当前 Agent 仅纯文本对话，无 tool use | pending | not_started | | | 用户反馈需求 2026-06-16，暂缓；待第一批功能完成后专门设计 |
 | G04 | G04-S07 | Prompt 管理 UI | 查看/编辑/恢复默认 Prompt | planned | G01-S09 | | pending | not_started | | | |
 | G04 | G04-S08 | 对话历史管理 | session 列表/搜索/删除 | planned | G01-S08 | | pending | not_started | | | |
 | G05 | | Phase 5: 打磨 | 体验优化 | planned | G04 | | pending | not_started | | | |
