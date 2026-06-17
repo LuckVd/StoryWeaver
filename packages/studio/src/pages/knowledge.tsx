@@ -185,11 +185,20 @@ const worldColumns: ColumnDef<WorldEntry>[] = [
   { key: 'content', label: '内容' },
 ];
 
-const itemColumns: ColumnDef<Item>[] = [
-  { key: 'name', label: '名称' },
-  { key: 'description', label: '描述' },
-  { key: 'owner', label: '持有者' },
-];
+function getItemColumns(characters: Character[]): ColumnDef<Item>[] {
+  return [
+    { key: 'name', label: '名称' },
+    { key: 'description', label: '描述' },
+    {
+      key: 'owner',
+      label: '持有者',
+      render: (i) => {
+        const owner = characters.find((c) => c.id === i.owner);
+        return owner ? owner.name : (i.owner || '-');
+      },
+    },
+  ];
+}
 
 const hookColumns: ColumnDef<Hook>[] = [
   { key: 'name', label: '名称' },
@@ -459,7 +468,7 @@ export function KnowledgePage() {
         {/* 物品 */}
         {activeTab === 'items' && (
           <EntityList
-            columns={itemColumns}
+            columns={getItemColumns(store.characters)}
             data={store.items}
             onCreate={openCreate}
             onEdit={handleEdit}

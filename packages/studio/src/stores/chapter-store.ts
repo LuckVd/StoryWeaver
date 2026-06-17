@@ -7,6 +7,8 @@ interface ChapterState {
   chaptersByVolume: Record<number, ChapterMeta[]>;
   currentChapter: Chapter | null;
   versions: ChapterVersion[];
+  /** 全书章节序号映射：chapterId → 第几章（1-based，按卷顺序+卷内id 跨卷连续） */
+  chapterOrder: Record<number, number>;
   loading: boolean;
   error: string | null;
 
@@ -26,6 +28,7 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
   chaptersByVolume: {},
   currentChapter: null,
   versions: [],
+  chapterOrder: {},
   loading: false,
   error: null,
 
@@ -40,7 +43,17 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
           byVolume[v.id] = chapters;
         }),
       );
-      set({ volumes: book.volumes, chaptersByVolume: byVolume, loading: false });
+      // 全书序号：按卷顺序 + 卷内 id 排序，跨卷连续（1,2,3...）
+      const orderedIds: number[] = [];
+      for (const v of [...book.volumes].sort((a, b) => a.id - b.id)) {
+        const chs = (byVolume[v.id] ?? []).slice().sort((a, b) => a.id - b.id);
+        orderedIds.push(...chs.map((c) => c.id));
+      }
+      const chapterOrder: Record<number, number> = {};
+      orderedIds.forEach((id, i) => {
+        chapterOrder[id] = i + 1;
+      });
+      set({ volumes: book.volumes, chaptersByVolume: byVolume, chapterOrder, loading: false });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       set({ error: message, loading: false });
@@ -118,12 +131,14 @@ export const useChapterStore = create<ChapterState>((set, get) => ({
   },
 
   fetchVersions: async (chapterId) => {
-    set({ loading: true, error: null });
+    // 不修改全局 loading：VersionPanel 用独立的 loadingVersions。
+    // 若设全局 loading 会触发 chapter-edit 全屏加载态 → 卸载 VersionPanel →
+    // 重新 mount → 再次 fetchVersions，形成永远"加载中"的死循环。
     try {
       const versions = await api.get<ChapterVersion[]>(`/chapters/${chapterId}/versions`);
-      set({ versions, loading: false });
+      set({ versions });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Unknown error', loading: false });
+      set({ error: err instanceof Error ? err.message : 'Unknown error' });
     }
   },
 

@@ -9,6 +9,8 @@ interface ChapterListProps {
 }
 
 export function ChapterList({ volumes, chaptersByVolume, onDelete, onPublish }: ChapterListProps) {
+  const allIds = volumes.flatMap((v) => (chaptersByVolume[v.id] ?? []).map((c) => c.id));
+  const maxId = allIds.length ? Math.max(...allIds) : 0;
   if (volumes.length === 0) {
     return <div className="py-8 text-center text-muted-foreground">暂无卷宗，请先创建一个卷宗</div>;
   }
@@ -25,7 +27,7 @@ export function ChapterList({ volumes, chaptersByVolume, onDelete, onPublish }: 
                 <p className="py-2 text-sm text-muted-foreground">暂无章节</p>
               ) : (
                 chapters.map((ch) => (
-                  <ChapterRow key={ch.id} chapter={ch} onDelete={onDelete} onPublish={onPublish} />
+                  <ChapterRow key={ch.id} chapter={ch} isLatest={ch.id === maxId} onDelete={onDelete} onPublish={onPublish} />
                 ))
               )}
             </div>

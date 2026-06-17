@@ -4,6 +4,8 @@ import {
   Background,
   Controls,
   MiniMap,
+  Handle,
+  Position,
   useNodesState,
   useEdgesState,
   type Node,
@@ -42,6 +44,7 @@ function EntityNode({ data }: { data: { label: string; entityType: GraphEntity['
       className="rounded-lg border-2 bg-white px-3 py-2 shadow-md"
       style={{ borderColor: color }}
     >
+      <Handle type="target" position={Position.Left} style={{ background: color }} />
       <div className="flex items-center gap-2">
         <span
           className="inline-block h-2.5 w-2.5 rounded-full"
@@ -50,6 +53,7 @@ function EntityNode({ data }: { data: { label: string; entityType: GraphEntity['
         <span className="text-sm font-medium">{data.label}</span>
       </div>
       <div className="mt-0.5 text-[10px] text-gray-400">{typeLabels[data.entityType]}</div>
+      <Handle type="source" position={Position.Right} style={{ background: color }} />
     </div>
   );
 }
@@ -107,14 +111,18 @@ export function RelationGraph() {
     fetchAll();
   }, [fetchAll]);
 
-  // 同步 store → React Flow
+  // 同步 store → React Flow（nodes 与 edges 在同一 effect 设置，
+  // 并过滤掉两端节点不存在的 orphan 边，避免 React Flow 丢弃边）
   useEffect(() => {
-    setNodes(entitiesToNodes(entities));
-  }, [entities, setNodes]);
-
-  useEffect(() => {
-    setEdges(relationsToEdges(relations));
-  }, [relations, setEdges]);
+    const nextNodes = entitiesToNodes(entities);
+    const nodeIds = new Set(nextNodes.map((n) => n.id));
+    setNodes(nextNodes);
+    setEdges(
+      relationsToEdges(relations).filter(
+        (e) => nodeIds.has(e.source) && nodeIds.has(e.target),
+      ),
+    );
+  }, [entities, relations, setNodes, setEdges]);
 
   // 删除边时同步到后端
   const handleEdgesChange: OnEdgesChange = useCallback(

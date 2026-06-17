@@ -56,7 +56,8 @@ export function EntityFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleaned: Record<string, unknown> = {};
+    // 保留非表单字段（id、_category 等元数据），编辑提交依赖 values.id
+    const cleaned: Record<string, unknown> = { ...form };
     for (const f of fields) {
       let val = form[f.name];
       // tags/aliases: comma-separated string → string[]

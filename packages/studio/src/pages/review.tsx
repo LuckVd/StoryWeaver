@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { api } from '@/lib/api-client';
+import { useChapterStore } from '@/stores/chapter-store';
 import type { ReviewReport } from '@storyweaver/core';
 import { ScoreCard } from '@/components/review/score-card';
 import { IssuesList } from '@/components/review/issues-list';
+import { DiffViewer } from '@/components/editor/diff-viewer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const chapterOrder = useChapterStore((s) => s.chapterOrder);
+  const fetchVolumesAndChapters = useChapterStore((s) => s.fetchVolumesAndChapters);
   const [reports, setReports] = useState<ReviewReport[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -17,6 +21,7 @@ export function ReviewPage() {
 
   useEffect(() => {
     if (!id) return;
+    fetchVolumesAndChapters();
     setLoading(true);
     api.get<ReviewReport[]>(`/chapters/${id}/reviews`)
       .then((data) => {
@@ -28,6 +33,37 @@ export function ReviewPage() {
         setLoading(false);
       });
   }, [id]);
+
+  const handleApprove = async () => {
+    await api.put(`/chapters/${id}/status`, { status: 'approved' });
+    navigate(`/chapters/${id}`);
+  };
+
+  const [revising, setRevising] = useState(false);
+  const [diff, setDiff] = useState<{ original: string; revised: string } | null>(null);
+
+  const handleRevise = async () => {
+    if (!id || !selected) return;
+    setRevising(true);
+    try {
+      const result = await api.post<{ original: string; revised: string }>(
+        `/chapters/${id}/revise`,
+        { issues: selected.issues },
+      );
+      setDiff(result);
+    } catch {
+      // 静默
+    } finally {
+      setRevising(false);
+    }
+  };
+
+  const handleAccept = async () => {
+    if (!id || !diff) return;
+    await api.put(`/chapters/${id}`, { content: diff.revised });
+    setDiff(null);
+    navigate(`/chapters/${id}`);
+  };
 
   if (loading) {
     return (
@@ -64,11 +100,16 @@ export function ReviewPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">审稿报告</h1>
-          <p className="text-sm text-muted-foreground">第 {id} 章</p>
+          <p className="text-sm text-muted-foreground">第 {chapterOrder[Number(id)] ?? id} 章</p>
         </div>
-        <Button variant="outline" onClick={() => navigate(`/chapters/${id}`)}>
-          返回编辑
-        </Button>
+        <div className="flex gap-2">
+          {reports.length > 0 && (
+            <Button onClick={handleApprove}>通过审阅</Button>
+          )}
+          <Button variant="outline" onClick={() => navigate(`/chapters/${id}`)}>
+            返回编辑
+          </Button>
+        </div>
       </div>
 
       {/* 历史报告切换 */}
@@ -113,8 +154,33 @@ export function ReviewPage() {
         </CardHeader>
         <CardContent>
           <IssuesList issues={selected.issues} />
+          <div className="mt-4">
+            {!diff && (
+              <Button onClick={handleRevise} disabled={revising}>
+                {revising ? 'AI 修订中…（GLM 推理较慢）' : 'AI 一键修订'}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* 修订 diff 预览 */}
+      {diff && (
+        <Card>
+          <CardHeader>
+            <CardTitle>修订预览（接受后替换章节内容）</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DiffViewer oldText={diff.original} newText={diff.revised} oldLabel="原文" newLabel="AI 修订" />
+            <div className="mt-3 flex gap-2">
+              <Button onClick={handleAccept}>接受修订</Button>
+              <Button variant="outline" onClick={() => setDiff(null)}>
+                放弃
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

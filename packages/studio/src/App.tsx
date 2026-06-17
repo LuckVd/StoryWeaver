@@ -7,6 +7,8 @@ import { ReviewPage } from '@/pages/review';
 import { ChatPage } from '@/pages/chat';
 import { SettingsPage } from '@/pages/settings';
 import { KnowledgePage } from '@/pages/knowledge';
+import { SummariesPage } from '@/pages/summaries';
+import { SearchPage } from '@/pages/search';
 import { NotFoundPage } from '@/pages/not-found';
 
 const router = createBrowserRouter([
@@ -20,6 +22,8 @@ const router = createBrowserRouter([
       { path: 'chat', element: <ChatPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'knowledge', element: <KnowledgePage /> },
+      { path: 'summaries', element: <SummariesPage /> },
+      { path: 'search', element: <SearchPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

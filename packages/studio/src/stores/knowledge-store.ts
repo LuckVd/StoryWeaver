@@ -185,14 +185,16 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   fetchAll: async () => {
     set({ loading: true, error: null });
     try {
-      const [characters, worldEntries, items, hooks, rules, relations] = await Promise.all([
+      const [characters, worldRaw, items, hooks, rules, relations] = await Promise.all([
         api.get<Character[]>('/knowledge/characters'),
-        api.get<WorldEntry[]>('/knowledge/world'),
+        api.get<Record<string, WorldEntry[]>>('/knowledge/world'),
         api.get<Item[]>('/knowledge/items'),
         api.get<Hook[]>('/knowledge/hooks'),
         api.get<Rule[]>('/knowledge/rules'),
         api.get<RelationEdge[]>('/knowledge/relations'),
       ]);
+      // /knowledge/world 返回按子分类分组的对象，展开为平铺数组（与 fetchWorld 一致）
+      const worldEntries = Object.values(worldRaw).flat();
       set({
         characters,
         worldEntries,
