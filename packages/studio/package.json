@@ -22,6 +22,7 @@
     "chokidar": "^5.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "diff": "^9.0.0",
     "hono": "^4.6.0",
     "lucide-react": "^1.16.0",
     "react": "^19.0.0",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@hono/node-server": "^2.0.4",
     "@tailwindcss/vite": "^4.0.0",
+    "@types/diff": "^8.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
