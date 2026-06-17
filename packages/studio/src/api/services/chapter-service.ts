@@ -77,6 +77,10 @@ export class ChapterService {
     if (patch.title !== undefined) {
       metaPatch.title = patch.title;
     }
+    // 内容变更时，已审阅(approved)章节回退草稿：编辑可能来自 AI 生成，需重新审阅
+    if (patch.content !== undefined && meta.status === 'approved') {
+      metaPatch.status = 'draft';
+    }
     await this.indexStorage.updateChapter(volume, chapterId, metaPatch);
     if (patch.content !== undefined) {
       await this.chapterStorage.writeChapter(volume, chapterId, patch.content);
@@ -84,14 +88,20 @@ export class ChapterService {
     return this.read(volume, chapterId);
   }
 
-  /** 删除章节（仅 draft 状态） */
+  /** 删除章节（仅最新章节 + 未发布状态；避免中间空洞与已发布被删） */
   async delete(volume: number, chapterId: number): Promise<boolean> {
     const meta = await this.indexStorage.readChapter(volume, chapterId);
     if (!meta) {
       return false;
     }
-    if (meta.status !== 'draft') {
+    if (meta.status === 'published') {
       throw new Error('CHAPTER_LOCKED');
+    }
+    // 只允许删除最新章节（chapterId 最大），避免中间空洞
+    const all = await this.list();
+    const maxId = all.length ? Math.max(...all.map((c) => c.id)) : 0;
+    if (chapterId !== maxId) {
+      throw new Error('ONLY_LATEST_DELETABLE');
     }
     await this.chapterStorage.deleteChapter(volume, chapterId);
     await this.indexStorage.deleteChapter(volume, chapterId);
@@ -108,7 +118,7 @@ export class ChapterService {
     const flow: Record<ChapterStatus, ChapterStatus | null> = {
       draft: 'approved',
       approved: 'published',
-      published: null,
+      published: 'draft', // 危险操作：回退草稿以重写（占位保留）
     };
     const expected = flow[meta.status];
     if (expected !== newStatus) {

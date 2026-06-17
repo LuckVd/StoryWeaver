@@ -38,7 +38,7 @@ export const updateChapterSchema = z.object({
 });
 
 export const updateStatusSchema = z.object({
-  status: z.enum(['approved', 'published'], { message: '状态只能转为 approved 或 published' }),
+  status: z.enum(['approved', 'published', 'draft'], { message: '状态只能转为 approved、published 或 draft' }),
 });
 
 // --- Chat ---

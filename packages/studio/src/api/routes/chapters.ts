@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import type { BookService } from '../services/book-service.js';
 import type { ChapterService } from '../services/chapter-service.js';
+import type { SummaryService } from '../services/summary-service.js';
+import type { ReviewService } from '../services/review-service.js';
 import { APIError } from '../error-handler.js';
 import { ErrorCode } from '@storyweaver/core';
 import { validate } from '../validate.js';
@@ -16,7 +18,7 @@ import { createChapterSchema, updateChapterSchema, updateStatusSchema, restoreVe
  * DELETE /chapters/:id             — 删除章节（仅 draft）
  * PUT    /chapters/:id/status      — 状态流转
  */
-export function chaptersRoute(bookService: BookService, chapterService: ChapterService): Hono {
+export function chaptersRoute(bookService: BookService, chapterService: ChapterService, summaryService: SummaryService, reviewService: ReviewService): Hono {
   const app = new Hono();
 
   // GET /chapters — 列出章节
@@ -102,7 +104,10 @@ export function chaptersRoute(bookService: BookService, chapterService: ChapterS
       return c.json({ ok: true });
     } catch (err) {
       if (err instanceof Error && err.message === 'CHAPTER_LOCKED') {
-        throw new APIError(ErrorCode.CHAPTER_LOCKED, '仅 draft 状态的章节可以删除');
+        throw new APIError(ErrorCode.CHAPTER_LOCKED, '已发布章节不可删除，请先回退为草稿');
+      }
+      if (err instanceof Error && err.message === 'ONLY_LATEST_DELETABLE') {
+        throw new APIError(ErrorCode.VALIDATION_ERROR, '只能删除最新的章节（避免中间空缺）');
       }
       throw err;
     }
@@ -120,16 +125,88 @@ export function chaptersRoute(bookService: BookService, chapterService: ChapterS
       throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
     }
     try {
+      const before = await chapterService.read(volume, chapterId);
       const meta = await chapterService.updateStatus(volume, chapterId, status);
       if (!meta) {
         throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
       }
+      // 发布时异步生成章节摘要（记 generating 状态，前端轮询可见）
+      if (status === 'published') {
+        summaryService.startGenerate(volume, chapterId);
+      }
+      // 回退草稿（published→draft）时删除该章摘要（摘要只在 published 时生成）
+      if (before?.status === 'published' && status === 'draft') {
+        await summaryService.deleteChapterSummary(chapterId).catch(() => {});
+      }
       return c.json(meta);
     } catch (err) {
       if (err instanceof Error && err.message === 'INVALID_STATUS_TRANSITION') {
-        throw new APIError(ErrorCode.VALIDATION_ERROR, '状态流转不合法：只能 draft→approved→published');
+        throw new APIError(ErrorCode.VALIDATION_ERROR, '状态流转不合法');
       }
       throw err;
+    }
+  });
+
+  // GET /chapters/:id/summary — 获取章节摘要（发布后生成）
+  app.get('/:id/summary', async (c) => {
+    const chapterId = Number(c.req.param('id'));
+    if (!Number.isInteger(chapterId) || chapterId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '章节 ID 必须为正整数');
+    }
+    const summary = await summaryService.getChapterSummary(chapterId);
+    return c.json({ summary, generating: summaryService.isGenerating(chapterId) });
+  });
+
+  // POST /chapters/:id/summary — 异步启动摘要生成（立即返回 generating=true，前端轮询 GET 查进度）
+  app.post('/:id/summary', async (c) => {
+    const chapterId = Number(c.req.param('id'));
+    if (!Number.isInteger(chapterId) || chapterId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '章节 ID 必须为正整数');
+    }
+    const volume = await chapterService.findVolume(chapterId);
+    if (volume === null) {
+      throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
+    }
+    summaryService.startGenerate(volume, chapterId);
+    return c.json({ generating: true });
+  });
+
+  // POST /chapters/:id/review — 触发 AI 审稿（不改状态，返回报告）
+  app.post('/:id/review', async (c) => {
+    const chapterId = Number(c.req.param('id'));
+    if (!Number.isInteger(chapterId) || chapterId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '章节 ID 必须为正整数');
+    }
+    const volume = await chapterService.findVolume(chapterId);
+    if (volume === null) {
+      throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
+    }
+    try {
+      const report = await reviewService.reviewChapter(volume, chapterId);
+      return c.json(report, 201);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      throw new APIError(ErrorCode.INTERNAL_ERROR, `审稿失败：${msg}`);
+    }
+  });
+
+  // POST /chapters/:id/revise — 根据审稿意见 AI 修订正文，返回 { original, revised }
+  app.post('/:id/revise', async (c) => {
+    const chapterId = Number(c.req.param('id'));
+    if (!Number.isInteger(chapterId) || chapterId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '章节 ID 必须为正整数');
+    }
+    const volume = await chapterService.findVolume(chapterId);
+    if (volume === null) {
+      throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
+    }
+    const body = await c.req.json().catch(() => ({}));
+    try {
+      const result = await reviewService.reviseChapter(volume, chapterId, body.issues ?? []);
+      return c.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      throw new APIError(ErrorCode.INTERNAL_ERROR, `修订失败：${msg}`);
     }
   });
 

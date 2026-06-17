@@ -16,10 +16,12 @@ import {
   type AgentConfig,
   type ReviewReport,
   type Chapter,
+  type WorldSubCategory,
 } from '@storyweaver/core';
 import type { AIOperationQueue } from '../queue.js';
 import type { SSEEmitter } from '../sse.js';
 import type { ChapterService } from './chapter-service.js';
+import type { KnowledgeService } from './knowledge-service.js';
 
 /** 支持 Agent 类型联合 */
 type AnyAgent = WriterAgent | BrainstormerAgent | AuditorAgent;
@@ -38,6 +40,7 @@ export class ChatService {
     private readonly aiQueue: AIOperationQueue,
     private readonly sseEmitter: SSEEmitter,
     private readonly chapterService: ChapterService,
+    private readonly knowledgeService: KnowledgeService,
   ) {}
 
   // --- Session CRUD ---
@@ -125,6 +128,16 @@ export class ChatService {
         messages.push({ role: m.role, content: m.content });
       }
 
+      // 注入知识库设定（全量），放在最前，确保 AI 遵守已有设定
+      try {
+        const kbContext = await this.buildKnowledgeContext();
+        if (kbContext) {
+          messages.unshift({ role: 'system', content: kbContext });
+        }
+      } catch {
+        // 知识库加载失败不阻断对话
+      }
+
       // 广播开始
       this.sseEmitter.emit({ type: 'agent:start', data: { agent: agentName, stage: 'generating' } });
 
@@ -181,6 +194,15 @@ export class ChatService {
       .join('');
   }
 
+  /** 剥离 AI 误加的 Markdown 标题行（# / ## 等），避免污染正文 */
+  private stripTitleLines(text: string): string {
+    return text
+      .split('\n')
+      .filter((line) => !/^#{1,6}\s/.test(line.trim()))
+      .join('\n')
+      .trim();
+  }
+
   /** 将 AI 回复应用到章节 */
   async applyMessage(
     sessionId: string,
@@ -197,7 +219,7 @@ export class ChatService {
       throw new Error('MESSAGE_NOT_FOUND');
     }
 
-    const aiContent = target.content ?? message.content;
+    const aiContent = this.stripTitleLines(target.content ?? message.content);
     const aiHtml = this.textToHtml(aiContent);
     const volume = await this.chapterService.findVolume(target.chapterId);
     if (volume === null) {
@@ -219,6 +241,77 @@ export class ChatService {
       }, 'ai_apply');
     }
     return { content: updated?.content ?? aiHtml };
+  }
+
+  // --- 知识库上下文 ---
+
+  /**
+   * 构建知识库上下文（全量），作为 system 设定注入对话。
+   * 让写作/审稿 Agent 能感知角色、世界观、规则、伏笔等已有设定，避免自由发挥。
+   */
+  private async buildKnowledgeContext(): Promise<string> {
+    const ks = this.knowledgeService;
+    const worldSubs: WorldSubCategory[] = ['geography', 'power-system', 'factions', 'history', 'glossary'];
+
+    const [characters, items, hooks, rules, customCats, ...worldBySub] = await Promise.all([
+      ks.listCharacters(),
+      ks.listItems(),
+      ks.listHooks(),
+      ks.listRules(),
+      ks.listCustomCategories(),
+      ...worldSubs.map((s) => ks.listWorld(s)),
+    ]);
+    const worldEntries = worldBySub.flat();
+    const customs = await Promise.all(customCats.map((c) => ks.listCustom(c)));
+    const customEntries = customs.flat();
+
+    const lines: string[] = ['## 知识库设定（写作时必须严格遵守，不得违背已有设定）'];
+
+    if (characters.length) {
+      lines.push('### 角色');
+      for (const c of characters) {
+        const parts: string[] = [c.description];
+        if (c.aliases?.length) parts.push(`别名：${c.aliases.join('、')}`);
+        if (c.profile) parts.push(`档案：${c.profile}`);
+        if (c.firstAppearance) parts.push(`首次出场：第${c.firstAppearance}章`);
+        lines.push(`- **${c.name}**：${parts.join('；')}`);
+      }
+    }
+    if (worldEntries.length) {
+      lines.push('### 世界观');
+      for (const w of worldEntries) {
+        lines.push(`- **${w.name}**：${w.content}`);
+      }
+    }
+    if (items.length) {
+      lines.push('### 物品');
+      for (const it of items) {
+        lines.push(`- **${it.name}**：${it.description}`);
+      }
+    }
+    if (hooks.length) {
+      lines.push('### 伏笔');
+      for (const h of hooks) {
+        const status = h.status === 'active' ? '进行中' : '已回收';
+        lines.push(`- **${h.name}**（${status}）：${h.description}`);
+      }
+    }
+    if (rules.length) {
+      lines.push('### 规则（必须遵守）');
+      const prioMap: Record<string, string> = { high: '高', medium: '中', low: '低' };
+      for (const r of rules) {
+        lines.push(`- [${prioMap[r.priority] ?? r.priority}] **${r.name}**：${r.content}`);
+      }
+    }
+    if (customEntries.length) {
+      lines.push('### 其他设定');
+      for (const cu of customEntries) {
+        lines.push(`- **${cu.name}**：${cu.content}`);
+      }
+    }
+
+    if (lines.length === 1) return ''; // 仅标题，无实质内容
+    return lines.join('\n');
   }
 
   // --- LLM 初始化 ---

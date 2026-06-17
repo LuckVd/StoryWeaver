@@ -13,11 +13,14 @@ import { knowledgeRoute } from './routes/knowledge.js';
 import { reviewsRoute } from './routes/reviews.js';
 import { workspaceRoute } from './routes/workspace.js';
 import { searchRoute } from './routes/search.js';
+import { summariesRoute } from './routes/summaries.js';
 import { BookService } from './services/book-service.js';
 import { ChapterService } from './services/chapter-service.js';
 import { ChatService } from './services/chat-service.js';
 import { KnowledgeService } from './services/knowledge-service.js';
 import { WorkspaceService } from './services/workspace-service.js';
+import { SummaryService } from './services/summary-service.js';
+import { ReviewService } from './services/review-service.js';
 import { FileWatcher } from './services/file-watcher.js';
 
 /**
@@ -40,19 +43,22 @@ export function createServer(projectRoot: string = process.cwd()) {
   // 服务层
   const bookService = new BookService(bookStorage);
   const chapterService = new ChapterService(indexStorage, chapterStorage, versionStorage, projectRoot);
-  const chatService = new ChatService(aiQueue, sseEmitter, chapterService);
   const knowledgeService = new KnowledgeService(
     new KnowledgeStorage(projectRoot),
     new OutlineStorage(projectRoot),
     new RelationStorage(projectRoot),
   );
+  const chatService = new ChatService(aiQueue, sseEmitter, chapterService, knowledgeService);
+  const summaryStorage = new SummaryStorage();
   const workspaceService = new WorkspaceService(
     new WorkspaceStorage(projectRoot),
     chapterService,
-    new SummaryStorage(),
+    summaryStorage,
     sseEmitter,
     projectRoot,
   );
+  const summaryService = new SummaryService(chapterService, summaryStorage, sseEmitter, projectRoot);
+  const reviewService = new ReviewService(chapterService, projectRoot);
 
   // 搜索引擎（全局共享实例）
   const searchEngine = new InMemorySearchEngine();
@@ -70,11 +76,12 @@ export function createServer(projectRoot: string = process.cwd()) {
   app.route('/api/v1', eventsRoute(sseEmitter));
   app.route('/api/v1/book', bookRoute(bookService));
   app.route('/api/v1/volumes', volumesRoute(bookService));
-  app.route('/api/v1/chapters', chaptersRoute(bookService, chapterService));
+  app.route('/api/v1/chapters', chaptersRoute(bookService, chapterService, summaryService, reviewService));
   app.route('/api/v1/chat', chatRoute(chatService));
   app.route('/api/v1/knowledge', knowledgeRoute(knowledgeService));
   app.route('/api/v1/workspace', workspaceRoute(workspaceService));
   app.route('/api/v1/search', searchRoute(searchEngine));
+  app.route('/api/v1/summaries', summariesRoute(summaryService));
   app.route('/api/v1', reviewsRoute(projectRoot));
 
   // 健康检查
