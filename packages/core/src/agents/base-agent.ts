@@ -48,9 +48,12 @@ export abstract class BaseAgent {
     const mutableMessages = [...messages];
     for (let i = 0; i < maxRetries; i++) {
       const raw = await this.chat(mutableMessages);
+      // glm 等推理模型可能用 ```json 代码块包裹或附带解释文字，提取首个 JSON 对象再解析
+      const match = raw.match(/\{[\s\S]*\}/);
+      const jsonStr = match ? match[0] : raw;
       let parsed: z.SafeParseReturnType<T, T>;
       try {
-        parsed = schema.safeParse(JSON.parse(raw));
+        parsed = schema.safeParse(JSON.parse(jsonStr));
       } catch {
         mutableMessages.push({
           role: 'user',
