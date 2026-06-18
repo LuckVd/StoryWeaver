@@ -89,3 +89,49 @@ export interface TokenBudget {
   /** 留给 AI 输出 ~4000 */
   outputReserve: number;
 }
+
+/** 时间线条目(单章,从 ChapterSummary 派生) */
+export interface TimelineItem {
+  chapter: number;
+  volume: number;
+  title: string;
+  /** 故事内时间(来自 ChapterSummary.narrativeTime,用于排序/展示) */
+  narrativeTime?: string;
+  /** 该章主要情节事件(来自 ChapterSummary.plotEvents) */
+  events: string[];
+  /** 一句话结果(来自 ChapterSummary.plotOutcome) */
+  outcome: string;
+}
+
+/** 完整时间线(存储于 memory/timeline.json) */
+export interface Timeline {
+  /** 按章节号升序 */
+  entries: TimelineItem[];
+  /** 重建时间(ISO) */
+  updatedAt: string;
+}
+
+/** 单个角色的单次状态变迁 */
+export interface CharacterStateEntry {
+  chapter: number;
+  field: string;
+  from: string;
+  to: string;
+}
+
+/** 单个角色的聚合状态(memory/character-states.json 里的一项) */
+export interface CharacterState {
+  entity: string;
+  /** 各字段的当前(最新)值 */
+  currentState: Record<string, string>;
+  /** 完整变迁历史,按章节号升序 */
+  history: CharacterStateEntry[];
+}
+
+/** 完整角色状态集合(存储于 memory/character-states.json) */
+export interface CharacterStates {
+  /** 按 entity 名排序 */
+  characters: CharacterState[];
+  /** 重建时间(ISO) */
+  updatedAt: string;
+}

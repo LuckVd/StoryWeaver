@@ -1,24 +1,27 @@
-goal_id: G02-S11
-title: "知识库前端管理 UI：实体 CRUD 界面"
+goal_id: G03
+title: "Phase 3: 长篇记忆（8 子目标全部完成）"
 stage: done
 status: completed
-selected_option: G02-S11
+selected_option: G03
 design_confirmed: true
 blocked_by: []
 open_questions: []
 implementation_steps:
-  - "Step 1: 扩展 knowledge-store.ts — 5 种实体 CRUD actions"
-  - "Step 2: 创建 entity-form-dialog.tsx — 通用表单 Dialog"
-  - "Step 3: 创建 entity-list.tsx — 通用实体列表"
-  - "Step 4: 重构 knowledge.tsx — Tab 布局"
-  - "Step 5: 构建验证 pnpm build + pnpm test"
+  - "G03-S01 三层记忆系统 — core/memory/context-builder.ts"
+  - "G03-S02 章节摘要结构化 — 06-18 已完成，核对确认"
+  - "G03-S03 多章综合总结 — WorkspaceService.maybeGenerateBatchSummary"
+  - "G03-S04 时间线+角色状态 — aggregator + SummaryStorage.rebuild + GET /memory"
+  - "G03-S05 Token 预算 — token-budget.ts"
+  - "G03-S06 检索策略 — retriever.ts"
+  - "G03-S07 CuratorAgent — curator-agent.ts"
+  - "G03-S08 /memory 页面 — memory.tsx + 路由 + 侧边栏"
 test_scope:
-  - "前端构建验证 + 后端 API 现有测试"
-test_result: "pnpm build 通过；pnpm test 全量修复后 316 passed（G02-S11 同步时存在 4 个既有 chat 路由失败，已于 2026-06-14 修复）"
+  - "core/memory(aggregator/token-budget/context-builder/retriever) 单测"
+  - "SummaryStorage 派生记忆单测"
+  - "CuratorAgent 单测"
+test_result: "core build 通过 + 231 passed 全绿；studio tsc + vite build 通过；studio test 121 passed / 2 failed（既有失败，非 G03 引入）"
 security_blockers: []
 dead_code_actions: []
 goal_candidates: []
-sync_status: done
-last_check_at: "2026-06-14"
-commit_id: c4ef4c9
-implemented_at: "2026-06-02"
+sync_status: pending
+last_check_at: "2026-06-18"

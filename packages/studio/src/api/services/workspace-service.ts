@@ -207,6 +207,36 @@ export class WorkspaceService {
     } catch {
       // 状态更新失败不阻塞
     }
+
+    // 重建时间线 + 角色状态变迁（派生记忆，失败不阻塞）
+    await this.summaryStorage.rebuildTimelineAndCharacterStates(this.projectRoot).catch(() => {});
+
+    // 多章综合总结（每 BATCH_INTERVAL 章触发，G03-S03，失败不阻塞）
+    await this.maybeGenerateBatchSummary(chapterIds).catch(() => {});
+  }
+
+  /**
+   * 多章综合总结（G03-S03）：当发布的最大章节号是间隔（默认 10）的倍数时，
+   * 对 [max-interval+1, max] 范围生成 BatchSummary。
+   * TODO: interval 从 novel.yaml.batchSummaryInterval 读取（待接入 config service）。
+   */
+  private async maybeGenerateBatchSummary(chapterIds: number[]): Promise<void> {
+    const interval = 10;
+    const maxCh = Math.max(...chapterIds);
+    if (maxCh <= 0 || maxCh % interval !== 0) return;
+    const from = maxCh - interval + 1;
+    const summaries = await this.summaryStorage.listChapterSummaries(this.projectRoot);
+    const inRange = summaries.filter((s) => s.chapter >= from && s.chapter <= maxCh);
+    if (inRange.length < 2) return;
+    const content = inRange
+      .map((s) => `第${s.chapter}章 ${s.title}：${s.plotEvents.join('；')}（${s.plotOutcome}）`)
+      .join('\n');
+    const batch = await this.getSummarizerAgent().summarizeBatch(
+      [{ role: 'user', content }],
+      [from, maxCh],
+      inRange[0].volume,
+    );
+    await this.summaryStorage.saveBatchSummary(this.projectRoot, batch);
   }
 
   /** 懒初始化 LLM 客户端和 SummarizerAgent */

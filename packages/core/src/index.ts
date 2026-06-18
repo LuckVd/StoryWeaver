@@ -5,3 +5,4 @@ export * from './storage/index.js';
 export * from './llm/index.js';
 export * from './agents/index.js';
 export * from './search/index.js';
+export * from './memory/index.js';

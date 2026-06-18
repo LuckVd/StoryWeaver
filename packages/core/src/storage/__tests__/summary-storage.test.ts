@@ -178,4 +178,65 @@ describe('SummaryStorage', () => {
       expect(result?.lastPublishedChapter).toBe(20);
     });
   });
+
+  // ── Timeline & CharacterStates（G03-S04） ──
+
+  describe('timeline and character-states', () => {
+    it('rebuild 从章节摘要聚合出时间线 + 角色状态并持久化', async () => {
+      await storage.saveChapterSummary(projectRoot, {
+        ...makeChapterSummary(1),
+        stateChanges: [{ entity: '张三', field: '修为', from: '炼气', to: '筑基' }],
+      });
+      await storage.saveChapterSummary(projectRoot, {
+        ...makeChapterSummary(2),
+        plotEvents: ['张三突破金丹'],
+        stateChanges: [{ entity: '张三', field: '修为', from: '筑基', to: '金丹' }],
+      });
+
+      const { timeline, characterStates } =
+        await storage.rebuildTimelineAndCharacterStates(projectRoot);
+
+      expect(timeline.entries.map((e) => e.chapter)).toEqual(expect.arrayContaining([1, 2]));
+      const zhang = characterStates.characters.find((c) => c.entity === '张三');
+      expect(zhang?.currentState).toEqual({ 修为: '金丹' });
+
+      // 持久化后可读回
+      const storedTimeline = await storage.getTimeline(projectRoot);
+      const storedStates = await storage.getCharacterStates(projectRoot);
+      expect(storedTimeline?.entries.length).toBe(timeline.entries.length);
+      expect(storedStates?.characters.length).toBe(characterStates.characters.length);
+    });
+
+    it('无摘要时 rebuild 返回空派生视图且不报错', async () => {
+      const freshRoot = mkdtempSync(join(tmpdir(), 'sw-mem-empty-'));
+      try {
+        const { timeline, characterStates } =
+          await storage.rebuildTimelineAndCharacterStates(freshRoot);
+        expect(timeline.entries).toEqual([]);
+        expect(characterStates.characters).toEqual([]);
+        // rebuild 即使无摘要也写入空派生视图（标记已重建，对前端友好）
+        const storedTimeline = await storage.getTimeline(freshRoot);
+        expect(storedTimeline?.entries).toEqual([]);
+      } finally {
+        rmSync(freshRoot, { recursive: true, force: true });
+      }
+    });
+
+    it('save/get timeline 与 character-states 往返', async () => {
+      await storage.saveTimeline(projectRoot, {
+        entries: [{ chapter: 9, volume: 1, title: 'T', events: ['e'], outcome: 'o' }],
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      const t = await storage.getTimeline(projectRoot);
+      expect(t?.entries[0].chapter).toBe(9);
+      expect(t?.updatedAt).toBe('2026-01-01T00:00:00.000Z');
+
+      await storage.saveCharacterStates(projectRoot, {
+        characters: [{ entity: 'X', currentState: { a: 'b' }, history: [] }],
+        updatedAt: '2026-01-02T00:00:00.000Z',
+      });
+      const cs = await storage.getCharacterStates(projectRoot);
+      expect(cs?.characters[0].entity).toBe('X');
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import { readFile, writeFile, readdir, unlink } from 'node:fs/promises';
-import { ensureDir, summariesDir, summaryFilePath, batchSummariesDir, batchSummaryFilePath, storyStateFilePath } from './path.js';
-import type { ChapterSummary, BatchSummary, StoryStateSnapshot } from '../models/memory.js';
+import { ensureDir, summariesDir, summaryFilePath, batchSummariesDir, batchSummaryFilePath, storyStateFilePath, timelineFilePath, characterStatesFilePath } from './path.js';
+import type { ChapterSummary, BatchSummary, StoryStateSnapshot, Timeline, CharacterStates } from '../models/memory.js';
+import { aggregateTimeline, aggregateCharacterStates } from '../memory/aggregator.js';
 
 /**
  * 摘要存储层
@@ -139,6 +140,58 @@ export class SummaryStorage {
     try {
       const data = await readFile(filePath, 'utf-8');
       return JSON.parse(data) as StoryStateSnapshot;
+    } catch {
+      return null;
+    }
+  }
+
+  // ── Timeline & CharacterStates（从 ChapterSummary 派生） ──
+
+  /**
+   * 重建时间线 + 角色状态变迁：读全部章节摘要 → 聚合 → 覆盖写入，返回两者。
+   * 供发布流程在章节摘要生成后调用；数据源为已入库的 ChapterSummary，不调 LLM。
+   */
+  async rebuildTimelineAndCharacterStates(projectRoot: string): Promise<{
+    timeline: Timeline;
+    characterStates: CharacterStates;
+  }> {
+    const summaries = await this.listChapterSummaries(projectRoot);
+    const timeline = aggregateTimeline(summaries);
+    const characterStates = aggregateCharacterStates(summaries);
+    await this.saveTimeline(projectRoot, timeline);
+    await this.saveCharacterStates(projectRoot, characterStates);
+    return { timeline, characterStates };
+  }
+
+  /** 保存时间线（覆盖写入） */
+  async saveTimeline(projectRoot: string, timeline: Timeline): Promise<void> {
+    const filePath = timelineFilePath(projectRoot);
+    await ensureDir(filePath.substring(0, filePath.lastIndexOf('/')));
+    await writeFile(filePath, JSON.stringify(timeline, null, 2), 'utf-8');
+  }
+
+  /** 读取时间线 */
+  async getTimeline(projectRoot: string): Promise<Timeline | null> {
+    try {
+      const data = await readFile(timelineFilePath(projectRoot), 'utf-8');
+      return JSON.parse(data) as Timeline;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 保存角色状态变迁（覆盖写入） */
+  async saveCharacterStates(projectRoot: string, states: CharacterStates): Promise<void> {
+    const filePath = characterStatesFilePath(projectRoot);
+    await ensureDir(filePath.substring(0, filePath.lastIndexOf('/')));
+    await writeFile(filePath, JSON.stringify(states, null, 2), 'utf-8');
+  }
+
+  /** 读取角色状态变迁 */
+  async getCharacterStates(projectRoot: string): Promise<CharacterStates | null> {
+    try {
+      const data = await readFile(characterStatesFilePath(projectRoot), 'utf-8');
+      return JSON.parse(data) as CharacterStates;
     } catch {
       return null;
     }

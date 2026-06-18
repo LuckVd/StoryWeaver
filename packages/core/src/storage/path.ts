@@ -215,6 +215,20 @@ export function storyStateFilePath(projectRoot: string): string {
   return resolveSafe(projectRoot, 'memory/story-state.json');
 }
 
+/**
+ * 生成时间线路径:memory/timeline.json
+ */
+export function timelineFilePath(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'memory/timeline.json');
+}
+
+/**
+ * 生成角色状态变迁路径:memory/character-states.json
+ */
+export function characterStatesFilePath(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'memory/character-states.json');
+}
+
 // ── 解析工具 ──
 
 /**

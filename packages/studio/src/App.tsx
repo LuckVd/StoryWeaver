@@ -9,6 +9,7 @@ import { SettingsPage } from '@/pages/settings';
 import { KnowledgePage } from '@/pages/knowledge';
 import { SummariesPage } from '@/pages/summaries';
 import { SearchPage } from '@/pages/search';
+import { MemoryPage } from '@/pages/memory';
 import { NotFoundPage } from '@/pages/not-found';
 
 const router = createBrowserRouter([
@@ -24,6 +25,7 @@ const router = createBrowserRouter([
       { path: 'knowledge', element: <KnowledgePage /> },
       { path: 'summaries', element: <SummariesPage /> },
       { path: 'search', element: <SearchPage /> },
+      { path: 'memory', element: <MemoryPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

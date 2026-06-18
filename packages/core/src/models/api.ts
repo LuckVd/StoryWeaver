@@ -20,6 +20,7 @@ export type SSEEvent =
   | { type: 'chapter:complete'; data: { chapterId: number; wordCount: number } }
   | { type: 'publish:progress'; data: { step: string; current: number; total: number } }
   | { type: 'publish:complete'; data: { chapters: number[] } }
+  | { type: 'summary:complete'; data: { chapter: number } }
   | { type: 'file:changed'; data: { path: string } }
   | { type: 'file:added'; data: { path: string } }
   | { type: 'file:removed'; data: { path: string } }

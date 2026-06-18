@@ -1,120 +1,105 @@
 # Current Goal
 
-> **状态：已完成（synced 2026-06-14）** — 已提交 `c4ef4c9`（2026-06-02），`pnpm build` 通过。
-> 测试债务已清：G02-S11 同步时全量 `pnpm test` 有 4 个既有 chat 路由测试失败，已于 2026-06-14 修复（`chat.test.ts` 提供 dummy `OPENAI_API_KEY`），现 core 193 + studio 123 全绿。
-> 下一目标待定（Phase 2 已全部完成，可进入 G03 — Phase 3: 长篇记忆）。
+> **状态:待确认方案(`confirm_plan`)** — 数据层先行策略的第一个子目标。
+> 前置 G03-S02(章节摘要结构化)经核对已在代码中**实质完成**(`SummaryService.summarizeChapter` 发布时生成并 `saveChapterSummary` 入库),roadmap 仍标 `pending/not_started`,待 `ai-sync` 时修正。
 
 ## Goal
 
-G02-S11 — 知识库前端管理 UI：为角色/世界观/物品/伏笔/规则/自定义提供完整的 CRUD 界面
+G03-S04 — 时间线 + 角色状态变迁:在发布流程中维护 `memory/timeline.json` 与 `memory/character-states.json`,为长篇记忆(Layer1 状态快照 / Layer3 检索)提供结构化数据源。
 
 ## 背景
 
-G02-S01（知识库后端）和 G02-S02（关系图可视化）均已完成，但前端只有关系图页面，缺少知识库实体的创建/编辑/删除入口。后端 API 完整支持 6 种实体的 CRUD，前端需要补齐对应的 UI。
+G02-S06 落地了 `ChapterSummary`(`plotEvents` / `stateChanges` / `narrativeTime` / `charactersPresent` / `locationsUsed`),发布时已生成入库。时间线与角色状态变迁是这些摘要的**派生视图**,目前没有任何类型/路径/存储。tech-spec §5.5 的发布总结流程明确要求:发布时更新时间线 + 角色状态变迁。
+
+**关键洞察**:数据已在每章 `ChapterSummary` 里 → 时间线/角色状态可用**确定性聚合**生成,不必再调 LLM(省 token、可单测、结果稳定)。
 
 ## 验收标准
 
-1. `/knowledge` 页面改为 Tab 布局：角色 | 世界观 | 物品 | 伏笔 | 规则 | 自定义 | 关系图
-2. 每个实体 Tab 提供：列表展示 + 新建按钮 + 编辑/删除操作
-3. 世界观 Tab 内按子分类（地理/力量体系/势力/历史/术语）再分 Tab
-4. 自定义 Tab 内按用户创建的分类名再分 Tab
-5. 关联字段（物品 owner、伏笔 relatedEntities）使用下拉选择 + 模糊搜索
-6. 新建/编辑使用 Dialog 表单，字段对齐后端 Zod schema
-7. 关系图保留为最后一个 Tab，功能不变
-8. 各实体从后端 API 加载，增删改通过 API 持久化
-9. `pnpm build` 零错误，`pnpm test` 全部通过
+1. `memory/timeline.json` 存在,按章节升序聚合所有已发布章节的 `plotEvents` + `narrativeTime`,字段见下方类型
+2. `memory/character-states.json` 存在,按角色聚合所有章节的 `stateChanges`,含「当前状态」+「完整变迁历史」
+3. 批量发布(`WorkspaceService.publish`)与单章发布(`SummaryService` / chapters 路由)两条入口都会触发派生重建
+4. 派生重建失败**不阻塞**发布流程(与现有 storyState 更新一致,catch 吞错)
+5. 提供 `GET /api/v1/memory/timeline` + `GET /api/v1/memory/character-states`(为 G03-S08 页面铺路,且便于验证)
+6. 聚合为**纯函数**,有完整单元测试;`pnpm build` 零错误,`pnpm test` 全绿
 
 ## 文件清单
 
 ### 新建
-- `packages/studio/src/components/knowledge/entity-list.tsx` — 通用实体列表组件
-- `packages/studio/src/components/knowledge/entity-form-dialog.tsx` — 通用实体表单 Dialog（含 entity-select 模糊搜索字段）
-- `packages/studio/src/stores/knowledge-store.ts` — 扩展现有 store，增加各实体的 CRUD actions
+- `packages/core/src/memory/aggregator.ts` — 纯函数:`aggregateTimeline(summaries)` / `aggregateCharacterStates(summaries)`(为 G03-S01 `core/memory` 包铺第一个文件)
+- `packages/core/src/memory/__tests__/aggregator.test.ts` — 聚合单测(多章、状态合并、排序、空输入)
 
 ### 修改
-- `packages/studio/src/pages/knowledge.tsx` — 改为 Tab 布局，集成各实体 Tab
-- `packages/studio/src/components/knowledge/relation-graph.tsx` — 移除页面级包装，仅保留图组件本身
+- `packages/core/src/models/memory.ts` — 新增 `TimelineEntry` / `Timeline` / `CharacterStateEntry` / `CharacterState` / `CharacterStates`
+- `packages/core/src/models/index.ts` — 导出上述类型
+- `packages/core/src/storage/path.ts` — 新增 `timelineFilePath`(`memory/timeline.json`)/ `characterStatesFilePath`(`memory/character-states.json`)
+- `packages/core/src/storage/index.ts` — 导出新路径函数
+- `packages/core/src/storage/summary-storage.ts` — 扩展 `saveTimeline` / `getTimeline` / `saveCharacterStates` / `getCharacterStates`(复用现有 IO 模式)
+- `packages/core/src/index.ts` — 导出 `core/memory` 聚合函数
+- `packages/studio/src/api/services/summary-service.ts` — 新增 `rebuildTimelineAndCharacterStates()`(读全部 summary → 聚合 → 存),`summarizeChapter` 成功后调用
+- `packages/studio/src/api/services/workspace-service.ts` — `generateSummaries()` 末尾(更新 storyState 后)调用 `summaryService.rebuildTimelineAndCharacterStates()`
+- `packages/studio/src/api/routes/memory.ts`(或挂到现有路由)— `GET /api/v1/memory/timeline` + `GET /api/v1/memory/character-states`
 
 ## 实现要点
 
-### 1. knowledge-store.ts 扩展
+### 1. 类型(`models/memory.ts`)
 
-在现有 `fetchAll` / `addRelation` / `removeRelation` 基础上，新增各实体的独立 CRUD：
+```typescript
+export interface TimelineEntry {
+  chapter: number; volume: number; title: string;
+  narrativeTime?: string;
+  events: string[];   // plotEvents
+  outcome: string;    // plotOutcome
+}
+export interface Timeline { entries: TimelineEntry[]; updatedAt: string; }
 
+export interface CharacterStateEntry { chapter: number; field: string; from: string; to: string; }
+export interface CharacterState {
+  entity: string;
+  currentState: Record<string, string>;  // 各字段最新值
+  history: CharacterStateEntry[];        // 按 chapter 升序
+}
+export interface CharacterStates { characters: CharacterState[]; updatedAt: string; }
 ```
-characters: Character[] + fetchCharacters() + createCharacter() + updateCharacter() + deleteCharacter()
-worldEntries: WorldEntry[] + fetchWorld() + createWorld() + updateWorld() + deleteWorld()
-items: Item[] + fetchItems() + createItem() + updateItem() + deleteItem()
-hooks: Hook[] + fetchHooks() + createHook() + updateHook() + deleteHook()
-rules: Rule[] + fetchRules() + createRule() + updateRule() + deleteRule()
-customCategories: string[] + customEntries: Record<string, CustomKnowledge[]> + fetchCustomCategories() + fetchCustom(name) + createCustom() + updateCustom() + deleteCustom()
-```
 
-各 fetch 方法在页面 Tab 切换时按需调用（懒加载），避免一次性加载所有数据。
+### 2. 聚合纯函数(`core/memory/aggregator.ts`)
 
-### 2. entity-list.tsx — 通用实体列表
+- `aggregateTimeline(summaries: ChapterSummary[]): Timeline` —— 按 `chapter` 升序映射成 `TimelineEntry`
+- `aggregateCharacterStates(summaries: ChapterSummary[]): CharacterStates` —— 遍历 `stateChanges`,按 `entity` 分组;`currentState` 取每个 `field` 的**最后一次** `to`;`history` 保留全部变迁按 chapter 升序
+- 纯函数、无 IO、无副作用 → 易测
 
-接收泛型配置：
-- `columns: { key, label, render? }[]` — 列定义
-- `data: T[]` — 数据
-- `onEdit: (item: T) => void`
-- `onDelete: (id: string) => void`
-- `onCreate: () => void`
-- `loading` / `emptyText`
+### 3. 存储(`SummaryStorage` 扩展)
 
-### 3. entity-form-dialog.tsx — 通用表单 Dialog
+照 `saveStoryState`/`getStoryState` 模式:`ensureDir` + 覆盖写 / 读不存在返回 `null`。
 
-接收泛型配置：
-- `fields: FieldDef[]` — 字段定义（name, label, type: text|textarea|select|entitySelect|number, required, options?）
-- `values: Record<string, unknown>` — 初始值（编辑时传入）
-- `onSubmit: (values) => void`
-- `open` / `onClose` / `title` / `loading`
+### 4. 发布流程接入(两个入口)
 
-新增 `entitySelect` 字段类型：从已有实体列表（如角色）中下拉选择，支持模糊搜索。
-
-### 4. knowledge.tsx — Tab 布局
-
-7 个 Tab：角色 | 世界观 | 物品 | 伏笔 | 规则 | 自定义 | 关系图
-
-- **世界观 Tab**：顶部再加子 Tab（全部 | 地理 | 力量体系 | 势力 | 历史 | 术语），切换时过滤列表
-- **自定义 Tab**：顶部按已有分类名动态生成子 Tab，提供"新建分类"入口
-- 每个实体 Tab 渲染 `<EntityList>` + `<EntityFormDialog>`
-- 关系图 Tab 直接渲染 `<RelationGraph />`
-
-### 5. 实体字段配置（对齐 Zod Schema）
-
-**角色 Character**：
-- name (text, 必填) | aliases (text, placeholder "别名1,别名2") | description (textarea, 必填) | profile (textarea) | firstAppearance (number) | tags (text, placeholder "标签1,标签2")
-
-**世界观 WorldEntry**：
-- category (select: geography/power-system/factions/history/glossary, 必填, 仅创建时可编辑) | name (text, 必填) | content (textarea, 必填) | tags (text)
-
-**物品 Item**：
-- name (text, 必填) | description (textarea, 必填) | owner (entitySelect, 从角色列表选择) | tags (text)
-
-**伏笔 Hook**：
-- name (text, 必填) | description (textarea, 必填) | status (select: active/resolved, 必填) | plantedAt (number, 必填, 仅创建时) | resolvedAt (number) | relatedEntities (entitySelect, 多选, 从全部实体选择)
-
-**规则 Rule**：
-- category (select: style/taboo/narrative_perspective/custom, 必填) | name (text, 必填) | content (textarea, 必填) | priority (select: high/medium/low, 必填)
-
-**自定义 CustomKnowledge**：
-- category (text, 必填, 仅创建时可编辑) | name (text, 必填) | content (textarea, 必填) | tags (text)
+- 批量:`WorkspaceService.generateSummaries()` 在更新 storyState 之后,调用注入的 `summaryService.rebuildTimelineAndCharacterStates()`
+- 单章:`SummaryService.summarizeChapter()` 成功存库后调用同一方法
+- 重建 = **全量**(读所有 summary 重新聚合),数据量小、确定性强;`POST /api/v1/memory/rebuild` 留作可选增强
 
 ## 测试计划
 
-- 确保 `pnpm build` 通过（类型检查 + Vite 构建）
-- 确保 `pnpm test`（后端 API 测试）通过
-- 手动验证：每个 Tab 的创建/编辑/删除/列表刷新
+- `aggregator.test.ts`:多章聚合、角色状态合并(同字段多次变迁取最新)、按 chapter 排序、空数组、缺 `narrativeTime`
+- `summary-storage` 扩展方法读写往返单测
+- 发布流程:已有集成测试基础上,验证发布后 timeline/character-states 文件生成
+- `pnpm build` + `pnpm test`(core + studio)
 
 ## Steps
 
-1. **扩展 knowledge-store.ts** — 增加 6 种实体的 CRUD actions 和状态
-2. **创建 entity-form-dialog.tsx** — 通用表单 Dialog（含 entitySelect）
-3. **创建 entity-list.tsx** — 通用实体列表
-4. **重构 knowledge.tsx** — 7 Tab 布局 + 世界观/自定义子 Tab
-5. **构建验证** — `pnpm build` + `pnpm test`
+1. **类型层** — `models/memory.ts` 新增 5 类型 + 导出
+2. **路径层** — `path.ts` 新增 2 路径函数 + 导出
+3. **聚合层** — `core/memory/aggregator.ts` 纯函数 + `core/index.ts` 导出
+4. **存储层** — `SummaryStorage` 扩展 4 方法
+5. **studio 协调** — `SummaryService.rebuildTimelineAndCharacterStates()` + 两入口接入
+6. **API** — `GET /memory/timeline` + `GET /memory/character-states`
+7. **测试与验证** — aggregator 单测 + storage 单测 + `pnpm build` + `pnpm test`
+
+## 决策记录(已确认 2026-06-18)
+
+1. **生成方式** = 确定性聚合(从已入库 `ChapterSummary` 聚合,不调 LLM;在发布流程总结阶段接入)
+2. **存储归属** = 扩展 `SummaryStorage`(避免并行抽象)
+3. **API 范围** = 本子目标做 `GET /api/v1/memory/timeline` + `GET /api/v1/memory/character-states`
 
 ## Parent Goal
 
-- G02 — Phase 2: 核心流水线 → **补全遗漏的知识库前端管理功能**
+- G03 — Phase 3: 长篇记忆 → **时间线 + 角色状态变迁(记忆数据源)**

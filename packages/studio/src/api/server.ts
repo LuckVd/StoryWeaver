@@ -14,6 +14,7 @@ import { reviewsRoute } from './routes/reviews.js';
 import { workspaceRoute } from './routes/workspace.js';
 import { searchRoute } from './routes/search.js';
 import { summariesRoute } from './routes/summaries.js';
+import { memoryRoute } from './routes/memory.js';
 import { BookService } from './services/book-service.js';
 import { ChapterService } from './services/chapter-service.js';
 import { ChatService } from './services/chat-service.js';
@@ -82,6 +83,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   app.route('/api/v1/workspace', workspaceRoute(workspaceService));
   app.route('/api/v1/search', searchRoute(searchEngine));
   app.route('/api/v1/summaries', summariesRoute(summaryService));
+  app.route('/api/v1/memory', memoryRoute(summaryService));
   app.route('/api/v1', reviewsRoute(projectRoot));
 
   // 健康检查

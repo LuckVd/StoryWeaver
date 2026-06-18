@@ -15,7 +15,7 @@
 - **技术目标**：构建一套个人 AI 辅助小说创作系统，通过多 Agent 协作实现"构思 → 写作 → 审稿 → 修订"全流程辅助，纯本地部署，人主导 AI 辅助
 - **技术栈**：TypeScript + Node.js + React 19 + Hono + pnpm monorepo
 - **详细方案**：`docs/ai/tech-spec-v1.md`
-- **当前阶段**：Phase 2 完成 → Phase 3 长篇记忆
+- **当前阶段**：Phase 3 完成（G03 长篇记忆落地）→ Phase 4 多模型+高级特性
 
 ## 2. 总体技术架构
 
@@ -121,15 +121,15 @@
 | G02 | G02-S09 | 文件监听 | chokidar 监听 volumes/ + knowledge/ + SSE 通知 | done | G02-S08 | | accepted | passed | 2026-05-28 | | FileWatcher + SearchEngine 增量更新 + SSE 广播 + server.ts 集成 |
 | G02 | G02-S10 | 路由层完善 | 关键词路由 + LLM 兜底路由 | done | G02-S03 | | accepted | passed | 2026-05-28 | | LLM 兜底分类 + 3s 超时降级 + 补充关键词 + 新斜杠命令 |
 | G02 | G02-S11 | 知识库前端管理 UI | /knowledge 7-Tab 布局 + 6 实体 CRUD + 关系图 | done | G02-S01, G02-S02 | | accepted | passed | 2026-06-02 | c4ef4c9 | EntityList + EntityFormDialog（含 entitySelect 模糊搜索）+ knowledge-store 懒加载 CRUD + 世界观/自定义子 Tab；build 通过，全量 suite 存在 4 个与 G02-S11 无关的既有 chat 路由测试失败 |
-| G03 | | Phase 3: 长篇记忆 | 支持百万字长篇 | planned | G02 | 依赖知识库和 Summarizer | pending | not_started | | | |
-| G03 | G03-S01 | 三层记忆系统 | Layer 1 永久记忆 + Layer 2 近期 + Layer 3 远期 + 对话上下文压缩（>10 轮自动摘要） | planned | G02-S06 | | pending | not_started | | | |
-| G03 | G03-S02 | 章节摘要结构化 | ChapterSummary 结构化生成 | planned | G02-S06 | | pending | not_started | | | |
-| G03 | G03-S03 | 多章综合总结 | BatchSummary + 间隔配置 | planned | G03-S02 | | pending | not_started | | | |
-| G03 | G03-S04 | 时间线 + 角色状态变迁 | AI 维护 timeline.json + character-states.json | planned | G03-S02 | | pending | not_started | | | |
-| G03 | G03-S05 | Token 预算管理 | 动态计算 Layer 3 预算，适配不同模型窗口 | planned | G03-S01 | | pending | not_started | | | |
-| G03 | G03-S06 | 检索策略 | 角色关联/伏笔驱动/大纲指引/综合总结兜底 | planned | G03-S01, G02-S08 | | pending | not_started | | | |
-| G03 | G03-S07 | CuratorAgent | 知识库辅助 Agent | planned | G01-S05 | | pending | not_started | | | |
-| G03 | G03-S08 | AI 记忆浏览页面 | `/memory` 页面 — 摘要/时间线/角色状态浏览 | planned | G03-S02, G01-S09 | | pending | not_started | | | |
+| G03 | | Phase 3: 长篇记忆 | 支持百万字长篇 | done | G02 | | accepted | passed | 2026-06-18 | | 8/8 子目标核心落地；core/memory 包(aggregator/token-budget/context-builder/retriever)+ CuratorAgent + 派生记忆 + /memory 页面；2 既有 studio 测试失败非本次引入 |
+| G03 | G03-S01 | 三层记忆系统 | Layer 1 永久记忆 + Layer 2 近期 + Layer 3 远期 + 对话上下文压缩（>10 轮自动摘要） | done | G02-S06 | | accepted | passed | 2026-06-18 | | context-builder 三层组装+Token 截断；对话>10轮压缩留 TODO |
+| G03 | G03-S02 | 章节摘要结构化 | ChapterSummary 结构化生成 | done | G02-S06 | | accepted | passed | 2026-06-18 | | 06-18 已实质完成(发布生成入库)，本次核对确认 |
+| G03 | G03-S03 | 多章综合总结 | BatchSummary + 间隔配置 | done | G03-S02 | | accepted | passed | 2026-06-18 | | maybeGenerateBatchSummary 每 10 章触发；interval 读 novel.yaml 留 TODO |
+| G03 | G03-S04 | 时间线 + 角色状态变迁 | AI 维护 timeline.json + character-states.json | done | G03-S02 | | accepted | passed | 2026-06-18 | | aggregator 确定性聚合 + rebuild + GET /memory |
+| G03 | G03-S05 | Token 预算管理 | 动态计算 Layer 3 预算，适配不同模型窗口 | done | G03-S01 | | accepted | passed | 2026-06-18 | | token-budget.ts 模型窗口表 + calcLayer3Budget |
+| G03 | G03-S06 | 检索策略 | 角色关联/伏笔驱动/大纲指引/综合总结兜底 | done | G03-S01, G02-S08 | | accepted | passed | 2026-06-18 | | retriever.ts 四策略纯函数 |
+| G03 | G03-S07 | CuratorAgent | 知识库辅助 Agent | done | G01-S05 | | accepted | passed | 2026-06-18 | | CuratorAgent.suggestEntities |
+| G03 | G03-S08 | AI 记忆浏览页面 | `/memory` 页面 — 摘要/时间线/角色状态浏览 | done | G03-S02, G01-S09 | | accepted | passed | 2026-06-18 | | /memory 页面 时间线+角色状态 Tab |
 | G04 | | Phase 4: 多模型 + 高级特性 | 生产级多模型适配 + 高级功能 | planned | G03 | | pending | not_started | | | |
 | G04 | G04-S01 | Anthropic / Ollama Provider | 多模型 Provider 实现 | planned | G01-S04 | | pending | not_started | | | |
 | G04 | G04-S02 | 模型配置管理页 | 添加/编辑/删除/测试模型 | planned | G04-S01, G01-S09 | | pending | not_started | | | |

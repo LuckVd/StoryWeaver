@@ -1,5 +1,23 @@
 # Change Log
 
+## 2026-06-18 — 多轮 bugfix + 功能增强（ad-hoc，已推送 main）
+
+- Goal ID: 多个 ad-hoc（非单一路线图目标；roadmap 新增 G04-S07 记录 #8 AI 工具调用）
+- Summary: 一轮密集的 bug 修复与功能增强，覆盖审稿/摘要/搜索/章节管理/diff 视图/知识库注入/UI 体验
+- 改动：
+  - **审稿实质化**：新增 `review-service`，提交审阅触发 AuditorAgent 审稿 + 报告页；AI 一键修订（writer 按 issues 修订）+ diff 预览 + 接受/放弃
+  - **章节摘要**：新增 `summary-service`，发布自动生成（异步 + `generating` 状态持久化）+ 独立摘要页 + 重新生成按钮 + 进度条；`chatStructured` JSON 容错（提取 `{...}` 兼容 glm-5 markdown 包裹）
+  - **全文搜索**：新增 `search` 页（卡片+类型标签+高亮+分页）；修复 FileWatcher 未启动 + 启动索引现有文件 + 去掉 slice 全文索引 + 摘要索引（监听 `memory/summaries`）
+  - **章节管理**：状态机加 published→draft 回退（删摘要）+ 删除限制（最新+未发布）+ chapterId 隐藏 + 「第N章」全书连续序号（`chapterOrder` 映射）
+  - **diff 视图**：新增 `diff-viewer` 组件 + 版本面板 diff（版本 vs 当前）+ 审稿修订 diff
+  - **知识库注入对话**：ChatService 注入 KnowledgeService，全量知识库作为 system 设定
+  - **UI/bug**：`ConfirmDialog` 替代 window.confirm；`entity-form-dialog` id 透传；`relation-graph` 加 Handle（v12）；`version-panel` 本地 loading（修复死循环）；顶栏跨行；writer prompt 禁标题 + `stripTitleLines`
+- Impact: core（base-agent, prompts, search-engine）+ studio 约 30 文件（7 新：summary-service, review-service, summaries 路由/页, search 页, diff-viewer, confirm-dialog）
+- Tests: playwright 验证（章节编号/搜索/关系图/摘要/版本diff 通过）；功能端到端（GLM 摘要/审稿/对话均通）
+- Dead Code: 未扫描（功能开发为主）
+- Security: 无阻塞（无新密钥/路径暴露；ConfirmDialog 本地组件）
+- Commit Status: 已提交并推送 main（`0dc5a85..7ae2be1`，5 提交，分支 `feat/studio-bugfix-and-features` 合并 main）
+
 ## 2026-06-14 — bugfix: chat 路由测试修复
 
 - Goal ID: bugfix（非路线图目标，技术债清理）

@@ -37,6 +37,8 @@ export class SummaryService {
       { chapter: chapterId, volume, title: chapter.title, wordCount: text.length },
     );
     await this.summaryStorage.saveChapterSummary(this.projectRoot, summary);
+    // 章节摘要变化后重建时间线 + 角色状态派生视图（失败不阻塞）
+    await this.summaryStorage.rebuildTimelineAndCharacterStates(this.projectRoot).catch(() => {});
     this.sseEmitter.emit({ type: 'summary:complete', data: { chapter: chapterId } });
     return summary;
   }
@@ -48,7 +50,22 @@ export class SummaryService {
 
   /** 删除章节摘要（章节回退草稿时调用，摘要只在 published 时生成） */
   async deleteChapterSummary(chapterId: number): Promise<boolean> {
-    return this.summaryStorage.deleteChapterSummary(this.projectRoot, chapterId);
+    const deleted = await this.summaryStorage.deleteChapterSummary(this.projectRoot, chapterId);
+    if (deleted) {
+      // 回退草稿删除摘要后，重建派生视图以移除该章事件（失败不阻塞）
+      await this.summaryStorage.rebuildTimelineAndCharacterStates(this.projectRoot).catch(() => {});
+    }
+    return deleted;
+  }
+
+  /** 读取时间线（供 /memory 页面与长篇记忆 Layer3 使用） */
+  async getTimeline() {
+    return this.summaryStorage.getTimeline(this.projectRoot);
+  }
+
+  /** 读取角色状态变迁 */
+  async getCharacterStates() {
+    return this.summaryStorage.getCharacterStates(this.projectRoot);
   }
 
   /** 正在生成摘要的章节集合（后端内存持久化，跨请求/组件保持，刷新页面不丢） */

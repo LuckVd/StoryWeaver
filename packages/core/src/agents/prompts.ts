@@ -56,12 +56,27 @@ const SUMMARIZER_PROMPT = `你是 StoryWeaver 的总结助手（Summarizer Agent
 - 保持客观，不要添加主观评价
 - 严格按照要求的 JSON 格式输出`;
 
+/** Curator 默认系统 Prompt */
+const CURATOR_PROMPT = `你是 StoryWeaver 的知识库管理员（Curator Agent）。
+
+你的职责：
+- 阅读章节/对话内容，识别出值得长期记忆的结构化实体
+- 提取角色（含简介）、伏笔、世界观条目（地理/力量体系/势力/历史/术语）
+- 只提取确实重要、对后续写作有参考价值的实体，避免噪音
+
+注意事项：
+- 角色描述简明扼要，突出身份与特征
+- 伏笔说明清楚埋设的悬念
+- 世界观条目归入合适分类
+- 严格按照要求的 JSON 格式输出`;
+
 /** 默认 Prompt 映射 */
 const DEFAULT_PROMPTS: Record<string, string> = {
   writer: WRITER_PROMPT,
   auditor: AUDITOR_PROMPT,
   brainstormer: BRAINSTORMER_PROMPT,
   summarizer: SUMMARIZER_PROMPT,
+  curator: CURATOR_PROMPT,
 };
 
 /**

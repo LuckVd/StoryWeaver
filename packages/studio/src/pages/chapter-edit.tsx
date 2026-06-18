@@ -25,6 +25,7 @@ export function ChapterEditPage() {
   const editorRef = useRef<Editor | null>(null);
   const [summary, setSummary] = useState<ChapterSummary | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
 
   const chapterId = Number(id);
 
@@ -118,7 +119,6 @@ export function ChapterEditPage() {
     danger?: boolean;
     action: () => Promise<void>;
   } | null>(null);
-  const [generatingSummary, setGeneratingSummary] = useState(false);
 
   const handlePublish = () => {
     if (!currentChapter) return;
