@@ -3,6 +3,7 @@ import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import type { Timeline, CharacterStates } from '@storyweaver/core';
+import { useChapterStore } from '@/stores/chapter-store';
 
 /**
  * AI 记忆库页面（G03-S08）
@@ -16,6 +17,7 @@ export function MemoryPage() {
   const [characters, setCharacters] = useState<CharacterStates | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchVolumesAndChapters = useChapterStore((s) => s.fetchVolumesAndChapters);
 
   const load = () => {
     setLoading(true);
@@ -33,6 +35,7 @@ export function MemoryPage() {
   };
 
   useEffect(() => {
+    fetchVolumesAndChapters();
     load();
   }, []);
 
@@ -75,6 +78,7 @@ export function MemoryPage() {
 }
 
 function TimelineView({ timeline }: { timeline: Timeline | null }) {
+  const chapterOrder = useChapterStore((s) => s.chapterOrder);
   if (!timeline || timeline.entries.length === 0)
     return <div className="text-muted-foreground">暂无时间线数据。发布章节后会自动生成。</div>;
   return (
@@ -83,7 +87,7 @@ function TimelineView({ timeline }: { timeline: Timeline | null }) {
         <div key={e.chapter} className="rounded-lg border bg-card p-4 shadow-sm">
           <div className="mb-1 flex items-center justify-between">
             <h3 className="font-medium">
-              第 {e.chapter} 章 · {e.title}
+              第 {chapterOrder[e.chapter] ?? e.chapter} 章 · {e.title}
             </h3>
             {e.narrativeTime && <span className="text-xs text-muted-foreground">{e.narrativeTime}</span>}
           </div>
@@ -102,6 +106,7 @@ function TimelineView({ timeline }: { timeline: Timeline | null }) {
 }
 
 function CharactersView({ states }: { states: CharacterStates | null }) {
+  const chapterOrder = useChapterStore((s) => s.chapterOrder);
   if (!states || states.characters.length === 0)
     return (
       <div className="text-muted-foreground">暂无角色状态数据。发布含有状态变迁的章节后会自动生成。</div>
@@ -125,7 +130,7 @@ function CharactersView({ states }: { states: CharacterStates | null }) {
               <ul className="ml-4 mt-1 list-disc">
                 {c.history.map((h, i) => (
                   <li key={i}>
-                    第{h.chapter}章 · {h.field}：{h.from} → {h.to}
+                    第{chapterOrder[h.chapter] ?? h.chapter}章 · {h.field}：{h.from} → {h.to}
                   </li>
                 ))}
               </ul>
