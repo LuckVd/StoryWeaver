@@ -94,7 +94,8 @@ export class ChapterService {
     if (!meta) {
       return false;
     }
-    if (meta.status === 'published') {
+    if (meta.status !== 'draft') {
+      // 非 draft（approved/published）一律锁定，不可直接删除，需先回退草稿
       throw new Error('CHAPTER_LOCKED');
     }
     // 只允许删除最新章节（chapterId 最大），避免中间空洞

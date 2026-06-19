@@ -106,12 +106,22 @@ export class FileWatcher {
     }
   }
 
-  /** 从章节内容提取标题片段（HTML 去标签后取首句，截断 50 字） */
+  /** 从章节内容提取标题片段：优先 markdown 首行标题，否则 HTML 去标签取首句，截断 50 字 */
   private extractChapterTitle(content: string): string {
-    const text = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!text) return 'Untitled';
-    const firstSentence = text.split(/[。\n!?！？]/)[0]?.trim() ?? text;
-    return firstSentence.slice(0, 50);
+    // 去 HTML 标签
+    const stripped = content.replace(/<[^>]+>/g, ' ');
+    const firstLine = stripped.split('\n')[0]?.trim() ?? '';
+    if (!firstLine) {
+      const text = stripped.replace(/\s+/g, ' ').trim();
+      return text ? text.slice(0, 50) : 'Untitled';
+    }
+    // markdown heading：# 标题 / ## 标题 …
+    const heading = firstLine.match(/^#{1,6}\s+(.+)/);
+    if (heading) {
+      return heading[1].trim().slice(0, 50);
+    }
+    const firstSentence = firstLine.split(/[。!?！？]/)[0]?.trim() ?? firstLine;
+    return firstSentence.slice(0, 50) || 'Untitled';
   }
 
   /** 从知识库 JSON 中提取 title 和内容摘要 */
