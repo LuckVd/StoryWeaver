@@ -1,105 +1,38 @@
 # Current Goal
 
-> **状态:待确认方案(`confirm_plan`)** — 数据层先行策略的第一个子目标。
-> 前置 G03-S02(章节摘要结构化)经核对已在代码中**实质完成**(`SummaryService.summarizeChapter` 发布时生成并 `saveChapterSummary` 入库),roadmap 仍标 `pending/not_started`,待 `ai-sync` 时修正。
+> **状态:G03 代码已实现(`b9937aa`)+ 审查发现的 P0/P1/P2 已全部修复并验证全绿(core 231 + studio 123 = **354 tests**),未 commit、未 sync、未 merge。**
+> 分支 `feat/g03-memory`。原 `current-goal.md` 残留 G03-S04 `confirm_plan`,已于 2026-06-19 修正。
 
 ## Goal
 
-G03-S04 — 时间线 + 角色状态变迁:在发布流程中维护 `memory/timeline.json` 与 `memory/character-states.json`,为长篇记忆(Layer1 状态快照 / Layer3 检索)提供结构化数据源。
+G03 — Phase 3:长篇记忆(三层记忆系统 + 派生记忆 + CuratorAgent)
 
-## 背景
+## 本轮已完成(2026-06-19 审查 + 修复)
 
-G02-S06 落地了 `ChapterSummary`(`plotEvents` / `stateChanges` / `narrativeTime` / `charactersPresent` / `locationsUsed`),发布时已生成入库。时间线与角色状态变迁是这些摘要的**派生视图**,目前没有任何类型/路径/存储。tech-spec §5.5 的发布总结流程明确要求:发布时更新时间线 + 角色状态变迁。
+对 `b9937aa` 的 G03 实现做完整审查,修复全部发现项:
 
-**关键洞察**:数据已在每章 `ChapterSummary` 里 → 时间线/角色状态可用**确定性聚合**生成,不必再调 LLM(省 token、可单测、结果稳定)。
+- **P0-1 批量假摘要** — `workspace-service` 批量发布改用去标签正文(原仅传标题,LLM 凭标题编造情节,污染 timeline/character-states/batch-summary 全链)
+- **P0-2 记忆注入链路** — `chat-service` 为 Writer/Auditor 注入三层记忆(原 `buildMemoryContext`/`retrieveRemoteMemory`/`CuratorAgent` 在 studio 零调用,链路完全断开);`server.ts` 调整依赖注入顺序
+- **P1-1 CuratorAgent 集成** — 发布后异步提取实体建议 → `memory/curation-suggestions.json`(待人工确认)+ `GET /memory/curation` + `POST /chapters/:id/curate`(原孤儿代码)
+- **P1-2 token 估算** — `length/2` → `length/1`(中文 1 字 ≈ 1 token,原低估 2-3× 易溢出)
+- **P1-3 知识库注入预算** — `buildKnowledgeContext` 加字符上限截断(原全量无控制,绕过 S05 预算体系)
+- **P1-4 远期检索接入** — `retrieveRemoteMemory` 用近期角色/地点关键词召回相关章节/待回收伏笔/综合总结(原零调用)
+- **P2 清理** — `getModelContextWindow` 前缀匹配按长度降序、`maybeGenerateBatchSummary` 补齐跳发区间、retriever 过滤过短关键词、存储取目录统一用 `memoryDir`
+- **B1/B2(pre-existing 测试失败)** — chapters DELETE 非 draft 返回 423(原 approved 可删)、file-watcher 标题提取支持 markdown `#`
 
-## 验收标准
+**验证**:`pnpm build` 全绿(core + studio tsc + vite);`pnpm test` core 231 + studio 123 = **354 全绿**(原 2 个 pre-existing 失败已修,无新增回归)。注:`pnpm install` 后 build 才过(`diff`/`@types/diff` 此前未装)。
 
-1. `memory/timeline.json` 存在,按章节升序聚合所有已发布章节的 `plotEvents` + `narrativeTime`,字段见下方类型
-2. `memory/character-states.json` 存在,按角色聚合所有章节的 `stateChanges`,含「当前状态」+「完整变迁历史」
-3. 批量发布(`WorkspaceService.publish`)与单章发布(`SummaryService` / chapters 路由)两条入口都会触发派生重建
-4. 派生重建失败**不阻塞**发布流程(与现有 storyState 更新一致,catch 吞错)
-5. 提供 `GET /api/v1/memory/timeline` + `GET /api/v1/memory/character-states`(为 G03-S08 页面铺路,且便于验证)
-6. 聚合为**纯函数**,有完整单元测试;`pnpm build` 零错误,`pnpm test` 全绿
+## 改动文件
 
-## 文件清单
+- core:`memory/{context-builder,retriever,token-budget}.ts`、`storage/{path,summary-storage}.ts`、`models/{api,memory}.ts`
+- studio:`api/server.ts`、`api/services/{chat-service,summary-service,workspace-service,chapter-service,file-watcher}.ts`、`api/routes/{chapters,memory}.ts`
 
-### 新建
-- `packages/core/src/memory/aggregator.ts` — 纯函数:`aggregateTimeline(summaries)` / `aggregateCharacterStates(summaries)`(为 G03-S01 `core/memory` 包铺第一个文件)
-- `packages/core/src/memory/__tests__/aggregator.test.ts` — 聚合单测(多章、状态合并、排序、空输入)
+## 下一步
 
-### 修改
-- `packages/core/src/models/memory.ts` — 新增 `TimelineEntry` / `Timeline` / `CharacterStateEntry` / `CharacterState` / `CharacterStates`
-- `packages/core/src/models/index.ts` — 导出上述类型
-- `packages/core/src/storage/path.ts` — 新增 `timelineFilePath`(`memory/timeline.json`)/ `characterStatesFilePath`(`memory/character-states.json`)
-- `packages/core/src/storage/index.ts` — 导出新路径函数
-- `packages/core/src/storage/summary-storage.ts` — 扩展 `saveTimeline` / `getTimeline` / `saveCharacterStates` / `getCharacterStates`(复用现有 IO 模式)
-- `packages/core/src/index.ts` — 导出 `core/memory` 聚合函数
-- `packages/studio/src/api/services/summary-service.ts` — 新增 `rebuildTimelineAndCharacterStates()`(读全部 summary → 聚合 → 存),`summarizeChapter` 成功后调用
-- `packages/studio/src/api/services/workspace-service.ts` — `generateSummaries()` 末尾(更新 storyState 后)调用 `summaryService.rebuildTimelineAndCharacterStates()`
-- `packages/studio/src/api/routes/memory.ts`(或挂到现有路由)— `GET /api/v1/memory/timeline` + `GET /api/v1/memory/character-states`
-
-## 实现要点
-
-### 1. 类型(`models/memory.ts`)
-
-```typescript
-export interface TimelineEntry {
-  chapter: number; volume: number; title: string;
-  narrativeTime?: string;
-  events: string[];   // plotEvents
-  outcome: string;    // plotOutcome
-}
-export interface Timeline { entries: TimelineEntry[]; updatedAt: string; }
-
-export interface CharacterStateEntry { chapter: number; field: string; from: string; to: string; }
-export interface CharacterState {
-  entity: string;
-  currentState: Record<string, string>;  // 各字段最新值
-  history: CharacterStateEntry[];        // 按 chapter 升序
-}
-export interface CharacterStates { characters: CharacterState[]; updatedAt: string; }
-```
-
-### 2. 聚合纯函数(`core/memory/aggregator.ts`)
-
-- `aggregateTimeline(summaries: ChapterSummary[]): Timeline` —— 按 `chapter` 升序映射成 `TimelineEntry`
-- `aggregateCharacterStates(summaries: ChapterSummary[]): CharacterStates` —— 遍历 `stateChanges`,按 `entity` 分组;`currentState` 取每个 `field` 的**最后一次** `to`;`history` 保留全部变迁按 chapter 升序
-- 纯函数、无 IO、无副作用 → 易测
-
-### 3. 存储(`SummaryStorage` 扩展)
-
-照 `saveStoryState`/`getStoryState` 模式:`ensureDir` + 覆盖写 / 读不存在返回 `null`。
-
-### 4. 发布流程接入(两个入口)
-
-- 批量:`WorkspaceService.generateSummaries()` 在更新 storyState 之后,调用注入的 `summaryService.rebuildTimelineAndCharacterStates()`
-- 单章:`SummaryService.summarizeChapter()` 成功存库后调用同一方法
-- 重建 = **全量**(读所有 summary 重新聚合),数据量小、确定性强;`POST /api/v1/memory/rebuild` 留作可选增强
-
-## 测试计划
-
-- `aggregator.test.ts`:多章聚合、角色状态合并(同字段多次变迁取最新)、按 chapter 排序、空数组、缺 `narrativeTime`
-- `summary-storage` 扩展方法读写往返单测
-- 发布流程:已有集成测试基础上,验证发布后 timeline/character-states 文件生成
-- `pnpm build` + `pnpm test`(core + studio)
-
-## Steps
-
-1. **类型层** — `models/memory.ts` 新增 5 类型 + 导出
-2. **路径层** — `path.ts` 新增 2 路径函数 + 导出
-3. **聚合层** — `core/memory/aggregator.ts` 纯函数 + `core/index.ts` 导出
-4. **存储层** — `SummaryStorage` 扩展 4 方法
-5. **studio 协调** — `SummaryService.rebuildTimelineAndCharacterStates()` + 两入口接入
-6. **API** — `GET /memory/timeline` + `GET /memory/character-states`
-7. **测试与验证** — aggregator 单测 + storage 单测 + `pnpm build` + `pnpm test`
-
-## 决策记录(已确认 2026-06-18)
-
-1. **生成方式** = 确定性聚合(从已入库 `ChapterSummary` 聚合,不调 LLM;在发布流程总结阶段接入)
-2. **存储归属** = 扩展 `SummaryStorage`(避免并行抽象)
-3. **API 范围** = 本子目标做 `GET /api/v1/memory/timeline` + `GET /api/v1/memory/character-states`
+1. commit 本轮修复(符合无 AI 署名规范)
+2. `ai-sync` 同步 G03 状态到 roadmap
+3. merge `feat/g03-memory` → `main`
 
 ## Parent Goal
 
-- G03 — Phase 3: 长篇记忆 → **时间线 + 角色状态变迁(记忆数据源)**
+- G03 — Phase 3:长篇记忆
