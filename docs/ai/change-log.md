@@ -1,5 +1,26 @@
 # Change Log
 
+## 2026-06-19 — G03 长篇记忆审查修复 + 收尾同步
+
+- Goal ID: G03（Phase 3 长篇记忆）审查修复 + sync
+- Summary: 对 G03 基线（`b9937aa`）做完整审查，修复全部 P0/P1/P2 + 2 个既有测试失败 + 1 个章节号显示 bug；接入 LLM（智谱 glm-4-flash）；同步状态并收尾
+- 改动：
+  - **P0-1 批量假摘要**：`workspace-service` 批量发布改用去标签正文（原仅传标题，LLM 凭标题编造情节，污染派生记忆全链）
+  - **P0-2 记忆注入链路**：`chat-service` 为 Writer/Auditor 注入三层记忆（原 `buildMemoryContext`/`retrieveRemoteMemory`/`CuratorAgent` 在 studio 零调用，链路断开）；`server.ts` 调整依赖注入
+  - **P1-1 CuratorAgent 集成**：发布后异步提取实体建议 → `memory/curation-suggestions.json`（待人工确认）+ `GET /memory/curation` + `POST /chapters/:id/curate`
+  - **P1-2 token 估算**：`length/2` → `length/1`（中文 1 字 ≈ 1 token，原低估 2-3×）
+  - **P1-3 知识库注入预算**：`buildKnowledgeContext` 加 8000 字符上限截断
+  - **P1-4 远期检索接入**：`retrieveRemoteMemory` 用近期角色/地点关键词召回
+  - **P2**：`getModelContextWindow` 前缀匹配降序 / `maybeGenerateBatchSummary` 补齐跳发区间 / retriever 过滤短关键词 / 存储统一 `memoryDir`
+  - **B1/B2（既有失败）**：chapters DELETE 非 draft 返回 423 / file-watcher 标题提取支持 markdown `#`
+  - **章节号显示 bug**：`memory.tsx` 用 `chapterOrder` 序号映射（原用裸 id 与章节列表不一致）
+  - **LLM 接入**：`.env` 配智谱 paas/v4（`glm-4-flash`，plus 余额不足故用免费模型）
+- Impact: core（memory/context-builder/retriever/token-budget，storage/path/summary-storage，models/api/memory）+ studio（server，services/chat/summary/workspace/chapter/file-watcher，routes/chapters/memory）+ docs
+- Tests: core 231 + studio 123 = 354 全绿（原 2 既有失败已修，无新增回归）；memory.tsx 显示 bug 人工浏览器验证
+- Dead Code: CuratorAgent 由孤儿转为已集成（发布流程触发）；无新增死代码
+- Security: `.env` 含 API key 但已 gitignore；无密钥进入 commit；无路径遍历暴露
+- Commit Status: `728182d` / `9cd2344` / `f26fb2e` / `8ac4a40` 已推送 origin/feat/g03-memory；本次 sync 文档待提交
+
 ## 2026-06-18 — 多轮 bugfix + 功能增强（ad-hoc，已推送 main）
 
 - Goal ID: 多个 ad-hoc（非单一路线图目标；roadmap 新增 G04-S07 记录 #8 AI 工具调用）

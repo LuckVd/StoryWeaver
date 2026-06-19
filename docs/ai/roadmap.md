@@ -121,7 +121,7 @@
 | G02 | G02-S09 | 文件监听 | chokidar 监听 volumes/ + knowledge/ + SSE 通知 | done | G02-S08 | | accepted | passed | 2026-05-28 | | FileWatcher + SearchEngine 增量更新 + SSE 广播 + server.ts 集成 |
 | G02 | G02-S10 | 路由层完善 | 关键词路由 + LLM 兜底路由 | done | G02-S03 | | accepted | passed | 2026-05-28 | | LLM 兜底分类 + 3s 超时降级 + 补充关键词 + 新斜杠命令 |
 | G02 | G02-S11 | 知识库前端管理 UI | /knowledge 7-Tab 布局 + 6 实体 CRUD + 关系图 | done | G02-S01, G02-S02 | | accepted | passed | 2026-06-02 | c4ef4c9 | EntityList + EntityFormDialog（含 entitySelect 模糊搜索）+ knowledge-store 懒加载 CRUD + 世界观/自定义子 Tab；build 通过，全量 suite 存在 4 个与 G02-S11 无关的既有 chat 路由测试失败 |
-| G03 | | Phase 3: 长篇记忆 | 支持百万字长篇 | done | G02 | | accepted | passed | 2026-06-18 | | 8/8 子目标核心落地；core/memory 包(aggregator/token-budget/context-builder/retriever)+ CuratorAgent + 派生记忆 + /memory 页面；2 既有 studio 测试失败非本次引入 |
+| G03 | | Phase 3: 长篇记忆 | 支持百万字长篇 | done | G02 | | accepted | passed | 2026-06-19 | b9937aa(+728182d,9cd2344,f26fb2e,8ac4a40) | 8/8 子目标核心落地；core/memory + CuratorAgent + 派生记忆 + /memory 页面；2026-06-19 审查修复 P0/P1/P2(批量假摘要→正文/记忆注入链路接通/CuratorAgent 集成/token 估算中文/知识库预算/检索接入)+ 章节号显示 bug；core 231 + studio 123 = 354 全绿 |
 | G03 | G03-S01 | 三层记忆系统 | Layer 1 永久记忆 + Layer 2 近期 + Layer 3 远期 + 对话上下文压缩（>10 轮自动摘要） | done | G02-S06 | | accepted | passed | 2026-06-18 | | context-builder 三层组装+Token 截断；对话>10轮压缩留 TODO |
 | G03 | G03-S02 | 章节摘要结构化 | ChapterSummary 结构化生成 | done | G02-S06 | | accepted | passed | 2026-06-18 | | 06-18 已实质完成(发布生成入库)，本次核对确认 |
 | G03 | G03-S03 | 多章综合总结 | BatchSummary + 间隔配置 | done | G03-S02 | | accepted | passed | 2026-06-18 | | maybeGenerateBatchSummary 每 10 章触发；interval 读 novel.yaml 留 TODO |
@@ -138,8 +138,8 @@
 | G04 | G04-S05 | 导出功能 | TXT / EPUB / Markdown 导出 | planned | G01-S03 | | pending | not_started | | | |
 | G04 | G04-S06 | 数据统计看板 | 字数/进度/活动等数据图表 | planned | G01-S09 | | pending | not_started | | | |
 | G04 | G04-S07 | AI 工具调用 / 对话主动操作章节 | 赋予 Agent function calling 能力：用户在对话中让 AI 读/改章节时，AI 主动调用工具读取（注意章节状态，published 只读），改正文时显性提示用户确认。需定义工具清单（读章节/改章节/查知识库）、权限边界、二次确认机制 | planned | G01-S08, G01-S05 | 架构性扩展：当前 Agent 仅纯文本对话，无 tool use | pending | not_started | | | 用户反馈需求 2026-06-16，暂缓；待第一批功能完成后专门设计 |
-| G04 | G04-S07 | Prompt 管理 UI | 查看/编辑/恢复默认 Prompt | planned | G01-S09 | | pending | not_started | | | |
-| G04 | G04-S08 | 对话历史管理 | session 列表/搜索/删除 | planned | G01-S08 | | pending | not_started | | | |
+| G04 | G04-S08 | Prompt 管理 UI | 查看/编辑/恢复默认 Prompt | planned | G01-S09 | | pending | not_started | | | |
+| G04 | G04-S09 | 对话历史管理 | session 列表/搜索/删除 | planned | G01-S08 | | pending | not_started | | | |
 | G05 | | Phase 5: 打磨 | 体验优化 | planned | G04 | | pending | not_started | | | |
 | G05 | G05-S01 | 纸张/手稿视觉风格 | 衬线字体、纹理背景、柔和阴影 | planned | G01-S10 | | pending | not_started | | | |
 | G05 | G05-S02 | 深色模式 | 亮色=羊皮纸/墨水，暗色=深色/烛光 | planned | G05-S01 | | pending | not_started | | | |

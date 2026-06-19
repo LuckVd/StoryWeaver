@@ -19,9 +19,9 @@ test_scope:
   - "core/memory(aggregator/token-budget/context-builder/retriever) 单测"
   - "SummaryStorage 派生记忆单测"
   - "CuratorAgent 单测"
-test_result: "core build 通过 + 231 passed 全绿；studio tsc + vite build 通过；studio test 121 passed / 2 failed（既有失败，非 G03 引入）"
+test_result: "core 231 + studio 123 = 354 全绿（2026-06-19 审查修复后重测；原 2 既有失败 B1/B2 已修）；memory.tsx 章节号 bug 为前端显示层，人工浏览器验证"
 security_blockers: []
 dead_code_actions: []
 goal_candidates: []
-sync_status: pending
-last_check_at: "2026-06-18"
+sync_status: done
+last_check_at: "2026-06-19"
