@@ -229,6 +229,13 @@ export function characterStatesFilePath(projectRoot: string): string {
   return resolveSafe(projectRoot, 'memory/character-states.json');
 }
 
+/**
+ * 生成 Curator 实体建议路径:memory/curation-suggestions.json
+ */
+export function curationSuggestionsFilePath(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'memory/curation-suggestions.json');
+}
+
 // ── 解析工具 ──
 
 /**

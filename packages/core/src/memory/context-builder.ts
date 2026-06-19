@@ -47,14 +47,17 @@ export interface BuildMemoryContextOptions {
   dialogHistoryTokens?: number;
 }
 
-// TODO(G03 精化): 接入精确 tokenizer（如 tiktoken），当前用中英混合粗略估算（≈2 字符/token）。
+// TODO(G03 精化): 接入精确 tokenizer（如 tiktoken）。当前按中文估算：约 1 汉字 ≈ 1 token
+// （英文偏高估，但中文小说场景下是合理且偏安全的上界，避免长篇记忆注入溢出上下文窗口）。
+const CHARS_PER_TOKEN = 1;
+
 function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 2);
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
 }
 
 /** 按预算截断文本（超长则保留前部 + 省略号） */
 function truncateToTokens(text: string, maxTokens: number): string {
-  const maxChars = maxTokens * 2;
+  const maxChars = maxTokens * CHARS_PER_TOKEN;
   if (text.length <= maxChars) return text;
   return text.slice(0, maxChars) + '…';
 }

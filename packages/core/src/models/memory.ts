@@ -135,3 +135,25 @@ export interface CharacterStates {
   /** 重建时间(ISO) */
   updatedAt: string;
 }
+
+/** Curator 提取的实体建议(待人工确认后入库,不自动写入知识库) */
+export interface CurationSuggestion {
+  /** 来源章节 */
+  chapter: number;
+  /** 提取时间(ISO) */
+  createdAt: string;
+  /** 建议加入的角色 */
+  characters: Array<{ name: string; description: string; reason: string }>;
+  /** 建议加入的伏笔 */
+  hooks: Array<{ name: string; description: string }>;
+  /** 建议加入的世界观条目 */
+  worldEntries: Array<{ name: string; category: string; content: string }>;
+}
+
+/** 全部 curation 建议(按章节聚合,存储于 memory/curation-suggestions.json) */
+export interface CurationSuggestions {
+  /** 按章节号升序 */
+  suggestions: CurationSuggestion[];
+  /** 更新时间(ISO) */
+  updatedAt: string;
+}

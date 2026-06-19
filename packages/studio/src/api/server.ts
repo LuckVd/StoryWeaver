@@ -49,8 +49,15 @@ export function createServer(projectRoot: string = process.cwd()) {
     new OutlineStorage(projectRoot),
     new RelationStorage(projectRoot),
   );
-  const chatService = new ChatService(aiQueue, sseEmitter, chapterService, knowledgeService);
   const summaryStorage = new SummaryStorage();
+  const chatService = new ChatService(
+    aiQueue,
+    sseEmitter,
+    chapterService,
+    knowledgeService,
+    summaryStorage,
+    projectRoot,
+  );
   const workspaceService = new WorkspaceService(
     new WorkspaceStorage(projectRoot),
     chapterService,

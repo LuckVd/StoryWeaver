@@ -104,7 +104,7 @@ export function chaptersRoute(bookService: BookService, chapterService: ChapterS
       return c.json({ ok: true });
     } catch (err) {
       if (err instanceof Error && err.message === 'CHAPTER_LOCKED') {
-        throw new APIError(ErrorCode.CHAPTER_LOCKED, '已发布章节不可删除，请先回退为草稿');
+        throw new APIError(ErrorCode.CHAPTER_LOCKED, '非草稿状态章节不可删除，请先回退为草稿');
       }
       if (err instanceof Error && err.message === 'ONLY_LATEST_DELETABLE') {
         throw new APIError(ErrorCode.VALIDATION_ERROR, '只能删除最新的章节（避免中间空缺）');
@@ -208,6 +208,20 @@ export function chaptersRoute(bookService: BookService, chapterService: ChapterS
       const msg = err instanceof Error ? err.message : '未知错误';
       throw new APIError(ErrorCode.INTERNAL_ERROR, `修订失败：${msg}`);
     }
+  });
+
+  // POST /chapters/:id/curate — 手动触发 Curator 提取知识库实体建议（异步，立即返回）
+  app.post('/:id/curate', async (c) => {
+    const chapterId = Number(c.req.param('id'));
+    if (!Number.isInteger(chapterId) || chapterId < 1) {
+      throw new APIError(ErrorCode.VALIDATION_ERROR, '章节 ID 必须为正整数');
+    }
+    const volume = await chapterService.findVolume(chapterId);
+    if (volume === null) {
+      throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
+    }
+    summaryService.startCurate(volume, chapterId);
+    return c.json({ curating: true });
   });
 
   // GET /chapters/:id/versions — 列出版本历史

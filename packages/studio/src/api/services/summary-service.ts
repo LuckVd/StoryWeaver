@@ -2,9 +2,12 @@ import {
   SummaryStorage,
   createLLMClient,
   SummarizerAgent,
+  CuratorAgent,
   type LLMClient,
   type ModelConfig,
   type ChapterSummary,
+  type CurationSuggestion,
+  type CurationSuggestions,
 } from '@storyweaver/core';
 import type { ChapterService } from './chapter-service.js';
 import type { SSEEmitter } from '../sse.js';
@@ -17,6 +20,8 @@ import type { SSEEmitter } from '../sse.js';
 export class SummaryService {
   private llmClient: LLMClient | null = null;
   private summarizerAgent: SummarizerAgent | null = null;
+  private curatorAgent: CuratorAgent | null = null;
+  private curating = new Set<number>();
 
   constructor(
     private readonly chapterService: ChapterService,
@@ -40,6 +45,8 @@ export class SummaryService {
     // 章节摘要变化后重建时间线 + 角色状态派生视图（失败不阻塞）
     await this.summaryStorage.rebuildTimelineAndCharacterStates(this.projectRoot).catch(() => {});
     this.sseEmitter.emit({ type: 'summary:complete', data: { chapter: chapterId } });
+    // 提取知识库实体建议（Curator，异步、失败不阻塞，结果待人工确认）
+    this.startCurate(volume, chapterId);
     return summary;
   }
 
@@ -115,5 +122,70 @@ export class SummaryService {
     this.llmClient = createLLMClient(config);
     this.summarizerAgent = new SummarizerAgent(this.llmClient, { model, temperature: 0.3 });
     return this.summarizerAgent;
+  }
+
+  /** 异步提取知识库实体建议（Curator Agent），不阻塞调用方 */
+  startCurate(volume: number, chapterId: number): void {
+    if (this.curating.has(chapterId)) return;
+    if (!process.env.OPENAI_API_KEY) return;
+    this.curating.add(chapterId);
+    this.curateChapter(volume, chapterId)
+      .catch((err) => console.error('[curation] 提取失败:', err instanceof Error ? err.message : err))
+      .finally(() => this.curating.delete(chapterId));
+  }
+
+  isCurating(chapterId: number): boolean {
+    return this.curating.has(chapterId);
+  }
+
+  /** 用章节正文调 Curator 提取实体建议，合并存储（同章节覆盖） */
+  async curateChapter(volume: number, chapterId: number): Promise<CurationSuggestion | null> {
+    if (!process.env.OPENAI_API_KEY) return null;
+    const chapter = await this.chapterService.read(volume, chapterId);
+    if (!chapter) return null;
+    const text = chapter.content.replace(/<[^>]*>/g, '').trim();
+    if (!text) return null;
+    const suggested = await this.getCuratorAgent().suggestEntities([{ role: 'user', content: text }]);
+    const suggestion: CurationSuggestion = {
+      chapter: chapterId,
+      createdAt: new Date().toISOString(),
+      characters: suggested.characters,
+      hooks: suggested.hooks,
+      worldEntries: suggested.worldEntries,
+    };
+    const existing = (await this.summaryStorage.getCurationSuggestions(this.projectRoot)) ?? {
+      suggestions: [],
+      updatedAt: suggestion.createdAt,
+    };
+    const others = existing.suggestions.filter((s) => s.chapter !== chapterId);
+    const updated: CurationSuggestions = {
+      suggestions: [...others, suggestion].sort((a, b) => a.chapter - b.chapter),
+      updatedAt: suggestion.createdAt,
+    };
+    await this.summaryStorage.saveCurationSuggestions(this.projectRoot, updated);
+    this.sseEmitter.emit({ type: 'curation:complete', data: { chapter: chapterId } });
+    return suggestion;
+  }
+
+  /** 读取全部实体建议（供前端展示、人工确认） */
+  async getCurationSuggestions() {
+    return this.summaryStorage.getCurationSuggestions(this.projectRoot);
+  }
+
+  private getCuratorAgent(): CuratorAgent {
+    if (this.curatorAgent) return this.curatorAgent;
+    const apiKey = process.env.OPENAI_API_KEY!;
+    const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
+    const baseUrl = process.env.OPENAI_BASE_URL;
+    const config: ModelConfig = {
+      id: model,
+      name: model,
+      service: 'openai',
+      apiKey,
+      ...(baseUrl ? { baseUrl } : {}),
+    };
+    const client = createLLMClient(config);
+    this.curatorAgent = new CuratorAgent(client, { model, temperature: 0.3 });
+    return this.curatorAgent;
   }
 }

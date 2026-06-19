@@ -8,6 +8,7 @@ import {
   type LLMClient,
   type ModelConfig,
   type ChapterMeta,
+  type Chapter,
 } from '@storyweaver/core';
 import type { SSEEmitter } from '../sse.js';
 import type { ChapterService } from './chapter-service.js';
@@ -109,7 +110,7 @@ export class WorkspaceService {
     }
 
     // 预加载章节信息
-    const chapterInfos = new Map<number, { volume: number; meta: ChapterMeta }>();
+    const chapterInfos = new Map<number, { volume: number; meta: Chapter }>();
     for (const id of chapterIds) {
       const vol = await this.chapterService.findVolume(id);
       if (vol === null) throw new Error(`CHAPTER_NOT_FOUND:${id}`);
@@ -163,7 +164,7 @@ export class WorkspaceService {
   /** 为发布的章节生成摘要并更新剧情状态 */
   private async generateSummaries(
     chapterIds: number[],
-    chapterInfos: Map<number, { volume: number; meta: ChapterMeta }>,
+    chapterInfos: Map<number, { volume: number; meta: Chapter }>,
     result: PublishResult,
   ): Promise<void> {
     const agent = this.getSummarizerAgent();
@@ -173,17 +174,24 @@ export class WorkspaceService {
     for (const id of chapterIds) {
       const info = chapterInfos.get(id)!;
       try {
-        const summary = await agent.summarizeChapter(
-          [{ role: 'user', content: info.meta.title }],
-          {
-            chapter: id,
-            volume: info.volume,
-            title: info.meta.title,
-            wordCount: 0,
-          },
-        );
-        await this.summaryStorage.saveChapterSummary(this.projectRoot, summary);
-        result.summarized.push(id);
+        // 用去标签正文生成摘要(与 SummaryService.summarizeChapter 一致),
+        // 而非仅传标题 —— 否则 LLM 凭标题编造情节,污染派生记忆全链。
+        const text = info.meta.content.replace(/<[^>]*>/g, '').trim();
+        if (!text) {
+          result.skipped.push(id);
+        } else {
+          const summary = await agent.summarizeChapter(
+            [{ role: 'user', content: text }],
+            {
+              chapter: id,
+              volume: info.volume,
+              title: info.meta.title,
+              wordCount: text.length,
+            },
+          );
+          await this.summaryStorage.saveChapterSummary(this.projectRoot, summary);
+          result.summarized.push(id);
+        }
       } catch {
         // 摘要生成失败不阻塞发布流程
         result.skipped.push(id);
@@ -216,27 +224,36 @@ export class WorkspaceService {
   }
 
   /**
-   * 多章综合总结（G03-S03）：当发布的最大章节号是间隔（默认 10）的倍数时，
-   * 对 [max-interval+1, max] 范围生成 BatchSummary。
+   * 多章综合总结（G03-S03）：按固定间隔（默认 10 章）补齐所有尚未生成的区间。
+   * 遍历 ≤ 当前最大章节号的每个间隔倍数端点，仅对缺失的 batch 生成，避免跳发时漏掉早期区间。
    * TODO: interval 从 novel.yaml.batchSummaryInterval 读取（待接入 config service）。
    */
   private async maybeGenerateBatchSummary(chapterIds: number[]): Promise<void> {
     const interval = 10;
     const maxCh = Math.max(...chapterIds);
-    if (maxCh <= 0 || maxCh % interval !== 0) return;
-    const from = maxCh - interval + 1;
+    if (maxCh < interval) return;
     const summaries = await this.summaryStorage.listChapterSummaries(this.projectRoot);
-    const inRange = summaries.filter((s) => s.chapter >= from && s.chapter <= maxCh);
-    if (inRange.length < 2) return;
-    const content = inRange
-      .map((s) => `第${s.chapter}章 ${s.title}：${s.plotEvents.join('；')}（${s.plotOutcome}）`)
-      .join('\n');
-    const batch = await this.getSummarizerAgent().summarizeBatch(
-      [{ role: 'user', content }],
-      [from, maxCh],
-      inRange[0].volume,
-    );
-    await this.summaryStorage.saveBatchSummary(this.projectRoot, batch);
+    const existing = await this.summaryStorage.listBatchSummaries(this.projectRoot);
+    const existingEnds = new Set(existing.map((b) => b.chapterRange[1]));
+    for (let end = interval; end <= maxCh; end += interval) {
+      if (existingEnds.has(end)) continue;
+      const from = end - interval + 1;
+      const inRange = summaries.filter((s) => s.chapter >= from && s.chapter <= end);
+      if (inRange.length < 2) continue;
+      const content = inRange
+        .map((s) => `第${s.chapter}章 ${s.title}：${s.plotEvents.join('；')}（${s.plotOutcome}）`)
+        .join('\n');
+      try {
+        const batch = await this.getSummarizerAgent().summarizeBatch(
+          [{ role: 'user', content }],
+          [from, end],
+          inRange[0].volume,
+        );
+        await this.summaryStorage.saveBatchSummary(this.projectRoot, batch);
+      } catch {
+        // 单个区间失败不影响其他区间
+      }
+    }
   }
 
   /** 懒初始化 LLM 客户端和 SummarizerAgent */

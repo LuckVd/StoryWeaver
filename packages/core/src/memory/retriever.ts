@@ -45,8 +45,8 @@ export function retrieveRemoteMemory(input: RetrievalInput): string {
   const maxChars = maxTokens * 2;
   const parts: string[] = [];
 
-  // 策略 1：角色/地点关联
-  const kws = keywords.filter(Boolean);
+  // 策略 1：角色/地点关联（过滤过短关键词，减少单字误召回）
+  const kws = keywords.filter((k) => k && k.length >= 2);
   const related = kws.length
     ? summaries.filter((s) =>
         kws.some(

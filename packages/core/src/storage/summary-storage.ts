@@ -1,6 +1,6 @@
 import { readFile, writeFile, readdir, unlink } from 'node:fs/promises';
-import { ensureDir, summariesDir, summaryFilePath, batchSummariesDir, batchSummaryFilePath, storyStateFilePath, timelineFilePath, characterStatesFilePath } from './path.js';
-import type { ChapterSummary, BatchSummary, StoryStateSnapshot, Timeline, CharacterStates } from '../models/memory.js';
+import { ensureDir, memoryDir, summariesDir, summaryFilePath, batchSummariesDir, batchSummaryFilePath, storyStateFilePath, timelineFilePath, characterStatesFilePath, curationSuggestionsFilePath } from './path.js';
+import type { ChapterSummary, BatchSummary, StoryStateSnapshot, Timeline, CharacterStates, CurationSuggestions } from '../models/memory.js';
 import { aggregateTimeline, aggregateCharacterStates } from '../memory/aggregator.js';
 
 /**
@@ -129,9 +129,8 @@ export class SummaryStorage {
 
   /** 保存剧情状态快照（覆盖写入） */
   async saveStoryState(projectRoot: string, state: StoryStateSnapshot): Promise<void> {
-    const filePath = storyStateFilePath(projectRoot);
-    await ensureDir(filePath.substring(0, filePath.lastIndexOf('/')));
-    await writeFile(filePath, JSON.stringify(state, null, 2), 'utf-8');
+    await ensureDir(memoryDir(projectRoot));
+    await writeFile(storyStateFilePath(projectRoot), JSON.stringify(state, null, 2), 'utf-8');
   }
 
   /** 读取剧情状态快照 */
@@ -165,9 +164,8 @@ export class SummaryStorage {
 
   /** 保存时间线（覆盖写入） */
   async saveTimeline(projectRoot: string, timeline: Timeline): Promise<void> {
-    const filePath = timelineFilePath(projectRoot);
-    await ensureDir(filePath.substring(0, filePath.lastIndexOf('/')));
-    await writeFile(filePath, JSON.stringify(timeline, null, 2), 'utf-8');
+    await ensureDir(memoryDir(projectRoot));
+    await writeFile(timelineFilePath(projectRoot), JSON.stringify(timeline, null, 2), 'utf-8');
   }
 
   /** 读取时间线 */
@@ -182,9 +180,8 @@ export class SummaryStorage {
 
   /** 保存角色状态变迁（覆盖写入） */
   async saveCharacterStates(projectRoot: string, states: CharacterStates): Promise<void> {
-    const filePath = characterStatesFilePath(projectRoot);
-    await ensureDir(filePath.substring(0, filePath.lastIndexOf('/')));
-    await writeFile(filePath, JSON.stringify(states, null, 2), 'utf-8');
+    await ensureDir(memoryDir(projectRoot));
+    await writeFile(characterStatesFilePath(projectRoot), JSON.stringify(states, null, 2), 'utf-8');
   }
 
   /** 读取角色状态变迁 */
@@ -192,6 +189,24 @@ export class SummaryStorage {
     try {
       const data = await readFile(characterStatesFilePath(projectRoot), 'utf-8');
       return JSON.parse(data) as CharacterStates;
+    } catch {
+      return null;
+    }
+  }
+
+  // ── CurationSuggestions（Curator 提取的实体建议，待人工确认） ──
+
+  /** 保存全部 curation 建议（覆盖写入） */
+  async saveCurationSuggestions(projectRoot: string, suggestions: CurationSuggestions): Promise<void> {
+    await ensureDir(memoryDir(projectRoot));
+    await writeFile(curationSuggestionsFilePath(projectRoot), JSON.stringify(suggestions, null, 2), 'utf-8');
+  }
+
+  /** 读取全部 curation 建议 */
+  async getCurationSuggestions(projectRoot: string): Promise<CurationSuggestions | null> {
+    try {
+      const data = await readFile(curationSuggestionsFilePath(projectRoot), 'utf-8');
+      return JSON.parse(data) as CurationSuggestions;
     } catch {
       return null;
     }

@@ -34,7 +34,9 @@ const DEFAULT_CONTEXT_WINDOW = 128000;
  */
 export function getModelContextWindow(model: string): number {
   if (MODEL_CONTEXT_WINDOWS[model]) return MODEL_CONTEXT_WINDOWS[model];
-  const key = Object.keys(MODEL_CONTEXT_WINDOWS).find((k) => model.startsWith(k));
+  // 按长度降序匹配：更具体（更长）的 key 优先，避免互为前缀时错配（如 gpt-4 与 gpt-4-turbo）
+  const keys = Object.keys(MODEL_CONTEXT_WINDOWS).sort((a, b) => b.length - a.length);
+  const key = keys.find((k) => model.startsWith(k));
   return key ? MODEL_CONTEXT_WINDOWS[key] : DEFAULT_CONTEXT_WINDOW;
 }
 

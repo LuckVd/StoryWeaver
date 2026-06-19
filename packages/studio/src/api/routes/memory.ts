@@ -16,5 +16,8 @@ export function memoryRoute(summaryService: SummaryService): Hono {
 
   app.get('/character-states', async (c) => c.json(await summaryService.getCharacterStates()));
 
+  // Curator 提取的实体建议（待人工确认后入库）
+  app.get('/curation', async (c) => c.json(await summaryService.getCurationSuggestions()));
+
   return app;
 }

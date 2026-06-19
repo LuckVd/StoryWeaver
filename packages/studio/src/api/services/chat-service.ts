@@ -7,6 +7,8 @@ import {
   BrainstormerAgent,
   AuditorAgent,
   routeUserMessage,
+  buildMemoryContext,
+  retrieveRemoteMemory,
   type LLMClient,
   type AgentName,
   type Message,
@@ -16,7 +18,9 @@ import {
   type AgentConfig,
   type ReviewReport,
   type Chapter,
+  type ChapterSummary,
   type WorldSubCategory,
+  type SummaryStorage,
 } from '@storyweaver/core';
 import type { AIOperationQueue } from '../queue.js';
 import type { SSEEmitter } from '../sse.js';
@@ -41,6 +45,8 @@ export class ChatService {
     private readonly sseEmitter: SSEEmitter,
     private readonly chapterService: ChapterService,
     private readonly knowledgeService: KnowledgeService,
+    private readonly summaryStorage: SummaryStorage,
+    private readonly projectRoot: string,
   ) {}
 
   // --- Session CRUD ---
@@ -126,6 +132,18 @@ export class ChatService {
       // 追加聊天历史
       for (const m of session.messages) {
         messages.push({ role: m.role, content: m.content });
+      }
+
+      // 注入长篇记忆（三层）：仅写作/审稿 Agent，让 AI 感知前文剧情与角色状态
+      if (agentName === 'writer' || agentName === 'auditor') {
+        try {
+          const memoryContext = await this.buildMemoryContext();
+          if (memoryContext) {
+            messages.unshift({ role: 'system', content: memoryContext });
+          }
+        } catch {
+          // 记忆加载失败不阻断对话
+        }
       }
 
       // 注入知识库设定（全量），放在最前，确保 AI 遵守已有设定
@@ -249,7 +267,7 @@ export class ChatService {
    * 构建知识库上下文（全量），作为 system 设定注入对话。
    * 让写作/审稿 Agent 能感知角色、世界观、规则、伏笔等已有设定，避免自由发挥。
    */
-  private async buildKnowledgeContext(): Promise<string> {
+  private async buildKnowledgeContext(maxChars = 8000): Promise<string> {
     const ks = this.knowledgeService;
     const worldSubs: WorldSubCategory[] = ['geography', 'power-system', 'factions', 'history', 'glossary'];
 
@@ -311,7 +329,52 @@ export class ChatService {
     }
 
     if (lines.length === 1) return ''; // 仅标题，无实质内容
-    return lines.join('\n');
+    const text = lines.join('\n');
+    // 知识库随长篇累积会膨胀，设字符上限避免挤占正文/历史 token（与 G03 token 预算哲学一致）；
+    // 顺序已按重要性（角色→世界观→物品→伏笔→规则→自定义）排列，截断保留靠前的重要设定。
+    if (text.length <= maxChars) return text;
+    return text.slice(0, maxChars) + '\n…（知识库内容过长，已截断；重要设定在前）';
+  }
+
+  /**
+   * 构建长篇记忆上下文（三层）：Layer1 故事状态快照 + Layer2 近期章节摘要 +
+   * Layer3 timeline/character-states 兜底。供写作/审稿 Agent 感知前文，保持长篇连贯。
+   * 数据由发布流程自动维护；此处只读组装，失败不阻断对话。
+   */
+  private async buildMemoryContext(): Promise<string> {
+    const [storyState, summaries, timeline, characterStates, hooks, batchSummaries] = await Promise.all([
+      this.summaryStorage.getStoryState(this.projectRoot),
+      this.summaryStorage.listChapterSummaries(this.projectRoot),
+      this.summaryStorage.getTimeline(this.projectRoot),
+      this.summaryStorage.getCharacterStates(this.projectRoot),
+      this.knowledgeService.listHooks().catch(() => []),
+      this.summaryStorage.listBatchSummaries(this.projectRoot),
+    ]);
+    if (!storyState && summaries.length === 0 && (!timeline || timeline.entries.length === 0)) {
+      return ''; // 无任何记忆数据，跳过注入
+    }
+    const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
+    // 远期检索（G03-S06）：用近期出现的角色/地点作关键词，召回相关章节、待回收伏笔与综合总结
+    const keywords = extractRecentKeywords(summaries);
+    const currentChapter = summaries.length ? Math.max(...summaries.map((s) => s.chapter)) : 0;
+    const remoteRetrieved = retrieveRemoteMemory({
+      keywords,
+      summaries,
+      hooks,
+      batchSummaries,
+      currentChapter,
+    });
+    const ctx = buildMemoryContext({
+      model,
+      storyState,
+      recentSummaries: summaries,
+      timeline,
+      characterStates,
+      remoteRetrieved, // 检索结果优先；无命中时 buildMemoryContext 自动回退 timeline/characterStates
+    });
+    const parts = [ctx.layer1, ctx.layer2, ctx.layer3].filter(Boolean);
+    if (!parts.length) return '';
+    return `## 长篇记忆（前文剧情与角色状态，写作/审稿时参考以保持连贯）\n\n${parts.join('\n\n')}`;
   }
 
   // --- LLM 初始化 ---
@@ -384,4 +447,15 @@ function getStream(agent: AnyAgent, messages: Message[]): AsyncGenerator<string>
     return (agent as AuditorAgent).auditStream(messages);
   }
   return (agent as WriterAgent).writeStream(messages);
+}
+
+/** 从最近几章摘要提取角色/地点关键词，供远期检索召回相关章节 */
+function extractRecentKeywords(summaries: ChapterSummary[]): string[] {
+  const recent = [...summaries].sort((a, b) => b.chapter - a.chapter).slice(0, 3);
+  const set = new Set<string>();
+  for (const s of recent) {
+    s.charactersPresent.forEach((c) => set.add(c));
+    s.locationsUsed.forEach((l) => set.add(l));
+  }
+  return [...set].slice(0, 20);
 }
