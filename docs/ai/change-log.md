@@ -1,5 +1,21 @@
 # Change Log
 
+## 2026-06-24 — G04 Phase 4 SQLite 缓存层完成(4 子目标 + merge main)
+
+- Goal ID: G04（Phase 4 SQLite 缓存层）
+- Summary: 引入 Node 22.5+ 内置 `node:sqlite` 缓存引擎(零原生依赖),覆盖 summaries / 全文搜索 / action-log / curation 四类高频读取的索引加速;文件仍为唯一主存储,SQLite 仅作索引/缓存,可全量重建,无缓存时纯文件降级。
+- 改动:
+  - **G04-S01 存储层地基**:`SqliteCache`(pragma/预编译缓存/事务 BEGIN-COMMIT-ROLLBACK/schema 版本/openSync)+ `CacheStore`(按 scope 分区 KV)+ `withFallback` 降级 / `rebuildCache` 重建。`node:sqlite` 用 createRequire 加载(避免 esbuild bundle 把 node:sqlite 去前缀成不可用的 bare sqlite);补 @types/node 缺失的最小类型声明。
+  - **G04-S02 summaries 索引落盘**:`SummaryStorage` 注入可选缓存,write-through + 读优先降级回填 + `rebuildSummariesCache`;server 创建 cache 注入 + 启动后台重建。
+  - **G04-S03 全文搜索落盘**:`InMemorySearchEngine` 注入 `CacheStore`,双写 + `loadFromStore` + `storeSize`;`FileWatcher.start` 优先从缓存恢复(storeSize>0),空则扫文件并自动填充。
+  - **G04-S04 累积日志迁移**:curation 按章节分键 + action-log seq 自增键,append O(1) + get 走索引 + `rebuildLogsCache`;文件主存储同步。
+  - 配套:core/studio test + dev 脚本加 `--experimental-sqlite`;db 放 `memory/.cache/`(已 gitignore)。
+- Impact: core（storage/cache/*、storage/summary-storage、storage/index、search/search-engine、types/node-sqlite.d.ts、tsup.config）+ studio（api/server、services/file-watcher、package.json）+ 多个 test
+- Tests: core 272 + studio 124 全绿（无回归）;build DTS 通过
+- Dead Code: 无新增
+- Security: 缓存为本地 SQLite 文件(memory/.cache/,gitignored);无密钥/路径暴露新增;node:sqlite 为内置模块无网络
+- Commit Status: `66e683b`(S01) / `b22e88c`(S02) / `aa7c5b6`(S03) / `6b1d0c2`(S04),分支 feat/g04-sqlite-cache 合并 main
+
 ## 2026-06-24 — roadmap 重编号:SQLite 缓存层提升为 G04
 
 - Goal ID: 规划调整(非实现目标)
