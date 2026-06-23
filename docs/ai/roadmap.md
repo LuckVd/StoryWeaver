@@ -15,7 +15,7 @@
 - **技术目标**：构建一套个人 AI 辅助小说创作系统，通过多 Agent 协作实现"构思 → 写作 → 审稿 → 修订"全流程辅助，纯本地部署，人主导 AI 辅助
 - **技术栈**：TypeScript + Node.js + React 19 + Hono + pnpm monorepo
 - **详细方案**：`docs/ai/tech-spec-v1.md`
-- **当前阶段**：Phase 3 完成（G03 长篇记忆落地）→ Phase 4 SQLite 缓存层（G04 完成）→ Phase 5 多模型 + 高级特性（G05）
+- **当前阶段**：Phase 3 完成（G03 长篇记忆落地）→ Phase 4 SQLite 缓存层（G04 完成）→ Phase 5 多模型 + 高级特性（G05 完成）→ Phase 6 打磨（G06）
 
 ## 2. 总体技术架构
 
@@ -141,16 +141,16 @@
 | G04 | G04-S02 | summaries 索引落盘 | 派生记忆读取走索引（替代全量聚合） | done | G04-S01 | | accepted | passed | 2026-06-24 | b22e88c | SummaryStorage 注入缓存:write-through + 读优先降级回填 + rebuildSummariesCache;server 注入 + 启动重建 |
 | G04 | G04-S03 | 全文搜索落盘 | 倒排索引落盘，冷启动不全量扫文件 | done | G04-S01 | | accepted | passed | 2026-06-24 | aa7c5b6 | InMemorySearchEngine 注入 CacheStore:双写 + loadFromStore;FileWatcher 启动从缓存恢复,空则扫文件填充 |
 | G04 | G04-S04 | 累积日志（action-log / curation） | 只增日志迁 SQLite，支持累积查询/分页 | done | G04-S01 | | accepted | passed | 2026-06-24 | 6b1d0c2 | curation 按章节分键 + action-log seq 自增;append O(1) + get 走索引;rebuildLogsCache |
-| G05 | | Phase 5: 多模型 + 高级特性 | 生产级多模型适配 + 高级功能 | planned | G04 | | pending | not_started | | | 原 Phase 4 顺延 |
-| G05 | G05-S01 | Anthropic / Ollama Provider | 多模型 Provider 实现 | planned | G01-S04 | | pending | not_started | | | |
-| G05 | G05-S02 | 模型配置管理页 | 添加/编辑/删除/测试模型 | planned | G05-S01, G01-S09 | | pending | not_started | | | |
-| G05 | G05-S03 | Agent 模型分配 | 一键默认 + 单独覆盖 | planned | G05-S02 | | pending | not_started | | | |
-| G05 | G05-S04 | 大纲编辑器 | 树状大纲编辑 + 与知识库联动 | planned | G02-S01, G01-S09 | | pending | not_started | | | |
-| G05 | G05-S05 | 导出功能 | TXT / EPUB / Markdown 导出 | planned | G01-S03 | | pending | not_started | | | |
-| G05 | G05-S06 | 数据统计看板 | 字数/进度/活动等数据图表 | planned | G01-S09 | | pending | not_started | | | |
+| G05 | | Phase 5: 多模型 + 高级特性 | 生产级多模型适配 + 高级功能 | done | G04 | | accepted | passed | 2026-06-24 | 9d242eb(+754180d,008b5fb,7738050,cf3e7ca,4b991bc,85c97d8,3a66482) | 8/9 子目标完成(S07 tool use 暂缓);多模型 Provider + 配置页 + Agent 分配 + 大纲编辑器 + 导出 + 统计看板 + Prompt 管理 + 对话历史 |
+| G05 | G05-S01 | Anthropic / Ollama Provider | 多模型 Provider 实现 | done | G01-S04 | | accepted | passed | 2026-06-24 | 9d242eb | fetch 实现(无新 SDK);Anthropic SSE + Ollama NDJSON |
+| G05 | G05-S02 | 模型配置管理页 | 添加/编辑/删除/测试模型 | done | G05-S01, G01-S09 | | accepted | passed | 2026-06-24 | 754180d | ConfigStorage + ModelService(脱敏)+ settings UI |
+| G05 | G05-S03 | Agent 模型分配 | 一键默认 + 单独覆盖 | done | G05-S02 | | accepted | passed | 2026-06-24 | 008b5fb | assignment + resolveModelForAgent helper(LLM 接入留增强) |
+| G05 | G05-S04 | 大纲编辑器 | 树状大纲编辑 + 与知识库联动 | done | G02-S01, G01-S09 | | accepted | passed | 2026-06-24 | 7738050 | /outline 树状编辑器(chapterId 联动) |
+| G05 | G05-S05 | 导出功能 | TXT / EPUB / Markdown 导出 | done | G01-S03 | | accepted | passed | 2026-06-24 | cf3e7ca | TXT/MD 实现;EPUB 暂未(需依赖) |
+| G05 | G05-S06 | 数据统计看板 | 字数/进度/活动等数据图表 | done | G01-S09 | | accepted | passed | 2026-06-24 | 4b991bc | StatsService + dashboard 统计卡片 |
 | G05 | G05-S07 | AI 工具调用 / 对话主动操作章节 | 赋予 Agent function calling 能力：用户在对话中让 AI 读/改章节时，AI 主动调用工具读取（注意章节状态，published 只读），改正文时显性提示用户确认。需定义工具清单（读章节/改章节/查知识库）、权限边界、二次确认机制 | planned | G01-S08, G01-S05 | 架构性扩展：当前 Agent 仅纯文本对话，无 tool use | pending | not_started | | | 用户反馈需求 2026-06-16，暂缓；待第一批功能完成后专门设计 |
-| G05 | G05-S08 | Prompt 管理 UI | 查看/编辑/恢复默认 Prompt | planned | G01-S09 | | pending | not_started | | | |
-| G05 | G05-S09 | 对话历史管理 | session 列表/搜索/删除 | planned | G01-S08 | | pending | not_started | | | |
+| G05 | G05-S08 | Prompt 管理 UI | 查看/编辑/恢复默认 Prompt | done | G01-S09 | | accepted | passed | 2026-06-24 | 85c97d8 | PromptService + settings Prompt 区(覆盖 config/prompts) |
+| G05 | G05-S09 | 对话历史管理 | session 列表/搜索/删除 | done | G01-S08 | | accepted | passed | 2026-06-24 | 3a66482 | 搜索 ?q=(标题+消息)+ chat 页搜索框 |
 | G06 | | Phase 6: 打磨 | 体验优化 | planned | G05 | | pending | not_started | | | 原 Phase 5 顺延 |
 | G06 | G06-S01 | 纸张/手稿视觉风格 | 衬线字体、纹理背景、柔和阴影 | planned | G01-S10 | | pending | not_started | | | |
 | G06 | G06-S02 | 深色模式 | 亮色=羊皮纸/墨水，暗色=深色/烛光 | planned | G06-S01 | | pending | not_started | | | |

@@ -1,28 +1,26 @@
 # Current Goal
 
-> **状态:G04(Phase 4 SQLite 缓存层)已完成,merge 到 main。下一步进入 Phase 5(G05 多模型 + 高级特性)。**
+> **状态:G05(Phase 5 多模型 + 高级特性)已完成,merge 到 main。下一步进入 Phase 6(G06 打磨)。**
 
 ## 上一目标
 
-G04 — Phase 4:SQLite 缓存层(4 子目标全部完成,2026-06-24)。引入 Node 22.5+ 内置 `node:sqlite` 缓存引擎(零原生依赖,createRequire 加载绕过 esbuild 去前缀),覆盖 summaries / 全文搜索 / action-log / curation 四类高频读取;文件仍为唯一主存储,缓存可全量重建,无缓存时纯文件降级。`core 272 + studio 124` 测试全绿。详见 `change-log.md` 2026-06-24 G04 条目。
+G05 — Phase 5:多模型 + 高级特性(8/9 子目标完成,S07 tool use 暂缓,2026-06-24)。Anthropic/Ollama Provider(fetch)+ 模型配置管理页 + Agent 模型分配 + 大纲编辑器(树状)+ 导出(TXT/MD)+ 数据统计看板 + Prompt 管理 + 对话历史搜索。`core 288 + studio 140` 测试全绿。详见 `change-log.md` 2026-06-24 G05 条目。
 
 ## 下一目标(待选)
 
-**G05 — Phase 5:多模型 + 高级特性**(roadmap 全部 `planned`)。候选子目标:
+**G06 — Phase 6:打磨**(体验优化,多为 CSS/UI)。候选子目标:
 
-- G05-S01 Anthropic / Ollama Provider
-- G05-S02 模型配置管理页(配 key / 切模型)
-- G05-S03 Agent 模型分配
-- G05-S04 大纲编辑器(树状大纲 + 知识库联动)
-- G05-S05 导出(TXT / EPUB / Markdown)← 独立、用户可感知
-- G05-S06 数据统计看板
-- G05-S07 AI 工具调用 tool use(用户 2026-06-16 反馈,暂缓)
-- G05-S08 Prompt 管理 UI
-- G05-S09 对话历史管理
+- G06-S01 纸张/手稿视觉风格
+- G06-S02 深色模式
+- G06-S03 动效优化
+- G06-S04 快捷操作条
+- G06-S05 响应式布局
+- G06-S06 性能优化
+- G06-S07 错误处理完善
 
-> 后续阶段:G06 打磨、G07 生产化。
+> 后续阶段:G07 生产化。
 
-需先用 `/ai-goal` 选定子目标并做方案设计后再实现。
+注:G06 多为视觉/交互打磨,部分需人工目视验证。
 
 ## 特性记录:伏笔追踪替换时间线(/memory 页,2026-06-24)
 
@@ -53,4 +51,4 @@ G04 — Phase 4:SQLite 缓存层(4 子目标全部完成,2026-06-24)。引入 No
 
 ## Parent Goal
 
-- G05 — Phase 5:多模型 + 高级特性
+- G06 — Phase 6:打磨
