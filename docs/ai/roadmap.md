@@ -15,7 +15,7 @@
 - **技术目标**：构建一套个人 AI 辅助小说创作系统，通过多 Agent 协作实现"构思 → 写作 → 审稿 → 修订"全流程辅助，纯本地部署，人主导 AI 辅助
 - **技术栈**：TypeScript + Node.js + React 19 + Hono + pnpm monorepo
 - **详细方案**：`docs/ai/tech-spec-v1.md`
-- **当前阶段**：Phase 3 完成（G03 长篇记忆落地）→ Phase 4 SQLite 缓存层（G04）
+- **当前阶段**：Phase 3 完成（G03 长篇记忆落地）→ Phase 4 SQLite 缓存层（G04 完成）→ Phase 5 多模型 + 高级特性（G05）
 
 ## 2. 总体技术架构
 
@@ -136,11 +136,11 @@
 | G03 | G03-S06 | 检索策略 | 角色关联/伏笔驱动/大纲指引/综合总结兜底 | done | G03-S01, G02-S08 | | accepted | passed | 2026-06-18 | | retriever.ts 四策略纯函数 |
 | G03 | G03-S07 | CuratorAgent | 知识库辅助 Agent | done | G01-S05 | | accepted | passed | 2026-06-18 | | CuratorAgent.suggestEntities |
 | G03 | G03-S08 | AI 记忆浏览页面 | `/memory` 页面 — 摘要/时间线/角色状态浏览 | done | G03-S02, G01-S09 | | accepted | passed | 2026-06-18 | | /memory 页面 时间线+角色状态 Tab |
-| G04 | | Phase 4: SQLite 缓存层 | 百万字长篇的索引加速 | planned | G03 | 架构性扩展：引入存储层，需保证文件↔缓存一致性 | pending | not_started | | | 原 G05-S08 提升 + 拆 4 子目标；tech-spec §3 预留缓存层；触发点 ~200 万字；文件为主存储，SQLite 仅索引/缓存 |
-| G04 | G04-S01 | 存储层 + 文件↔缓存一致性 | 引入 SQLite、Storage 接口、变更监听/invalidate/rebuild | planned | G02-S08, G03 | | pending | not_started | | | 地基，上层索引依赖它 |
-| G04 | G04-S02 | summaries 索引落盘 | 派生记忆读取走索引（替代全量聚合） | planned | G04-S01 | | pending | not_started | | | 加速写作记忆注入/检索 |
-| G04 | G04-S03 | 全文搜索落盘 | 倒排索引落盘，冷启动不全量扫文件 | planned | G04-S01 | | pending | not_started | | | 替代 InMemorySearchEngine 冷启动全量构建 |
-| G04 | G04-S04 | 累积日志（action-log / curation） | 只增日志迁 SQLite，支持累积查询/分页 | planned | G04-S01 | | pending | not_started | | | action-log.json / curation-suggestions.json 迁移 |
+| G04 | | Phase 4: SQLite 缓存层 | 百万字长篇的索引加速 | done | G03 | | accepted | passed | 2026-06-24 | 66e683b(+b22e88c,aa7c5b6,6b1d0c2) | 4/4 子目标完成;node:sqlite 引擎 + summaries/search/action-log/curation 四类缓存;文件仍为主存储;core 272 + studio 124 全绿 |
+| G04 | G04-S01 | 存储层 + 文件↔缓存一致性 | 引入 SQLite、Storage 接口、变更监听/invalidate/rebuild | done | G02-S08, G03 | | accepted | passed | 2026-06-24 | 66e683b | SqliteCache 引擎 + CacheStore + withFallback/rebuildCache;node:sqlite 用 createRequire 加载(绕过 esbuild 去前缀) |
+| G04 | G04-S02 | summaries 索引落盘 | 派生记忆读取走索引（替代全量聚合） | done | G04-S01 | | accepted | passed | 2026-06-24 | b22e88c | SummaryStorage 注入缓存:write-through + 读优先降级回填 + rebuildSummariesCache;server 注入 + 启动重建 |
+| G04 | G04-S03 | 全文搜索落盘 | 倒排索引落盘，冷启动不全量扫文件 | done | G04-S01 | | accepted | passed | 2026-06-24 | aa7c5b6 | InMemorySearchEngine 注入 CacheStore:双写 + loadFromStore;FileWatcher 启动从缓存恢复,空则扫文件填充 |
+| G04 | G04-S04 | 累积日志（action-log / curation） | 只增日志迁 SQLite，支持累积查询/分页 | done | G04-S01 | | accepted | passed | 2026-06-24 | 6b1d0c2 | curation 按章节分键 + action-log seq 自增;append O(1) + get 走索引;rebuildLogsCache |
 | G05 | | Phase 5: 多模型 + 高级特性 | 生产级多模型适配 + 高级功能 | planned | G04 | | pending | not_started | | | 原 Phase 4 顺延 |
 | G05 | G05-S01 | Anthropic / Ollama Provider | 多模型 Provider 实现 | planned | G01-S04 | | pending | not_started | | | |
 | G05 | G05-S02 | 模型配置管理页 | 添加/编辑/删除/测试模型 | planned | G05-S01, G01-S09 | | pending | not_started | | | |

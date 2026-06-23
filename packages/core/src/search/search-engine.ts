@@ -5,6 +5,8 @@
  * 启动时从文件系统构建索引，微秒~毫秒级搜索。
  */
 
+import type { CacheStore } from '../storage/cache/cache-store.js';
+
 /** 搜索结果 */
 export interface SearchResult {
   type: 'chapter' | 'knowledge' | 'summary';
@@ -101,8 +103,14 @@ export class InMemorySearchEngine {
   /** 文档存储 */
   private documents = new Map<string, Document>();
 
-  /** 索引一个文档 */
-  private index(doc: Document): void {
+  /**
+   * 可选持久化索引层(G04-S03)。注入后 index/remove/clear 双写 SQLite,
+   * 启动可 loadFromStore 从 SQLite 重建内存索引,避免扫文件。无 store 时纯内存。
+   */
+  constructor(private readonly indexStore?: CacheStore) {}
+
+  /** 把文档加入内存倒排索引(不写 store) */
+  private reindex(doc: Document): void {
     const key = docKey(doc.type, doc.id);
     this.documents.set(key, doc);
 
@@ -115,6 +123,12 @@ export class InMemorySearchEngine {
       }
       set.add(key);
     }
+  }
+
+  /** 索引一个文档(内存 + store 双写) */
+  private index(doc: Document): void {
+    this.reindex(doc);
+    this.indexStore?.put(docKey(doc.type, doc.id), JSON.stringify(doc));
   }
 
   /** 索引章节 */
@@ -185,6 +199,7 @@ export class InMemorySearchEngine {
   /** 移除文档 */
   remove(type: string, id: string): void {
     const key = docKey(type, id);
+    this.indexStore?.delete(key); // 同步清除持久化索引
     const doc = this.documents.get(key);
     if (!doc) return;
 
@@ -206,6 +221,7 @@ export class InMemorySearchEngine {
   clear(): void {
     this.wordIndex.clear();
     this.documents.clear();
+    this.indexStore?.clear();
   }
 
   /** 搜索 */
@@ -264,6 +280,29 @@ export class InMemorySearchEngine {
 
   /** 当前索引文档数 */
   get size(): number {
+    return this.documents.size;
+  }
+
+  /** 持久化 store 中的文档数(启动时判断是否需扫文件) */
+  get storeSize(): number {
+    return this.indexStore?.count() ?? 0;
+  }
+
+  /**
+   * 从持久化 store 重建内存索引(启动时用,避免扫文件)。
+   * 无 store 时为空操作,返回 0。
+   */
+  loadFromStore(): number {
+    if (!this.indexStore) return 0;
+    this.wordIndex.clear();
+    this.documents.clear();
+    for (const v of this.indexStore.listValues()) {
+      try {
+        this.reindex(JSON.parse(v) as Document);
+      } catch {
+        // 跳过损坏记录
+      }
+    }
     return this.documents.size;
   }
 }

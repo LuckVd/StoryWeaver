@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { InMemorySearchEngine, tokenize } from '../search-engine.js';
+import { SqliteCache } from '../../storage/cache/sqlite-cache.js';
+import { CacheStore } from '../../storage/cache/cache-store.js';
 
 describe('tokenize', () => {
   it('should split Chinese text character by character', () => {
@@ -194,5 +199,77 @@ describe('InMemorySearchEngine', () => {
     engine.indexChapter(2, 'The Journey', 'The hero embarks on a long journey across mountains.');
     const results = engine.search('hero');
     expect(results.length).toBe(2);
+  });
+});
+
+describe('InMemorySearchEngine with SQLite cache store', () => {
+  let root: string;
+  let cache: SqliteCache;
+  let store: CacheStore;
+
+  beforeEach(async () => {
+    root = mkdtempSync(join(tmpdir(), 'sw-search-cache-'));
+    cache = await SqliteCache.open(join(root, 'cache.db'));
+    store = new CacheStore(cache, 'search-documents');
+  });
+
+  afterEach(() => {
+    cache.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('index 双写到 store', () => {
+    const engine = new InMemorySearchEngine(store);
+    engine.indexChapter(1, '第一章', '张三的故事');
+    expect(store.count()).toBe(1);
+    expect(engine.storeSize).toBe(1);
+  });
+
+  it('loadFromStore 从 store 重建内存索引(新 engine,无需重新 index)', () => {
+    const engine1 = new InMemorySearchEngine(store);
+    engine1.indexChapter(1, '第一章', '张三的故事');
+    engine1.indexKnowledge('a', '张三', '主角');
+    const engine2 = new InMemorySearchEngine(store);
+    expect(engine2.size).toBe(0);
+    const n = engine2.loadFromStore();
+    expect(n).toBe(2);
+    expect(engine2.search('张三').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('remove 同步删除 store', () => {
+    const engine = new InMemorySearchEngine(store);
+    engine.indexChapter(1, '第一章', '张三');
+    engine.remove('chapter', '1');
+    expect(store.count()).toBe(0);
+    const engine2 = new InMemorySearchEngine(store);
+    engine2.loadFromStore();
+    expect(engine2.search('张三')).toEqual([]);
+  });
+
+  it('clear 清空 store', () => {
+    const engine = new InMemorySearchEngine(store);
+    engine.indexChapter(1, '第一章', '张三');
+    engine.indexChapter(2, '第二章', '李四');
+    engine.clear();
+    expect(store.count()).toBe(0);
+  });
+
+  it('update 双写覆盖 store', () => {
+    const engine = new InMemorySearchEngine(store);
+    engine.indexChapter(1, '旧', '张三');
+    engine.updateChapter(1, '新', '李四');
+    expect(store.count()).toBe(1);
+    const engine2 = new InMemorySearchEngine(store);
+    engine2.loadFromStore();
+    expect(engine2.search('李四').length).toBeGreaterThan(0);
+    expect(engine2.search('张三')).toEqual([]);
+  });
+
+  it('无 store 时行为不变(storeSize=0, loadFromStore=0, 内存索引仍工作)', () => {
+    const engine = new InMemorySearchEngine();
+    engine.indexChapter(1, '第一章', '张三');
+    expect(engine.storeSize).toBe(0);
+    expect(engine.loadFromStore()).toBe(0);
+    expect(engine.search('张三').length).toBeGreaterThan(0);
   });
 });

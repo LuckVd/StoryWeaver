@@ -38,10 +38,16 @@ export class FileWatcher {
     this.watcher.on('change', (filePath: string) => this.handleEvent('change', filePath));
     this.watcher.on('unlink', (filePath: string) => this.handleEvent('unlink', filePath));
 
-    // 启动时索引现有文件（ignoreInitial 不会为已有文件触发 add 事件，否则搜索永远为空）
-    Promise.all([this.indexExisting(volumesDir), this.indexExisting(knowledgeDir), this.indexExisting(summariesDir)])
-      .then(() => console.log(`[fileWatcher] 初始索引完成，共 ${this.searchEngine.size} 个文档`))
-      .catch((e) => console.error('[fileWatcher] 初始索引失败:', e));
+    // 启动加载(G04-S03):优先从持久化索引缓存恢复(不扫文件);
+    // 缓存为空时扫文件构建,且 index 自动双写填充缓存,供下次启动恢复。
+    if (this.searchEngine.storeSize > 0) {
+      const n = this.searchEngine.loadFromStore();
+      console.log(`[fileWatcher] 从缓存恢复索引，共 ${n} 个文档`);
+    } else {
+      Promise.all([this.indexExisting(volumesDir), this.indexExisting(knowledgeDir), this.indexExisting(summariesDir)])
+        .then(() => console.log(`[fileWatcher] 初始索引完成，共 ${this.searchEngine.size} 个文档`))
+        .catch((e) => console.error('[fileWatcher] 初始索引失败:', e));
+    }
   }
 
   /** 递归扫描目录，把现有文件全部索引进搜索引擎 */

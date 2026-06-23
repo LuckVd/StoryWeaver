@@ -1,9 +1,125 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SummaryStorage } from '../summary-storage.js';
-import type { ChapterSummary, BatchSummary, StoryStateSnapshot } from '../../models/memory.js';
+import { SqliteCache } from '../cache/sqlite-cache.js';
+import { summaryFilePath, batchSummaryFilePath, curationSuggestionsFilePath, actionLogFilePath } from '../path.js';
+import type { ChapterSummary, BatchSummary, StoryStateSnapshot, CurationSuggestion, CurationSuggestions, ActionLogEntry } from '../../models/memory.js';
+
+describe('SummaryStorage with SQLite cache', () => {
+  let projectRoot: string;
+  let cache: SqliteCache;
+  let storage: SummaryStorage;
+
+  const makeSummary = (chapter: number): ChapterSummary => ({
+    chapter,
+    volume: 1,
+    title: `Ch ${chapter}`,
+    plotEvents: [`event ${chapter}`],
+    plotOutcome: `outcome ${chapter}`,
+    charactersPresent: ['角色A'],
+    characterActions: { '角色A': `行动${chapter}` },
+    newRevealedInfo: [`info ${chapter}`],
+    locationsUsed: ['地点X'],
+    hooksAdvanced: [],
+    hooksPlanted: [],
+    stateChanges: [],
+    narrativeTime: '第一天',
+    wordCount: 1000,
+  });
+
+  beforeEach(async () => {
+    projectRoot = mkdtempSync(join(tmpdir(), 'sw-summary-cache-'));
+    cache = await SqliteCache.open(join(projectRoot, 'memory', '.cache', 'cache.db'));
+    storage = new SummaryStorage(cache);
+  });
+
+  afterEach(() => {
+    cache.close();
+    rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  it('save 后 get 走缓存(底层文件删除仍可读)', async () => {
+    const summary = makeSummary(1);
+    await storage.saveChapterSummary(projectRoot, summary);
+    rmSync(summaryFilePath(projectRoot, 1), { force: true }); // 删底层文件
+    const result = await storage.getChapterSummary(projectRoot, 1);
+    expect(result).toEqual(summary); // 从缓存读
+  });
+
+  it('list 走缓存(底层文件删除仍列出)', async () => {
+    await storage.saveChapterSummary(projectRoot, makeSummary(2));
+    await storage.saveChapterSummary(projectRoot, makeSummary(3));
+    await storage.listChapterSummaries(projectRoot); // 先填充缓存
+    rmSync(summaryFilePath(projectRoot, 2), { force: true });
+    rmSync(summaryFilePath(projectRoot, 3), { force: true });
+    const list = await storage.listChapterSummaries(projectRoot);
+    expect(list.map((s) => s.chapter)).toEqual([2, 3]); // 从缓存
+  });
+
+  it('delete 同步删除缓存', async () => {
+    await storage.saveChapterSummary(projectRoot, makeSummary(4));
+    await storage.deleteChapterSummary(projectRoot, 4);
+    expect(await storage.getChapterSummary(projectRoot, 4)).toBeNull();
+  });
+
+  it('缓存命中后 save 覆盖会更新缓存', async () => {
+    await storage.saveChapterSummary(projectRoot, makeSummary(5));
+    await storage.saveChapterSummary(projectRoot, { ...makeSummary(5), title: 'Updated' });
+    rmSync(summaryFilePath(projectRoot, 5), { force: true });
+    expect((await storage.getChapterSummary(projectRoot, 5))?.title).toBe('Updated');
+  });
+
+  it('空缓存 list 降级文件并回填', async () => {
+    const freshRoot = mkdtempSync(join(tmpdir(), 'sw-summary-fallback-'));
+    const freshCache = await SqliteCache.open(join(freshRoot, 'memory', '.cache', 'cache.db'));
+    const freshStorage = new SummaryStorage(freshCache);
+    try {
+      await freshStorage.saveChapterSummary(projectRoot, makeSummary(7));
+      const list = await freshStorage.listChapterSummaries(projectRoot); // 降级文件 + 回填
+      expect(list.map((s) => s.chapter)).toContain(7);
+      rmSync(summaryFilePath(projectRoot, 7), { force: true });
+      const list2 = await freshStorage.listChapterSummaries(projectRoot); // 这次走缓存
+      expect(list2.map((s) => s.chapter)).toContain(7);
+    } finally {
+      freshCache.close();
+      rmSync(freshRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rebuildSummariesCache 从文件全量重建(含绕过 storage 写入的文件)', async () => {
+    const r = mkdtempSync(join(tmpdir(), 'sw-summary-rebuild-'));
+    const c = await SqliteCache.open(join(r, 'memory', '.cache', 'cache.db'));
+    const s = new SummaryStorage(c);
+    try {
+      await s.saveChapterSummary(r, makeSummary(1));
+      await s.saveChapterSummary(r, makeSummary(2));
+      writeFileSync(summaryFilePath(r, 3), JSON.stringify(makeSummary(3), null, 2), 'utf-8'); // 绕过 storage
+      const { chapters } = await s.rebuildSummariesCache(r);
+      expect(chapters).toBe(3);
+      rmSync(summaryFilePath(r, 1), { force: true });
+      expect((await s.getChapterSummary(r, 1))?.chapter).toBe(1); // 从缓存
+    } finally {
+      c.close();
+      rmSync(r, { recursive: true, force: true });
+    }
+  });
+
+  it('batch 综合总结也走缓存', async () => {
+    const batch: BatchSummary = {
+      chapterRange: [1, 10],
+      volume: 1,
+      narrativeArc: 'arc',
+      turningPoints: ['tp'],
+      characterDevelopment: { '角色A': 'dev' },
+      unresolvedThreads: ['thread'],
+    };
+    await storage.saveBatchSummary(projectRoot, batch);
+    rmSync(batchSummaryFilePath(projectRoot, 1, 10), { force: true });
+    expect(await storage.getBatchSummary(projectRoot, 1, 10)).toEqual(batch);
+  });
+});
 
 describe('SummaryStorage', () => {
   let projectRoot: string;
@@ -219,5 +335,83 @@ describe('SummaryStorage', () => {
       const cs = await storage.getCharacterStates(projectRoot);
       expect(cs?.characters[0].entity).toBe('X');
     });
+  });
+});
+
+describe('SummaryStorage action-log & curation 缓存', () => {
+  let projectRoot: string;
+  let cache: SqliteCache;
+  let storage: SummaryStorage;
+
+  const makeSuggestion = (chapter: number): CurationSuggestion => ({
+    chapter,
+    createdAt: '2026-06-24T00:00:00.000Z',
+    characters: [{ name: `角色${chapter}`, description: 'desc' }],
+    hooks: [],
+    worldEntries: [],
+  });
+
+  beforeEach(async () => {
+    projectRoot = mkdtempSync(join(tmpdir(), 'sw-log-cache-'));
+    cache = await SqliteCache.open(join(projectRoot, 'memory', '.cache', 'cache.db'));
+    storage = new SummaryStorage(cache);
+  });
+
+  afterEach(() => {
+    cache.close();
+    rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  it('curation save/get 走缓存(删文件仍可读)', async () => {
+    const data: CurationSuggestions = {
+      suggestions: [makeSuggestion(1), makeSuggestion(2)],
+      updatedAt: '2026-06-24T00:00:00.000Z',
+    };
+    await storage.saveCurationSuggestions(projectRoot, data);
+    rmSync(curationSuggestionsFilePath(projectRoot), { force: true });
+    const result = await storage.getCurationSuggestions(projectRoot);
+    expect(result?.suggestions.length).toBe(2);
+    expect(result?.updatedAt).toBe('2026-06-24T00:00:00.000Z');
+  });
+
+  it('curation removeEntity 同步缓存', async () => {
+    await storage.saveCurationSuggestions(projectRoot, {
+      suggestions: [makeSuggestion(1)],
+      updatedAt: '2026-06-24T00:00:00.000Z',
+    });
+    await storage.removeCurationEntity(projectRoot, 1, 'characters', '角色1');
+    rmSync(curationSuggestionsFilePath(projectRoot), { force: true });
+    const result = await storage.getCurationSuggestions(projectRoot);
+    expect(result?.suggestions.length).toBe(0); // 实体移除后该 chapter 空 → 被过滤
+  });
+
+  it('action-log append/get 走缓存(删文件仍可读,保持顺序)', async () => {
+    await storage.appendActionLog(projectRoot, { action: 'hook_resolve', target: '伏笔A', chapter: 1 });
+    await storage.appendActionLog(projectRoot, { action: 'curation_accept', target: '角色B', chapter: 2, category: 'characters' });
+    rmSync(actionLogFilePath(projectRoot), { force: true });
+    const log = await storage.getActionLog(projectRoot);
+    expect(log?.entries.length).toBe(2);
+    expect(log?.entries[0].target).toBe('伏笔A');
+    expect(log?.entries[1].action).toBe('curation_accept');
+  });
+
+  it('rebuildLogsCache 从文件重建', async () => {
+    writeFileSync(
+      actionLogFilePath(projectRoot),
+      JSON.stringify({ entries: [{ action: 'hook_resolve', target: 'X', chapter: 1, at: '2026-06-24T00:00:00.000Z' }] }),
+      'utf-8',
+    );
+    const { logs } = await storage.rebuildLogsCache(projectRoot);
+    expect(logs).toBe(1);
+    rmSync(actionLogFilePath(projectRoot), { force: true });
+    const log = await storage.getActionLog(projectRoot);
+    expect(log?.entries.length).toBe(1);
+  });
+
+  it('无 cache 时 action-log/curation 纯文件(向后兼容)', async () => {
+    const plain = new SummaryStorage();
+    await plain.appendActionLog(projectRoot, { action: 'hook_resolve', target: 'Y', chapter: 1 });
+    const log = await plain.getActionLog(projectRoot);
+    expect(log?.entries.length).toBe(1);
   });
 });
