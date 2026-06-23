@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router';
-import { Home, BookOpen, MessageSquare, Settings, Network, Search, FileText, Brain, ListTree } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, Settings, Network, Search, FileText, Brain, ListTree, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/hooks/use-theme';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: Home },
@@ -15,6 +16,7 @@ const navItems = [
 ];
 
 export function Sidebar() {
+  const { theme, toggle } = useTheme();
   return (
     <aside className="flex h-screen w-56 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center border-b px-4">
@@ -40,6 +42,15 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      <div className="border-t p-2">
+        <button
+          onClick={toggle}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+        >
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === 'dark' ? '浅色模式' : '深色模式'}
+        </button>
+      </div>
     </aside>
   );
 }

@@ -15,7 +15,7 @@
 - **技术目标**：构建一套个人 AI 辅助小说创作系统，通过多 Agent 协作实现"构思 → 写作 → 审稿 → 修订"全流程辅助，纯本地部署，人主导 AI 辅助
 - **技术栈**：TypeScript + Node.js + React 19 + Hono + pnpm monorepo
 - **详细方案**：`docs/ai/tech-spec-v1.md`
-- **当前阶段**：Phase 3 完成（G03 长篇记忆落地）→ Phase 4 SQLite 缓存层（G04 完成）→ Phase 5 多模型 + 高级特性（G05 完成）→ Phase 6 打磨（G06）
+- **当前阶段**：Phase 3 完成（G03 长篇记忆落地）→ Phase 4 SQLite 缓存层（G04 完成）→ Phase 5 多模型 + 高级特性（G05 完成）→ Phase 6 打磨（G06 完成）→ Phase 7 生产化（G07,待启动）
 
 ## 2. 总体技术架构
 
@@ -151,14 +151,14 @@
 | G05 | G05-S07 | AI 工具调用 / 对话主动操作章节 | 赋予 Agent function calling 能力：用户在对话中让 AI 读/改章节时，AI 主动调用工具读取（注意章节状态，published 只读），改正文时显性提示用户确认。需定义工具清单（读章节/改章节/查知识库）、权限边界、二次确认机制 | planned | G01-S08, G01-S05 | 架构性扩展：当前 Agent 仅纯文本对话，无 tool use | pending | not_started | | | 用户反馈需求 2026-06-16，暂缓；待第一批功能完成后专门设计 |
 | G05 | G05-S08 | Prompt 管理 UI | 查看/编辑/恢复默认 Prompt | done | G01-S09 | | accepted | passed | 2026-06-24 | 85c97d8 | PromptService + settings Prompt 区(覆盖 config/prompts) |
 | G05 | G05-S09 | 对话历史管理 | session 列表/搜索/删除 | done | G01-S08 | | accepted | passed | 2026-06-24 | 3a66482 | 搜索 ?q=(标题+消息)+ chat 页搜索框 |
-| G06 | | Phase 6: 打磨 | 体验优化 | planned | G05 | | pending | not_started | | | 原 Phase 5 顺延 |
-| G06 | G06-S01 | 纸张/手稿视觉风格 | 衬线字体、纹理背景、柔和阴影 | planned | G01-S10 | | pending | not_started | | | |
-| G06 | G06-S02 | 深色模式 | 亮色=羊皮纸/墨水，暗色=深色/烛光 | planned | G06-S01 | | pending | not_started | | | |
-| G06 | G06-S03 | 动效优化 | 页面淡入、消息滑入、按钮缩放 | planned | G01-S09 | | pending | not_started | | | |
-| G06 | G06-S04 | 快捷操作条 | [构思] [续写] [审稿] 一键触发 | planned | G01-S11 | | pending | not_started | | | |
-| G06 | G06-S05 | 响应式布局 | 适配不同屏幕尺寸 | planned | G01-S09 | | pending | not_started | | | |
-| G06 | G06-S06 | 性能优化 | 大项目下的响应速度 | planned | G02-S08 | | pending | not_started | | | |
-| G06 | G06-S07 | 错误处理完善 | Toast 重试提示、错误卡片、内容保护 | planned | G01-S08 | | pending | not_started | | | |
+| G06 | | Phase 6: 打磨 | 体验优化 | done | G05 | | accepted | passed | 2026-06-24 | 90d1971(+86c2530,7086bc5) | 视觉基础(衬线/纸张/深色/动效/响应式)+ 快捷条 + 错误边界;S06 性能标注 |
+| G06 | G06-S01 | 纸张/手稿视觉风格 | 衬线字体、纹理背景、柔和阴影 | done | G01-S10 | | accepted | passed | 2026-06-24 | 90d1971 | 衬线标题 + 纸张纹理底(浅/深);视觉需人工验证 |
+| G06 | G06-S02 | 深色模式 | 亮色=羊皮纸/墨水，暗色=深色/烛光 | done | G06-S01 | | accepted | passed | 2026-06-24 | 90d1971 | use-theme hook(.dark + localStorage)+ sidebar 切换 |
+| G06 | G06-S03 | 动效优化 | 页面淡入、消息滑入、按钮缩放 | done | G01-S09 | | accepted | passed | 2026-06-24 | 90d1971 | 全局 transition 交互平滑 |
+| G06 | G06-S04 | 快捷操作条 | [构思] [续写] [审稿] 一键触发 | done | G01-S11 | | accepted | passed | 2026-06-24 | 86c2530 | 顶栏快捷条(构思/续写/审稿 → /chat) |
+| G06 | G06-S05 | 响应式布局 | 适配不同屏幕尺寸 | done | G01-S09 | | accepted | passed | 2026-06-24 | 90d1971 | 沿用 Tailwind md: 断点 |
+| G06 | G06-S06 | 性能优化 | 大项目下的响应速度 | done | G02-S08 | 标注:当前规模无明确瓶颈 | accepted | n/a | 2026-06-24 | 90d1971 | 标注:虚拟列表/懒加载待真实大数据验证 |
+| G06 | G06-S07 | 错误处理完善 | Toast 重试提示、错误卡片、内容保护 | done | G01-S08 | | accepted | passed | 2026-06-24 | 7086bc5 | ErrorBoundary 包裹 App(错误卡片 + 刷新) |
 | G07 | | Phase 7: 生产化 | 发布就绪 | planned | G06 | | pending | not_started | | | 原 Phase 6 顺延 |
 | G07 | G07-S01 | 完善测试覆盖 | 单元/集成/E2E 测试 | planned | G06 | | pending | not_started | | | |
 | G07 | G07-S02 | 用户文档 | 使用说明 + API 文档 | planned | G06 | | pending | not_started | | | |

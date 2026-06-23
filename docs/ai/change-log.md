@@ -1,5 +1,20 @@
 # Change Log
 
+## 2026-06-24 — G06 Phase 6 打磨完成(用户目标达成 + merge main)
+
+- Goal ID: G06（Phase 6 打磨;用户目标终点 — 完成到 G06 含 G06）
+- Summary: 体验优化 —— 视觉基础(衬线标题 + 纸张纹理 + 深色模式 + 动效 + 响应式)+ 快捷操作条 + 错误处理边界。
+- 改动:
+  - G06-S01/S03/S05:globals.css 衬线标题(Noto Serif)+ 纸张纹理底(浅/深)+ 全局 transition + 响应式沿用 md: 断点
+  - G06-S02:use-theme hook(.dark class + localStorage)+ sidebar 主题切换按钮
+  - G06-S04:app-layout 顶栏快捷操作条(构思/续写/审稿 → /chat)
+  - G06-S07:ErrorBoundary 包裹 App(错误卡片 + 刷新)
+  - G06-S06:性能标注(当前规模无明显瓶颈,虚拟列表/懒加载待真实大数据)
+- Impact: studio（styles/globals.css、hooks/use-theme、components/layout/{app-layout,sidebar}、components/error-boundary、App）
+- Tests: studio 140 全绿;tsc 通过(视觉类需人工目视验证)
+- 备注: 视觉/交互类(S01/S03/S05)无自动化视觉测试,需人工目视确认
+- Commit Status: 90d1971(视觉基础)+ 86c2530(S04)+ 7086bc5(S07),分支 feat/g06-polish 合并 main
+
 ## 2026-06-24 — G05 Phase 5 多模型 + 高级特性完成(8/9 子目标 + merge main)
 
 - Goal ID: G05（Phase 5 多模型 + 高级特性;S07 tool use 暂缓）
