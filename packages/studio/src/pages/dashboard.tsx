@@ -61,8 +61,31 @@ export function DashboardPage() {
       <div className="mt-6 text-sm text-muted-foreground">
         类型：{book.genre} · 语言：{book.language}
       </div>
+      <div className="mt-6 flex gap-2">
+        <Button variant="outline" onClick={() => downloadExport('txt')}>
+          导出 TXT
+        </Button>
+        <Button variant="outline" onClick={() => downloadExport('md')}>
+          导出 Markdown
+        </Button>
+      </div>
     </div>
   );
+}
+
+async function downloadExport(format: 'txt' | 'md') {
+  const res = await fetch(`/api/v1/export?format=${format}`);
+  if (!res.ok) {
+    alert('导出失败');
+    return;
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `export.${format === 'md' ? 'md' : 'txt'}`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function CreateBookForm({ onSubmit, loading }: { onSubmit: (input: { title: string; genre: string; language: string }) => void; loading: boolean }) {
