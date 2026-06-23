@@ -1,14 +1,18 @@
 import type { ModelConfig } from '../models/index.js';
 import type { LLMClient, LLMProvider } from './types.js';
 import { OpenAIProvider } from './openai-provider.js';
+import { AnthropicProvider } from './anthropic-provider.js';
+import { OllamaProvider } from './ollama-provider.js';
 
 /**
  * 已注册的 Provider 列表
  *
- * Phase 1 仅支持 OpenAI，Phase 4 添加 Anthropic/Ollama。
+ * openai(含兼容 baseUrl,如智谱 GLM)、anthropic、ollama(本地)。
  */
 const providers: Record<string, LLMProvider> = {
   openai: new OpenAIProvider(),
+  anthropic: new AnthropicProvider(),
+  ollama: new OllamaProvider(),
 };
 
 /**
