@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { FileWatcher } from '../services/file-watcher.js';
-import { InMemorySearchEngine, type SSEEvent } from '@storyweaver/core';
+import { InMemorySearchEngine, SqliteCache, CacheStore, type SSEEvent } from '@storyweaver/core';
 import type { SSEEmitter } from '../sse.js';
 
 // Mock chokidar
@@ -138,5 +141,38 @@ describe('FileWatcher', () => {
     const results = searchEngine.search('我的标题');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].title).toBe('我的标题');
+  });
+
+  it('启动时从索引缓存恢复(storeSize>0 时不扫文件)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'sw-fw-cache-'));
+    try {
+      // 预填缓存(模拟上次运行已写入)
+      const cache = SqliteCache.openSync(join(root, 'cache.db'));
+      const store = new CacheStore(cache, 'search-documents');
+      const seeded = new InMemorySearchEngine(store);
+      seeded.indexChapter(1, '第一章', '张三的故事');
+      cache.close();
+
+      // 重开同一 cache,新 engine 内存空但 store 有数据
+      const cache2 = SqliteCache.openSync(join(root, 'cache.db'));
+      const store2 = new CacheStore(cache2, 'search-documents');
+      const fresh = new InMemorySearchEngine(store2);
+      const sseEmitter = {
+        emit: vi.fn(),
+        addListener: vi.fn(() => () => {}),
+        listenerCount: 0,
+      } as unknown as SSEEmitter;
+      const watcher = new FileWatcher(fresh, sseEmitter, root);
+      watcher.start();
+
+      // storeSize>0 → loadFromStore 同步恢复,不扫文件
+      expect(fresh.size).toBe(1);
+      expect(fresh.search('张三').length).toBeGreaterThan(0);
+      expect(fs.readFile).not.toHaveBeenCalled();
+      await watcher.stop();
+      cache2.close();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

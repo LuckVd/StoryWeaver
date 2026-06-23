@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { join } from 'node:path';
-import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage, WorkspaceStorage, SummaryStorage, InMemorySearchEngine, SqliteCache } from '@storyweaver/core';
+import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage, WorkspaceStorage, SummaryStorage, InMemorySearchEngine, SqliteCache, CacheStore } from '@storyweaver/core';
 import { SSEEmitter } from './sse.js';
 import { AIOperationQueue } from './queue.js';
 import { errorHandler } from './error-handler.js';
@@ -75,8 +75,8 @@ export function createServer(projectRoot: string = process.cwd()) {
   const summaryService = new SummaryService(chapterService, summaryStorage, sseEmitter, projectRoot, knowledgeService);
   const reviewService = new ReviewService(chapterService, projectRoot);
 
-  // 搜索引擎（全局共享实例）
-  const searchEngine = new InMemorySearchEngine();
+  // 搜索引擎（全局共享实例;注入 SQLite 索引缓存,G04-S03 启动可从缓存恢复)
+  const searchEngine = new InMemorySearchEngine(new CacheStore(cache, 'search-documents'));
 
   // 文件监听
   const fileWatcher = new FileWatcher(searchEngine, sseEmitter, projectRoot);
