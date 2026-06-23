@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useChatStore } from '@/stores/chat-store';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,15 @@ export function ChatPage() {
     fetchSession,
     deleteSession,
   } = useChatStore();
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     fetchSessions();
   }, [fetchSessions]);
+
+  const filtered = query.trim()
+    ? sessions.filter((s) => s.title.toLowerCase().includes(query.toLowerCase()))
+    : sessions;
 
   const handleNewSession = async () => {
     await createSession({ title: '新对话' });
@@ -43,13 +48,21 @@ export function ChatPage() {
             <Plus className="h-4 w-4" />
           </Button>
         </div>
+        <div className="border-b px-3 py-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索对话…"
+            className="w-full rounded border px-2 py-1 text-sm"
+          />
+        </div>
         <div className="flex-1 overflow-auto">
-          {sessions.length === 0 && (
+          {filtered.length === 0 && (
             <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-              暂无对话，点击 + 创建
+              {query ? '无匹配对话' : '暂无对话，点击 + 创建'}
             </div>
           )}
-          {sessions.map((s) => (
+          {filtered.map((s) => (
             <div
               key={s.id}
               onClick={() => handleSelectSession(s.id)}

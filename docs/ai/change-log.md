@@ -1,5 +1,23 @@
 # Change Log
 
+## 2026-06-24 — G05 Phase 5 多模型 + 高级特性完成(8/9 子目标 + merge main)
+
+- Goal ID: G05（Phase 5 多模型 + 高级特性;S07 tool use 暂缓）
+- Summary: 多模型 Provider(Anthropic fetch /v1/messages + Ollama fetch /api/chat,无新 SDK)+ 模型配置管理页 + Agent 模型分配 + 大纲编辑器(树状)+ 导出(TXT/MD)+ 数据统计看板 + Prompt 管理 + 对话历史搜索。
+- 改动:
+  - G05-S01 AnthropicProvider / OllamaProvider(fetch),注册 factory
+  - G05-S02 ConfigStorage(config/models.json)+ ModelService(脱敏)+ settings 模型管理页
+  - G05-S03 Agent 模型分配(default + overrides)+ resolveModelForAgent helper
+  - G05-S04 /outline 树状大纲编辑器(chapterId 联动,复用 outline API)
+  - G05-S05 ExportService(TXT/MD,去 HTML)+ dashboard 导出按钮;EPUB 暂未(需依赖)
+  - G05-S06 StatsService(字数/状态)+ dashboard 统计卡片
+  - G05-S08 PromptService(查看/编辑/恢复默认,config/prompts 覆盖)+ settings Prompt 区
+  - G05-S09 chat route ?q= 搜索 + chat 页搜索框
+- Impact: core（llm/*、storage/config-storage）+ studio（services: model/export/stats/prompt、routes: models/export/stats/prompts、pages: settings/outline/dashboard/chat、server、App、sidebar）+ 多个 test
+- Tests: core 288 + studio 140 全绿;tsc 通过
+- 备注: G05-S07(AI tool use)按 roadmap 暂缓;G05-S05 EPUB 需 epub-gen-memory 依赖未做;G05-S03 resolveModelForAgent helper 就绪,各 service LLM 初始化接入留增强
+- Commit Status: S01~S06,S08,S09 各一 commit(见 roadmap),分支 feat/g05-multimodel 合并 main
+
 ## 2026-06-24 — G04 Phase 4 SQLite 缓存层完成(4 子目标 + merge main)
 
 - Goal ID: G04（Phase 4 SQLite 缓存层）

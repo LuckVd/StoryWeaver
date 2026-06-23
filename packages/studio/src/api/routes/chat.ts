@@ -18,9 +18,17 @@ import { createSessionSchema, sendMessageSchema, applySchema } from '../schemas.
 export function chatRoute(service: ChatService): Hono {
   const app = new Hono();
 
-  // GET /chat/sessions
+  // GET /chat/sessions(支持 ?q= 搜索标题与消息内容)
   app.get('/sessions', async (c) => {
-    const sessions = service.listSessions();
+    const q = c.req.query('q')?.toLowerCase().trim();
+    let sessions = service.listSessions();
+    if (q) {
+      sessions = sessions.filter(
+        (s) =>
+          s.title.toLowerCase().includes(q) ||
+          s.messages.some((m) => m.content.toLowerCase().includes(q)),
+      );
+    }
     return c.json(sessions);
   });
 

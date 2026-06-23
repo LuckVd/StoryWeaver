@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useBookStore } from '@/stores/book-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,10 +9,21 @@ import type { FormEvent } from 'react';
 
 export function DashboardPage() {
   const { book, loading, error, fetchBook, createBook } = useBookStore();
+  const [stats, setStats] = useState<{
+    totalWords: number;
+    chapters: { draft: number; approved: number; published: number };
+  } | null>(null);
 
   useEffect(() => {
     fetchBook();
   }, [fetchBook]);
+
+  useEffect(() => {
+    fetch('/api/v1/stats')
+      .then((r) => r.json())
+      .then(setStats)
+      .catch(() => {});
+  }, []);
 
   if (loading && !book) {
     return <div className="flex h-full items-center justify-center text-muted-foreground">加载中...</div>;
@@ -61,8 +72,67 @@ export function DashboardPage() {
       <div className="mt-6 text-sm text-muted-foreground">
         类型：{book.genre} · 语言：{book.language}
       </div>
+      {stats && (
+        <div className="mt-4 grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">总字数</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalWords}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">草稿</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.chapters.draft}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">审阅中</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.chapters.approved}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">已发布</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.chapters.published}</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      <div className="mt-6 flex gap-2">
+        <Button variant="outline" onClick={() => downloadExport('txt')}>
+          导出 TXT
+        </Button>
+        <Button variant="outline" onClick={() => downloadExport('md')}>
+          导出 Markdown
+        </Button>
+      </div>
     </div>
   );
+}
+
+async function downloadExport(format: 'txt' | 'md') {
+  const res = await fetch(`/api/v1/export?format=${format}`);
+  if (!res.ok) {
+    alert('导出失败');
+    return;
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `export.${format === 'md' ? 'md' : 'txt'}`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function CreateBookForm({ onSubmit, loading }: { onSubmit: (input: { title: string; genre: string; language: string }) => void; loading: boolean }) {
