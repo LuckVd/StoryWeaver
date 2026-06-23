@@ -1,4 +1,5 @@
 import { createBrowserRouter, RouterProvider } from 'react-router';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { AppLayout } from '@/components/layout/app-layout';
 import { DashboardPage } from '@/pages/dashboard';
 import { ChaptersPage } from '@/pages/chapters';
@@ -34,5 +35,9 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <ErrorBoundary>
+      <RouterProvider router={router} />
+    </ErrorBoundary>
+  );
 }
