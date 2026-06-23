@@ -57,6 +57,9 @@ export function createServer(projectRoot: string = process.cwd()) {
   summaryStorage.rebuildSummariesCache(projectRoot).catch((e) =>
     console.error('[cache] summaries rebuild 失败:', e instanceof Error ? e.message : e),
   );
+  summaryStorage.rebuildLogsCache(projectRoot).catch((e) =>
+    console.error('[cache] logs rebuild 失败:', e instanceof Error ? e.message : e),
+  );
   const chatService = new ChatService(
     aiQueue,
     sseEmitter,

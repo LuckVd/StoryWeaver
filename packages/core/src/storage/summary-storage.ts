@@ -16,6 +16,7 @@ import type {
   BatchSummary,
   StoryStateSnapshot,
   CharacterStates,
+  CurationSuggestion,
   CurationSuggestions,
   ActionLog,
   ActionLogEntry,
@@ -34,6 +35,14 @@ const chapterKey = (chapter: number): string => `ch${String(chapter).padStart(3,
 const batchKey = (from: number, to: number): string =>
   `batch-${String(from).padStart(3, '0')}-${String(to).padStart(3, '0')}`;
 
+/** curation 缓存 scope / key(按章节) */
+const CURATION_SCOPE = 'curation';
+const CURATION_META_KEY = '__meta__';
+const curationKey = (chapter: number): string => `ch${String(chapter).padStart(4, '0')}`;
+/** action-log 缓存 scope / key(顺序自增,padded 保证排序) */
+const ACTION_LOG_SCOPE = 'action-log';
+const logKey = (seq: number): string => String(seq).padStart(8, '0');
+
 /**
  * 摘要存储层
  *
@@ -50,11 +59,15 @@ const batchKey = (from: number, to: number): string =>
 export class SummaryStorage {
   private readonly chapterStore?: CacheStore;
   private readonly batchStore?: CacheStore;
+  private readonly curationStore?: CacheStore;
+  private readonly actionLogStore?: CacheStore;
 
   constructor(cache?: SqliteCache) {
     if (cache) {
       this.chapterStore = new CacheStore(cache, CHAPTER_SUMMARY_SCOPE);
       this.batchStore = new CacheStore(cache, BATCH_SUMMARY_SCOPE);
+      this.curationStore = new CacheStore(cache, CURATION_SCOPE);
+      this.actionLogStore = new CacheStore(cache, ACTION_LOG_SCOPE);
     }
   }
 
@@ -249,6 +262,40 @@ export class SummaryStorage {
     return { chapters: chapters.length, batches: batches.length };
   }
 
+  /**
+   * 从文件全量重建 curation + action-log 缓存。
+   * 用于缓存缺失 / 损坏 / 版本升级,或外部手改文件后同步。未注入 cache 时为空操作。
+   */
+  async rebuildLogsCache(
+    projectRoot: string,
+  ): Promise<{ curations: number; logs: number }> {
+    if (!this.curationStore || !this.actionLogStore) return { curations: 0, logs: 0 };
+    // curation
+    let cData: CurationSuggestions | null = null;
+    try {
+      const raw = await readFile(curationSuggestionsFilePath(projectRoot), 'utf-8');
+      cData = JSON.parse(raw) as CurationSuggestions;
+    } catch {
+      cData = null;
+    }
+    this.curationStore.clear();
+    if (cData) {
+      this.curationStore.putMany(
+        cData.suggestions.map((s) => ({ key: curationKey(s.chapter), value: JSON.stringify(s) })),
+      );
+      this.curationStore.put(CURATION_META_KEY, cData.updatedAt);
+    }
+    // action-log
+    const log = await this.getActionLogFromFiles(projectRoot);
+    this.actionLogStore.clear();
+    if (log) {
+      this.actionLogStore.putMany(
+        log.entries.map((e, i) => ({ key: logKey(i + 1), value: JSON.stringify(e) })),
+      );
+    }
+    return { curations: cData?.suggestions.length ?? 0, logs: log?.entries.length ?? 0 };
+  }
+
   // ── StoryStateSnapshot（单文件,不缓存） ──
 
   /** 保存剧情状态快照(覆盖写入) */
@@ -298,14 +345,34 @@ export class SummaryStorage {
 
   // ── CurationSuggestions（Curator 提取的实体建议,待人工确认;S04 迁缓存） ──
 
-  /** 保存全部 curation 建议(覆盖写入) */
+  /** 保存全部 curation 建议(覆盖写入文件 + 同步缓存) */
   async saveCurationSuggestions(projectRoot: string, suggestions: CurationSuggestions): Promise<void> {
     await ensureDir(memoryDir(projectRoot));
     await writeFile(curationSuggestionsFilePath(projectRoot), JSON.stringify(suggestions, null, 2), 'utf-8');
+    if (this.curationStore) {
+      this.curationStore.clear();
+      this.curationStore.putMany(
+        suggestions.suggestions.map((s) => ({ key: curationKey(s.chapter), value: JSON.stringify(s) })),
+      );
+      this.curationStore.put(CURATION_META_KEY, suggestions.updatedAt);
+    }
   }
 
-  /** 读取全部 curation 建议 */
+  /** 读取全部 curation 建议(缓存优先,缺失降级文件) */
   async getCurationSuggestions(projectRoot: string): Promise<CurationSuggestions | null> {
+    if (this.curationStore) {
+      const meta = this.curationStore.get(CURATION_META_KEY);
+      const docs = this.curationStore.list().filter((d) => d.key !== CURATION_META_KEY);
+      if (meta !== null || docs.length) {
+        const suggestions = docs
+          .map((d) => JSON.parse(d.value) as CurationSuggestion)
+          .sort((a, b) => a.chapter - b.chapter);
+        return {
+          suggestions,
+          updatedAt: meta ?? suggestions[suggestions.length - 1]?.createdAt ?? new Date().toISOString(),
+        };
+      }
+    }
     try {
       const data = await readFile(curationSuggestionsFilePath(projectRoot), 'utf-8');
       return JSON.parse(data) as CurationSuggestions;
@@ -350,17 +417,33 @@ export class SummaryStorage {
 
   // ── ActionLog（操作日志:伏笔状态变更、实体建议加入/放弃,均留痕;S04 迁缓存） ──
 
-  /** 追加一条操作日志(自动加 at 时间戳) */
+  /** 追加一条操作日志(自动加 at 时间戳;缓存 O(1) 追加 + 文件主存储同步) */
   async appendActionLog(projectRoot: string, entry: Omit<ActionLogEntry, 'at'>): Promise<void> {
-    const log = await this.getActionLog(projectRoot);
+    const full: ActionLogEntry = { ...entry, at: new Date().toISOString() };
+    if (this.actionLogStore) {
+      const seq = this.actionLogStore.count() + 1;
+      this.actionLogStore.put(logKey(seq), JSON.stringify(full));
+    }
+    const log = await this.getActionLogFromFiles(projectRoot);
     const entries = log?.entries ?? [];
-    entries.push({ ...entry, at: new Date().toISOString() });
+    entries.push(full);
     await ensureDir(memoryDir(projectRoot));
     await writeFile(actionLogFilePath(projectRoot), JSON.stringify({ entries }, null, 2), 'utf-8');
   }
 
-  /** 读取操作日志 */
+  /** 读取操作日志(缓存优先,缺失降级文件) */
   async getActionLog(projectRoot: string): Promise<ActionLog | null> {
+    if (this.actionLogStore) {
+      const vals = this.actionLogStore.listValues();
+      if (vals.length) {
+        return { entries: vals.map((v) => JSON.parse(v) as ActionLogEntry) };
+      }
+    }
+    return this.getActionLogFromFiles(projectRoot);
+  }
+
+  /** 从文件读操作日志(绕过缓存) */
+  private async getActionLogFromFiles(projectRoot: string): Promise<ActionLog | null> {
     try {
       const data = await readFile(actionLogFilePath(projectRoot), 'utf-8');
       return JSON.parse(data) as ActionLog;
