@@ -1,6 +1,19 @@
-import { DatabaseSync } from 'node:sqlite';
+import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+
+/**
+ * node:sqlite 是 Node 22.5+ 实验性内置模块(运行需 --experimental-sqlite)。
+ * 用 createRequire 加载而非静态 import —— 因为 esbuild/tsup bundle 时会把静态
+ * `import "node:sqlite"` 去前缀成不可用的 bare "sqlite"(Node 只认 node:sqlite)。
+ * createRequire 的变量函数调用不会被 bundler 静态分析,运行时正常加载 node:sqlite。
+ */
+type DatabaseSyncCtor = (typeof import('node:sqlite'))['DatabaseSync'];
+
+const requireFromNode = createRequire(import.meta.url);
+const DatabaseSync: DatabaseSyncCtor = requireFromNode('node:sqlite').DatabaseSync;
+type DatabaseSync = InstanceType<DatabaseSyncCtor>;
 
 /**
  * SQLite 缓存引擎
@@ -36,6 +49,16 @@ export class SqliteCache {
   /** 打开(或创建)缓存数据库并初始化 pragma / 元信息表 */
   static async open(dbPath: string): Promise<SqliteCache> {
     await mkdir(dirname(dbPath), { recursive: true });
+    const db = new DatabaseSync(dbPath);
+    const cache = new SqliteCache(db, dbPath);
+    cache.applyPragmas();
+    cache.ensureMeta();
+    return cache;
+  }
+
+  /** 同步打开(供 server 启动等同步场景使用) */
+  static openSync(dbPath: string): SqliteCache {
+    mkdirSync(dirname(dbPath), { recursive: true });
     const db = new DatabaseSync(dbPath);
     const cache = new SqliteCache(db, dbPath);
     cache.applyPragmas();

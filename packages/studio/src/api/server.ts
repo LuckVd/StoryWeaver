@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage, WorkspaceStorage, SummaryStorage, InMemorySearchEngine } from '@storyweaver/core';
+import { join } from 'node:path';
+import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage, WorkspaceStorage, SummaryStorage, InMemorySearchEngine, SqliteCache } from '@storyweaver/core';
 import { SSEEmitter } from './sse.js';
 import { AIOperationQueue } from './queue.js';
 import { errorHandler } from './error-handler.js';
@@ -49,7 +50,13 @@ export function createServer(projectRoot: string = process.cwd()) {
     new OutlineStorage(projectRoot),
     new RelationStorage(projectRoot),
   );
-  const summaryStorage = new SummaryStorage();
+  // SQLite 缓存(G04):summaries 高频读取的索引层;文件仍为主存储
+  const cache = SqliteCache.openSync(join(projectRoot, 'memory', '.cache', 'cache.db'));
+  const summaryStorage = new SummaryStorage(cache);
+  // 启动时后台从文件全量重建 summaries 缓存(不阻塞 server 启动;失败降级为纯文件读)
+  summaryStorage.rebuildSummariesCache(projectRoot).catch((e) =>
+    console.error('[cache] summaries rebuild 失败:', e instanceof Error ? e.message : e),
+  );
   const chatService = new ChatService(
     aiQueue,
     sseEmitter,

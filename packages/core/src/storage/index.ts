@@ -12,3 +12,5 @@ export { KnowledgeStorage } from './knowledge-storage.js';
 export { OutlineStorage } from './outline-storage.js';
 export { RelationStorage } from './relation-storage.js';
 export { SummaryStorage } from './summary-storage.js';
+export { SqliteCache, CACHE_SCHEMA_VERSION, CacheStore, withFallback, rebuildCache } from './cache/index.js';
+export type { CacheDoc } from './cache/index.js';

@@ -90,10 +90,11 @@ export class CacheStore {
 
   /** 列出本 scope 全部文档(按 key 排序) */
   list(): CacheDoc[] {
-    return this.cache.queryAll<{ key: string; value: string; updated_at: string }>(
+    const rows = this.cache.queryAll<{ key: string; value: string; updated_at: string }>(
       'SELECT key, value, updated_at FROM cache_documents WHERE scope = ? ORDER BY key',
       [this.scope],
     );
+    return rows.map((r) => ({ key: r.key, value: r.value, updatedAt: r.updated_at }));
   }
 
   /** 仅取全部 value(按 key 排序) */
