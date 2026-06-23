@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router';
-import { Home, BookOpen, MessageSquare, Settings, Network, Search, FileText, Brain } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, Settings, Network, Search, FileText, Brain, ListTree } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: Home },
   { to: '/chapters', label: '章节', icon: BookOpen },
+  { to: '/outline', label: '大纲', icon: ListTree },
   { to: '/chat', label: 'AI 对话', icon: MessageSquare },
   { to: '/knowledge', label: '知识库', icon: Network },
   { to: '/summaries', label: '章节摘要', icon: FileText },
