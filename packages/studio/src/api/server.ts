@@ -26,8 +26,10 @@ import { ReviewService } from './services/review-service.js';
 import { FileWatcher } from './services/file-watcher.js';
 import { ModelService } from './services/model-service.js';
 import { ExportService } from './services/export-service.js';
+import { StatsService } from './services/stats-service.js';
 import { modelsRoute } from './routes/models.js';
 import { exportRoute } from './routes/export.js';
+import { statsRoute } from './routes/stats.js';
 
 /**
  * 创建 Hono API Server 实例
@@ -83,6 +85,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   const reviewService = new ReviewService(chapterService, projectRoot);
   const modelService = new ModelService(new ConfigStorage(), projectRoot);
   const exportService = new ExportService(chapterService);
+  const statsService = new StatsService(chapterService);
 
   // 搜索引擎（全局共享实例;注入 SQLite 索引缓存,G04-S03 启动可从缓存恢复)
   const searchEngine = new InMemorySearchEngine(new CacheStore(cache, 'search-documents'));
@@ -109,6 +112,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   app.route('/api/v1/memory', memoryRoute(summaryService));
   app.route('/api/v1/models', modelsRoute(modelService));
   app.route('/api/v1/export', exportRoute(exportService));
+  app.route('/api/v1/stats', statsRoute(statsService));
   app.route('/api/v1', reviewsRoute(projectRoot));
 
   // 健康检查
