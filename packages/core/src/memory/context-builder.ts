@@ -2,7 +2,6 @@ import type {
   TokenBudget,
   StoryStateSnapshot,
   ChapterSummary,
-  Timeline,
   CharacterStates,
 } from '../models/memory.js';
 import { buildTokenBudget } from './token-budget.js';
@@ -35,7 +34,6 @@ export interface BuildMemoryContextOptions {
   model: string;
   storyState?: StoryStateSnapshot | null;
   recentSummaries?: ChapterSummary[];
-  timeline?: Timeline | null;
   characterStates?: CharacterStates | null;
   /** 核心设定文本（角色/世界观/写作规则，由调用方从知识库组装） */
   coreSettings?: string;
@@ -67,7 +65,6 @@ export function buildMemoryContext(options: BuildMemoryContextOptions): MemoryCo
     model,
     storyState = null,
     recentSummaries = [],
-    timeline = null,
     characterStates = null,
     coreSettings = '',
     remoteRetrieved,
@@ -90,10 +87,10 @@ export function buildMemoryContext(options: BuildMemoryContextOptions): MemoryCo
   const layer2Raw = recent.map(formatChapterSummary).join('\n\n');
   const layer2 = truncateToTokens(layer2Raw, budget.layer2);
 
-  // Layer 3：S06 检索结果优先，否则 timeline/characterStates 兜底
+  // Layer 3：S06 检索结果优先，否则 characterStates 兜底
   let layer3Raw = remoteRetrieved ?? '';
   if (!layer3Raw) {
-    layer3Raw = formatTimelineAndStates(timeline, characterStates);
+    layer3Raw = formatStates(characterStates);
   }
   const layer3 = truncateToTokens(layer3Raw, budget.layer3);
 
@@ -131,27 +128,17 @@ function formatChapterSummary(s: ChapterSummary): string {
   ].join('\n');
 }
 
-function formatTimelineAndStates(timeline: Timeline | null, states: CharacterStates | null): string {
-  const parts: string[] = [];
-  if (timeline && timeline.entries.length) {
-    const recent = timeline.entries.slice(-10);
-    parts.push(
-      '【近期时间线】\n' +
-        recent.map((e) => `第${e.chapter}章：${e.events.join('；')}`).join('\n'),
-    );
-  }
-  if (states && states.characters.length) {
-    parts.push(
-      '【角色当前状态】\n' +
-        states.characters
-          .map(
-            (c) =>
-              `${c.entity}：${Object.entries(c.currentState)
-                .map(([k, v]) => `${k}=${v}`)
-                .join('，')}`,
-          )
-          .join('\n'),
-    );
-  }
-  return parts.join('\n\n');
+function formatStates(states: CharacterStates | null): string {
+  if (!states || !states.characters.length) return '';
+  return (
+    '【角色当前状态】\n' +
+    states.characters
+      .map(
+        (c) =>
+          `${c.entity}：${Object.entries(c.currentState)
+            .map(([k, v]) => `${k}=${v}`)
+            .join('，')}`,
+      )
+      .join('\n')
+  );
 }

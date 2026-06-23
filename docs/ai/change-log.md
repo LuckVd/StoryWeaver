@@ -1,5 +1,20 @@
 # Change Log
 
+## 2026-06-24 — /memory 伏笔追踪 + 状态变更 + 操作日志
+
+- Goal ID: /ai-feat 特性（G03 长篇记忆延续改进，非新 roadmap 子目标）
+- Summary: 用「伏笔追踪」替换易错的「时间线」Tab；伏笔可标记完成/重新激活、实体建议可加入/放弃，所有变更留痕到操作日志；roadmap 增 G05-S08 SQLite 缓存层（后期）
+- 改动：
+  - **伏笔追踪替换时间线**：删 timeline 全链（类型/聚合/存储/路径/端点/前端 Tab；`context-builder` Layer3 兜底改用 `characterStates`）；新增 `aggregateHooksTracking`（Hook + 摘要 `hooksPlanted`/`hooksAdvanced` 确定性聚合 → 状态/埋设章/最近推进/沉默/轨迹）+ `GET /memory/hooks-tracking` + 前端「伏笔追踪」Tab；`rebuildTimelineAndCharacterStates` → `rebuildCharacterStates`
+  - **状态变更**：伏笔「标记完成」(active→resolved) / 「重新激活」(resolved→active，复用 knowledge `updateHook`)；实体建议「加入」(`accept`：封装写库+移除+记录) / 「放弃」(`dismiss`：移除+记录)
+  - **操作日志**：统一 `memory/action-log.json` + `ActionLogEntry`/`ActionLog` + `appendActionLog`/`getActionLog` + `GET /memory/action-log` + 前端「操作记录」Tab（完成/激活/加入/放弃均留痕，放弃/关闭也保留）
+  - **roadmap**：G05-S08 SQLite 缓存层（summaries 索引 + 搜索落盘 + 日志，~200 万字触发；文件仍为主存储）
+- Impact: core（memory/aggregator/context-builder/index，models/memory，storage/path/summary-storage/index）+ studio（routes/memory，server，services/chat/summary/workspace，pages/memory）+ docs
+- Tests: core 231 + studio 123 全绿；端到端实测 resolve「机械义肢的秘密」+ dismiss「林深」→ `action-log` 记录 2 条
+- Dead Code: 删 timeline 全链无残留（tsc 通过）；无新增死代码
+- Security: 无 secret 改动；action-log/curation 路径复用 `resolveSafe`，无路径遍历新增
+- Commit Status: 待提交（feat/g03-curation-ui 工作区，本次 sync）
+
 ## 2026-06-19 — G03 长篇记忆审查修复 + 收尾同步
 
 - Goal ID: G03（Phase 3 长篇记忆）审查修复 + sync

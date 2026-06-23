@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { aggregateTimeline, aggregateCharacterStates } from '../aggregator.js';
+import { aggregateCharacterStates, aggregateHooksTracking } from '../aggregator.js';
 import type { ChapterSummary } from '../../models/memory.js';
+import type { Hook } from '../../models/knowledge.js';
 
 function makeSummary(overrides: Partial<ChapterSummary> & { chapter: number }): ChapterSummary {
   return {
@@ -21,36 +22,55 @@ function makeSummary(overrides: Partial<ChapterSummary> & { chapter: number }): 
   };
 }
 
-describe('aggregateTimeline', () => {
-  it('空数组返回空 entries 且带 updatedAt', () => {
-    const t = aggregateTimeline([]);
-    expect(t.entries).toEqual([]);
-    expect(typeof t.updatedAt).toBe('string');
+function makeHook(overrides: Partial<Hook> & { name: string }): Hook {
+  return {
+    id: overrides.id ?? overrides.name,
+    name: overrides.name,
+    description: overrides.description ?? 'd',
+    status: overrides.status ?? 'active',
+    plantedAt: overrides.plantedAt ?? 1,
+    resolvedAt: overrides.resolvedAt,
+    relatedEntities: overrides.relatedEntities,
+    createdAt: 'x',
+    updatedAt: 'x',
+  };
+}
+
+describe('aggregateHooksTracking', () => {
+  it('空 hooks 返回空数组', () => {
+    expect(aggregateHooksTracking([], [], 10)).toEqual([]);
   });
 
-  it('按 chapter 升序排列（输入乱序）', () => {
-    const t = aggregateTimeline([
-      makeSummary({ chapter: 3 }),
-      makeSummary({ chapter: 1 }),
-      makeSummary({ chapter: 2 }),
+  it('聚合 mentions（planted/advanced），lastMention 取最大章', () => {
+    const hooks = [makeHook({ name: '神秘符文', plantedAt: 1 })];
+    const summaries = [
+      makeSummary({ chapter: 1, hooksPlanted: ['神秘符文'] }),
+      makeSummary({ chapter: 3, hooksAdvanced: ['神秘符文'] }),
+      makeSummary({ chapter: 5, hooksAdvanced: ['神秘符文'] }),
+    ];
+    const result = aggregateHooksTracking(hooks, summaries, 10);
+    expect(result).toHaveLength(1);
+    expect(result[0].lastMention).toBe(5);
+    expect(result[0].silentChapters).toBe(5);
+    expect(result[0].mentions).toEqual([
+      { chapter: 1, type: 'planted' },
+      { chapter: 3, type: 'advanced' },
+      { chapter: 5, type: 'advanced' },
     ]);
-    expect(t.entries.map((e) => e.chapter)).toEqual([1, 2, 3]);
   });
 
-  it('映射 plotEvents/plotOutcome，narrativeTime 可选', () => {
-    const t = aggregateTimeline([
-      makeSummary({ chapter: 1, plotEvents: ['a', 'b'], plotOutcome: '结果', narrativeTime: '第三日' }),
-      makeSummary({ chapter: 2, plotEvents: ['c'], plotOutcome: '另一结果' }),
-    ]);
-    expect(t.entries[0]).toMatchObject({ events: ['a', 'b'], outcome: '结果', narrativeTime: '第三日' });
-    expect(t.entries[1].narrativeTime).toBeUndefined();
-    expect(t.entries[1].events).toEqual(['c']);
+  it('无 mentions 时 lastMention 用 plantedAt', () => {
+    const hooks = [makeHook({ name: '伏笔A', plantedAt: 2 })];
+    const result = aggregateHooksTracking(hooks, [], 10);
+    expect(result[0].lastMention).toBe(2);
+    expect(result[0].silentChapters).toBe(8);
   });
 
-  it('不修改入参数组', () => {
-    const input = [makeSummary({ chapter: 2 }), makeSummary({ chapter: 1 })];
-    aggregateTimeline(input);
-    expect(input.map((s) => s.chapter)).toEqual([2, 1]);
+  it('按沉默章数降序排列（沉默久者优先）', () => {
+    const hooks = [makeHook({ name: 'A', plantedAt: 1 }), makeHook({ name: 'B', plantedAt: 1 })];
+    const summaries = [makeSummary({ chapter: 8, hooksAdvanced: ['B'] })];
+    const result = aggregateHooksTracking(hooks, summaries, 10);
+    expect(result.map((h) => h.name)).toEqual(['A', 'B']); // A 沉默9 > B 沉默2
   });
 });
 

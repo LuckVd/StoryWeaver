@@ -2,7 +2,7 @@
  * 存储层统一导出
  */
 
-export { resolveSafe, ensureDir, volumeDir, chapterPath, volumeIndexPath, novelYamlPath, workspaceJsonPath, parseVolumeNumber, parseChapterId, chapterVersionsDir, versionFilePath, parseVersionId, PathTraversalError, knowledgeDir, knowledgeFilePath, worldFilePath, customFilePath, outlineFilePath, relationsFilePath, characterDir, characterIndexPath, characterFilePath, memoryDir, summariesDir, summaryFilePath, batchSummariesDir, batchSummaryFilePath, storyStateFilePath, timelineFilePath, characterStatesFilePath } from './path.js';
+export { resolveSafe, ensureDir, volumeDir, chapterPath, volumeIndexPath, novelYamlPath, workspaceJsonPath, parseVolumeNumber, parseChapterId, chapterVersionsDir, versionFilePath, parseVersionId, PathTraversalError, knowledgeDir, knowledgeFilePath, worldFilePath, customFilePath, outlineFilePath, relationsFilePath, characterDir, characterIndexPath, characterFilePath, memoryDir, summariesDir, summaryFilePath, batchSummariesDir, batchSummaryFilePath, storyStateFilePath, characterStatesFilePath } from './path.js';
 export { BookStorage } from './book-storage.js';
 export { ChapterStorage } from './chapter-storage.js';
 export { VolumeIndexStorage } from './volume-index-storage.js';

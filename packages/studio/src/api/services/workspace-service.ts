@@ -217,7 +217,7 @@ export class WorkspaceService {
     }
 
     // 重建时间线 + 角色状态变迁（派生记忆，失败不阻塞）
-    await this.summaryStorage.rebuildTimelineAndCharacterStates(this.projectRoot).catch(() => {});
+    await this.summaryStorage.rebuildCharacterStates(this.projectRoot).catch(() => {});
 
     // 多章综合总结（每 BATCH_INTERVAL 章触发，G03-S03，失败不阻塞）
     await this.maybeGenerateBatchSummary(chapterIds).catch(() => {});

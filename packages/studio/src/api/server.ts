@@ -65,7 +65,7 @@ export function createServer(projectRoot: string = process.cwd()) {
     sseEmitter,
     projectRoot,
   );
-  const summaryService = new SummaryService(chapterService, summaryStorage, sseEmitter, projectRoot);
+  const summaryService = new SummaryService(chapterService, summaryStorage, sseEmitter, projectRoot, knowledgeService);
   const reviewService = new ReviewService(chapterService, projectRoot);
 
   // 搜索引擎（全局共享实例）

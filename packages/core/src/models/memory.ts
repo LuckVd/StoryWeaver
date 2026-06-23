@@ -90,25 +90,26 @@ export interface TokenBudget {
   outputReserve: number;
 }
 
-/** 时间线条目(单章,从 ChapterSummary 派生) */
-export interface TimelineItem {
+/** 伏笔在某章的一次出现(埋设或推进) */
+export interface HookMention {
   chapter: number;
-  volume: number;
-  title: string;
-  /** 故事内时间(来自 ChapterSummary.narrativeTime,用于排序/展示) */
-  narrativeTime?: string;
-  /** 该章主要情节事件(来自 ChapterSummary.plotEvents) */
-  events: string[];
-  /** 一句话结果(来自 ChapterSummary.plotOutcome) */
-  outcome: string;
+  /** 该章对此伏笔的动作:planted=新埋设 advanced=推进 */
+  type: 'planted' | 'advanced';
 }
 
-/** 完整时间线(存储于 memory/timeline.json) */
-export interface Timeline {
-  /** 按章节号升序 */
-  entries: TimelineItem[];
-  /** 重建时间(ISO) */
-  updatedAt: string;
+/** 单个伏笔的追踪视图(从 Hook 实体 + 章节摘要聚合,不依赖 LLM,不受回忆/穿越影响) */
+export interface HookTracking {
+  name: string;
+  status: 'active' | 'resolved';
+  description: string;
+  /** 埋设章节(Hook.plantedAt) */
+  plantedAt: number;
+  /** 出现轨迹(从章节摘要的 hooksPlanted/hooksAdvanced 聚合,按章节升序) */
+  mentions: HookMention[];
+  /** 最后一次出现的章节(无则用 plantedAt) */
+  lastMention: number;
+  /** 距离当前章的沉默章数(currentChapter - lastMention) */
+  silentChapters: number;
 }
 
 /** 单个角色的单次状态变迁 */
@@ -156,4 +157,23 @@ export interface CurationSuggestions {
   suggestions: CurationSuggestion[];
   /** 更新时间(ISO) */
   updatedAt: string;
+}
+
+/** 记忆操作日志条目(伏笔状态变更、实体建议加入/放弃,均留痕可追溯) */
+export interface ActionLogEntry {
+  /** 动作类型 */
+  action: 'hook_resolve' | 'hook_reactivate' | 'curation_accept' | 'curation_dismiss';
+  /** 目标实体名 */
+  target: string;
+  /** 相关章节(伏笔完成章 / 实体来源章) */
+  chapter?: number;
+  /** 实体建议分类(仅 curation 动作) */
+  category?: 'characters' | 'hooks' | 'worldEntries';
+  /** 时间(ISO) */
+  at: string;
+}
+
+/** 操作日志(存储于 memory/action-log.json) */
+export interface ActionLog {
+  entries: ActionLogEntry[];
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildMemoryContext } from '../context-builder.js';
-import type { StoryStateSnapshot, ChapterSummary, Timeline } from '../../models/memory.js';
+import type { StoryStateSnapshot, ChapterSummary, CharacterStates } from '../../models/memory.js';
 
 const storyState: StoryStateSnapshot = {
   lastPublishedChapter: 10,
@@ -54,23 +54,22 @@ describe('buildMemoryContext', () => {
     expect(ctx.layer2).not.toContain('第1章');
   });
 
-  it('Layer3 无检索结果时用 timeline 兜底', () => {
-    const timeline: Timeline = {
-      entries: [{ chapter: 5, volume: 1, title: 'T', events: ['伏笔推进'], outcome: 'o' }],
+  it('Layer3 无检索结果时用 characterStates 兜底', () => {
+    const characterStates: CharacterStates = {
+      characters: [{ entity: '张三', currentState: { 修为: '金丹' }, history: [] }],
       updatedAt: 'x',
     };
-    const ctx = buildMemoryContext({ model: 'gpt-4o', timeline });
-    expect(ctx.layer3).toContain('伏笔推进');
+    const ctx = buildMemoryContext({ model: 'gpt-4o', characterStates });
+    expect(ctx.layer3).toContain('张三');
+    expect(ctx.layer3).toContain('修为=金丹');
   });
 
   it('Layer3 优先使用 remoteRetrieved', () => {
     const ctx = buildMemoryContext({
       model: 'gpt-4o',
       remoteRetrieved: '【检索】相关远期内容',
-      timeline: { entries: [{ chapter: 5, volume: 1, title: 'T', events: ['兜底'], outcome: 'o' }], updatedAt: 'x' },
     });
     expect(ctx.layer3).toContain('相关远期内容');
-    expect(ctx.layer3).not.toContain('兜底');
   });
 
   it('空输入不报错，layer1/layer2 为空', () => {

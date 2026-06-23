@@ -1,7 +1,7 @@
 import { readFile, writeFile, readdir, unlink } from 'node:fs/promises';
-import { ensureDir, memoryDir, summariesDir, summaryFilePath, batchSummariesDir, batchSummaryFilePath, storyStateFilePath, timelineFilePath, characterStatesFilePath, curationSuggestionsFilePath } from './path.js';
-import type { ChapterSummary, BatchSummary, StoryStateSnapshot, Timeline, CharacterStates, CurationSuggestions } from '../models/memory.js';
-import { aggregateTimeline, aggregateCharacterStates } from '../memory/aggregator.js';
+import { ensureDir, memoryDir, summariesDir, summaryFilePath, batchSummariesDir, batchSummaryFilePath, storyStateFilePath, characterStatesFilePath, curationSuggestionsFilePath, actionLogFilePath } from './path.js';
+import type { ChapterSummary, BatchSummary, StoryStateSnapshot, CharacterStates, CurationSuggestions, ActionLog, ActionLogEntry } from '../models/memory.js';
+import { aggregateCharacterStates } from '../memory/aggregator.js';
 
 /**
  * 摘要存储层
@@ -144,38 +144,17 @@ export class SummaryStorage {
     }
   }
 
-  // ── Timeline & CharacterStates（从 ChapterSummary 派生） ──
+  // ── CharacterStates（从 ChapterSummary 派生） ──
 
   /**
-   * 重建时间线 + 角色状态变迁：读全部章节摘要 → 聚合 → 覆盖写入，返回两者。
+   * 重建角色状态变迁：读全部章节摘要 → 聚合 → 覆盖写入，返回结果。
    * 供发布流程在章节摘要生成后调用；数据源为已入库的 ChapterSummary，不调 LLM。
    */
-  async rebuildTimelineAndCharacterStates(projectRoot: string): Promise<{
-    timeline: Timeline;
-    characterStates: CharacterStates;
-  }> {
+  async rebuildCharacterStates(projectRoot: string): Promise<CharacterStates> {
     const summaries = await this.listChapterSummaries(projectRoot);
-    const timeline = aggregateTimeline(summaries);
     const characterStates = aggregateCharacterStates(summaries);
-    await this.saveTimeline(projectRoot, timeline);
     await this.saveCharacterStates(projectRoot, characterStates);
-    return { timeline, characterStates };
-  }
-
-  /** 保存时间线（覆盖写入） */
-  async saveTimeline(projectRoot: string, timeline: Timeline): Promise<void> {
-    await ensureDir(memoryDir(projectRoot));
-    await writeFile(timelineFilePath(projectRoot), JSON.stringify(timeline, null, 2), 'utf-8');
-  }
-
-  /** 读取时间线 */
-  async getTimeline(projectRoot: string): Promise<Timeline | null> {
-    try {
-      const data = await readFile(timelineFilePath(projectRoot), 'utf-8');
-      return JSON.parse(data) as Timeline;
-    } catch {
-      return null;
-    }
+    return characterStates;
   }
 
   /** 保存角色状态变迁（覆盖写入） */
@@ -243,6 +222,27 @@ export class SummaryStorage {
         (s) => s.characters.length || s.hooks.length || s.worldEntries.length,
       );
       await this.saveCurationSuggestions(projectRoot, data);
+    }
+  }
+
+  // ── ActionLog（操作日志：伏笔状态变更、实体建议加入/放弃，均留痕） ──
+
+  /** 追加一条操作日志（自动加 at 时间戳） */
+  async appendActionLog(projectRoot: string, entry: Omit<ActionLogEntry, 'at'>): Promise<void> {
+    const log = await this.getActionLog(projectRoot);
+    const entries = log?.entries ?? [];
+    entries.push({ ...entry, at: new Date().toISOString() });
+    await ensureDir(memoryDir(projectRoot));
+    await writeFile(actionLogFilePath(projectRoot), JSON.stringify({ entries }, null, 2), 'utf-8');
+  }
+
+  /** 读取操作日志 */
+  async getActionLog(projectRoot: string): Promise<ActionLog | null> {
+    try {
+      const data = await readFile(actionLogFilePath(projectRoot), 'utf-8');
+      return JSON.parse(data) as ActionLog;
+    } catch {
+      return null;
     }
   }
 }

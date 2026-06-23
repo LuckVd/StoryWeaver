@@ -1,5 +1,5 @@
 goal_id: G03
-title: "Phase 3: 长篇记忆（8 子目标全部完成）"
+title: "Phase 3: 长篇记忆（8 子目标全部完成 + 后续特性改进）"
 stage: done
 status: completed
 selected_option: G03
@@ -10,18 +10,19 @@ implementation_steps:
   - "G03-S01 三层记忆系统 — core/memory/context-builder.ts"
   - "G03-S02 章节摘要结构化 — 06-18 已完成，核对确认"
   - "G03-S03 多章综合总结 — WorkspaceService.maybeGenerateBatchSummary"
-  - "G03-S04 时间线+角色状态 — aggregator + SummaryStorage.rebuild + GET /memory"
+  - "G03-S04 伏笔追踪（原时间线，2026-06-24 替换）— aggregateHooksTracking + GET /memory/hooks-tracking"
   - "G03-S05 Token 预算 — token-budget.ts"
   - "G03-S06 检索策略 — retriever.ts"
-  - "G03-S07 CuratorAgent — curator-agent.ts"
+  - "G03-S07 CuratorAgent — curator-agent.ts + 实体建议确认入库/放弃"
   - "G03-S08 /memory 页面 — memory.tsx + 路由 + 侧边栏"
+  - "特性(2026-06-24):伏笔追踪替换时间线 + 状态变更(完成/激活/加入/放弃) + 操作日志(action-log)"
 test_scope:
   - "core/memory(aggregator/token-budget/context-builder/retriever) 单测"
-  - "SummaryStorage 派生记忆单测"
+  - "SummaryStorage 派生记忆 + action-log 单测"
   - "CuratorAgent 单测"
-test_result: "core 231 + studio 123 = 354 全绿（2026-06-19 审查修复后重测；原 2 既有失败 B1/B2 已修）；memory.tsx 章节号 bug 为前端显示层，人工浏览器验证"
+test_result: "core 231 + studio 123 = 354 全绿（2026-06-24 伏笔追踪/状态变更/操作日志特性后重测）"
 security_blockers: []
 dead_code_actions: []
 goal_candidates: []
 sync_status: done
-last_check_at: "2026-06-19"
+last_check_at: "2026-06-24"

@@ -216,13 +216,6 @@ export function storyStateFilePath(projectRoot: string): string {
 }
 
 /**
- * 生成时间线路径:memory/timeline.json
- */
-export function timelineFilePath(projectRoot: string): string {
-  return resolveSafe(projectRoot, 'memory/timeline.json');
-}
-
-/**
  * 生成角色状态变迁路径:memory/character-states.json
  */
 export function characterStatesFilePath(projectRoot: string): string {
@@ -234,6 +227,13 @@ export function characterStatesFilePath(projectRoot: string): string {
  */
 export function curationSuggestionsFilePath(projectRoot: string): string {
   return resolveSafe(projectRoot, 'memory/curation-suggestions.json');
+}
+
+/**
+ * 生成操作日志路径:memory/action-log.json
+ */
+export function actionLogFilePath(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'memory/action-log.json');
 }
 
 // ── 解析工具 ──

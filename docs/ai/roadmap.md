@@ -148,6 +148,7 @@
 | G05 | G05-S05 | 响应式布局 | 适配不同屏幕尺寸 | planned | G01-S09 | | pending | not_started | | | |
 | G05 | G05-S06 | 性能优化 | 大项目下的响应速度 | planned | G02-S08 | | pending | not_started | | | |
 | G05 | G05-S07 | 错误处理完善 | Toast 重试提示、错误卡片、内容保护 | planned | G01-S08 | | pending | not_started | | | |
+| G05 | G05-S08 | SQLite 缓存层 | summaries 索引 + 全文搜索落盘 + 累积日志(action-log/curation），加速百万字长篇的高频全量扫描（写作注入/检索/重建）；文件仍为唯一主存储（可 git/可手改/便携），SQLite 仅作索引/缓存 | planned | G02-S08, G03 | 架构性扩展：引入存储层，需保证文件↔缓存一致性 | pending | not_started | | | tech-spec §3 预留的缓存层；触发点 ~200 万字；优先做 summaries 索引 + 搜索落盘，action-log/curation 次之 |
 | G06 | | Phase 6: 生产化 | 发布就绪 | planned | G05 | | pending | not_started | | | |
 | G06 | G06-S01 | 完善测试覆盖 | 单元/集成/E2E 测试 | planned | G05 | | pending | not_started | | | |
 | G06 | G06-S02 | 用户文档 | 使用说明 + API 文档 | planned | G05 | | pending | not_started | | | |

@@ -342,15 +342,14 @@ export class ChatService {
    * 数据由发布流程自动维护；此处只读组装，失败不阻断对话。
    */
   private async buildMemoryContext(): Promise<string> {
-    const [storyState, summaries, timeline, characterStates, hooks, batchSummaries] = await Promise.all([
+    const [storyState, summaries, characterStates, hooks, batchSummaries] = await Promise.all([
       this.summaryStorage.getStoryState(this.projectRoot),
       this.summaryStorage.listChapterSummaries(this.projectRoot),
-      this.summaryStorage.getTimeline(this.projectRoot),
       this.summaryStorage.getCharacterStates(this.projectRoot),
       this.knowledgeService.listHooks().catch(() => []),
       this.summaryStorage.listBatchSummaries(this.projectRoot),
     ]);
-    if (!storyState && summaries.length === 0 && (!timeline || timeline.entries.length === 0)) {
+    if (!storyState && summaries.length === 0 && !characterStates) {
       return ''; // 无任何记忆数据，跳过注入
     }
     const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
@@ -368,9 +367,8 @@ export class ChatService {
       model,
       storyState,
       recentSummaries: summaries,
-      timeline,
       characterStates,
-      remoteRetrieved, // 检索结果优先；无命中时 buildMemoryContext 自动回退 timeline/characterStates
+      remoteRetrieved, // 检索结果优先；无命中时 buildMemoryContext 自动回退 characterStates
     });
     const parts = [ctx.layer1, ctx.layer2, ctx.layer3].filter(Boolean);
     if (!parts.length) return '';

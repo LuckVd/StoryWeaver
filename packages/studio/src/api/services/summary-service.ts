@@ -3,13 +3,18 @@ import {
   createLLMClient,
   SummarizerAgent,
   CuratorAgent,
+  aggregateHooksTracking,
   type LLMClient,
   type ModelConfig,
   type ChapterSummary,
   type CurationSuggestion,
   type CurationSuggestions,
+  type HookTracking,
+  type ActionLogEntry,
+  type WorldSubCategory,
 } from '@storyweaver/core';
 import type { ChapterService } from './chapter-service.js';
+import type { KnowledgeService } from './knowledge-service.js';
 import type { SSEEmitter } from '../sse.js';
 
 /**
@@ -28,6 +33,7 @@ export class SummaryService {
     private readonly summaryStorage: SummaryStorage,
     private readonly sseEmitter: SSEEmitter,
     private readonly projectRoot: string,
+    private readonly knowledgeService: KnowledgeService,
   ) {}
 
   /** 为章节生成摘要（用正文）并存储；返回摘要，失败抛错（调用方决定如何处理） */
@@ -43,7 +49,7 @@ export class SummaryService {
     );
     await this.summaryStorage.saveChapterSummary(this.projectRoot, summary);
     // 章节摘要变化后重建时间线 + 角色状态派生视图（失败不阻塞）
-    await this.summaryStorage.rebuildTimelineAndCharacterStates(this.projectRoot).catch(() => {});
+    await this.summaryStorage.rebuildCharacterStates(this.projectRoot).catch(() => {});
     this.sseEmitter.emit({ type: 'summary:complete', data: { chapter: chapterId } });
     // 提取知识库实体建议（Curator，异步、失败不阻塞，结果待人工确认）
     this.startCurate(volume, chapterId);
@@ -60,14 +66,9 @@ export class SummaryService {
     const deleted = await this.summaryStorage.deleteChapterSummary(this.projectRoot, chapterId);
     if (deleted) {
       // 回退草稿删除摘要后，重建派生视图以移除该章事件（失败不阻塞）
-      await this.summaryStorage.rebuildTimelineAndCharacterStates(this.projectRoot).catch(() => {});
+      await this.summaryStorage.rebuildCharacterStates(this.projectRoot).catch(() => {});
     }
     return deleted;
-  }
-
-  /** 读取时间线（供 /memory 页面与长篇记忆 Layer3 使用） */
-  async getTimeline() {
-    return this.summaryStorage.getTimeline(this.projectRoot);
   }
 
   /** 读取角色状态变迁 */
@@ -172,9 +173,19 @@ export class SummaryService {
     return this.summaryStorage.getCurationSuggestions(this.projectRoot);
   }
 
-  /** 手动重建时间线 + 角色状态派生记忆（基于全部章节摘要重新聚合） */
-  async rebuildTimelineAndCharacterStates() {
-    return this.summaryStorage.rebuildTimelineAndCharacterStates(this.projectRoot);
+  /** 手动重建角色状态派生记忆（基于全部章节摘要重新聚合） */
+  async rebuildCharacterStates() {
+    return this.summaryStorage.rebuildCharacterStates(this.projectRoot);
+  }
+
+  /** 伏笔追踪：Hook 实体 + 章节摘要聚合（确定性，不调 LLM，不受回忆/穿越影响） */
+  async getHooksTracking(): Promise<HookTracking[]> {
+    const [hooks, summaries] = await Promise.all([
+      this.knowledgeService.listHooks().catch(() => []),
+      this.summaryStorage.listChapterSummaries(this.projectRoot),
+    ]);
+    const currentChapter = summaries.length ? Math.max(...summaries.map((s) => s.chapter)) : 0;
+    return aggregateHooksTracking(hooks, summaries, currentChapter);
   }
 
   /** 移除某条 curation 建议（确认入库或忽略后调用） */
@@ -184,6 +195,74 @@ export class SummaryService {
     name: string,
   ) {
     return this.summaryStorage.removeCurationEntity(this.projectRoot, chapter, type, name);
+  }
+
+  // ── 操作日志 + 状态变更（伏笔完成/激活、实体建议加入/放弃，均留痕） ──
+
+  /** 读取操作日志 */
+  async getActionLog() {
+    return this.summaryStorage.getActionLog(this.projectRoot);
+  }
+
+  /** 伏笔状态变更：完成(resolve) / 重新激活(reactivate)，记录到操作日志 */
+  async setHookAction(name: string, action: 'resolve' | 'reactivate'): Promise<void> {
+    const hooks = await this.knowledgeService.listHooks();
+    const hook = hooks.find((h) => h.name === name);
+    if (!hook) throw new Error('伏笔不存在：' + name);
+    const currentChapter = await this.getCurrentChapter();
+    if (action === 'resolve') {
+      await this.knowledgeService.updateHook(hook.id, { status: 'resolved', resolvedAt: currentChapter });
+    } else {
+      await this.knowledgeService.updateHook(hook.id, { status: 'active' });
+    }
+    await this.appendAction({
+      action: action === 'resolve' ? 'hook_resolve' : 'hook_reactivate',
+      target: name,
+      chapter: currentChapter,
+    });
+  }
+
+  /** 确认实体建议：写入知识库 + 移除建议 + 记录 */
+  async acceptCuration(
+    chapter: number,
+    type: 'characters' | 'hooks' | 'worldEntries',
+    name: string,
+  ): Promise<void> {
+    const suggestions = await this.summaryStorage.getCurationSuggestions(this.projectRoot);
+    const s = suggestions?.suggestions.find((x) => x.chapter === chapter);
+    const entity = s?.[type].find((e: { name: string }) => e.name === name);
+    if (!s || !entity) throw new Error('建议不存在');
+    if (type === 'characters') {
+      const c = entity as { name: string; description: string };
+      await this.knowledgeService.createCharacter({ name: c.name, description: c.description, firstAppearance: chapter });
+    } else if (type === 'worldEntries') {
+      const w = entity as { name: string; category: string; content: string };
+      await this.knowledgeService.createWorld(w.category as WorldSubCategory, { category: w.category as WorldSubCategory, name: w.name, content: w.content });
+    } else {
+      const h = entity as { name: string; description: string };
+      await this.knowledgeService.createHook({ name: h.name, description: h.description, status: 'active', plantedAt: chapter });
+    }
+    await this.summaryStorage.removeCurationEntity(this.projectRoot, chapter, type, name);
+    await this.appendAction({ action: 'curation_accept', target: name, chapter, category: type });
+  }
+
+  /** 放弃实体建议：移除 + 记录（留痕可追溯） */
+  async dismissCuration(
+    chapter: number,
+    type: 'characters' | 'hooks' | 'worldEntries',
+    name: string,
+  ): Promise<void> {
+    await this.summaryStorage.removeCurationEntity(this.projectRoot, chapter, type, name);
+    await this.appendAction({ action: 'curation_dismiss', target: name, chapter, category: type });
+  }
+
+  private async appendAction(entry: Omit<ActionLogEntry, 'at'>): Promise<void> {
+    await this.summaryStorage.appendActionLog(this.projectRoot, entry).catch(() => {});
+  }
+
+  private async getCurrentChapter(): Promise<number> {
+    const summaries = await this.summaryStorage.listChapterSummaries(this.projectRoot);
+    return summaries.length ? Math.max(...summaries.map((s) => s.chapter)) : 0;
   }
 
   private getCuratorAgent(): CuratorAgent {
