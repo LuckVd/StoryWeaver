@@ -122,6 +122,7 @@ export function SettingsPage() {
       )}
 
       <AssignmentSection models={models} />
+      <PromptSection />
 
       {editing && (
         <ModelForm
@@ -310,6 +311,98 @@ function AssignmentSection({ models }: { models: ModelConfig[] }) {
           </label>
         ))}
       </div>
+    </div>
+  );
+}
+
+interface PromptItem {
+  name: string;
+  overridden: boolean;
+}
+interface PromptData {
+  content: string;
+  overridden: boolean;
+  defaultContent: string;
+}
+
+/** Prompt 管理(G05-S08):查看 / 编辑 / 恢复默认 */
+function PromptSection() {
+  const [prompts, setPrompts] = useState<PromptItem[]>([]);
+  const [selected, setSelected] = useState('');
+  const [data, setData] = useState<PromptData | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const select = async (name: string) => {
+    setSelected(name);
+    if (!name) {
+      setData(null);
+      return;
+    }
+    const d = await api.get<PromptData>(`/prompts/${name}`);
+    setData(d);
+  };
+
+  useEffect(() => {
+    api
+      .get<{ prompts: PromptItem[] }>('/prompts')
+      .then((r) => {
+        setPrompts(r.prompts);
+        if (r.prompts[0]) select(r.prompts[0].name);
+      })
+      .catch(() => {});
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/prompts/${selected}`, { content: data?.content ?? '' });
+      await select(selected);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reset = async () => {
+    await api.del(`/prompts/${selected}`);
+    await select(selected);
+  };
+
+  return (
+    <div className="mt-6">
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="text-lg font-semibold">Prompt 管理</h2>
+        <select
+          value={selected}
+          onChange={(e) => select(e.target.value)}
+          className="rounded border px-2 py-1"
+        >
+          {prompts.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name}
+              {p.overridden ? ' *' : ''}
+            </option>
+          ))}
+        </select>
+        {data?.overridden && (
+          <button onClick={reset} className="rounded border px-2 py-1 text-sm">
+            恢复默认
+          </button>
+        )}
+      </div>
+      {data && (
+        <textarea
+          className="h-64 w-full rounded border p-2 font-mono text-sm"
+          value={data.content}
+          onChange={(e) => setData({ ...data, content: e.target.value })}
+        />
+      )}
+      <button
+        onClick={save}
+        disabled={saving || !data}
+        className="mt-2 rounded bg-primary px-3 py-1 text-primary-foreground"
+      >
+        {saving ? '保存中…' : '保存'}
+      </button>
     </div>
   );
 }
