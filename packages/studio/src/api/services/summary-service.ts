@@ -172,6 +172,20 @@ export class SummaryService {
     return this.summaryStorage.getCurationSuggestions(this.projectRoot);
   }
 
+  /** 手动重建时间线 + 角色状态派生记忆（基于全部章节摘要重新聚合） */
+  async rebuildTimelineAndCharacterStates() {
+    return this.summaryStorage.rebuildTimelineAndCharacterStates(this.projectRoot);
+  }
+
+  /** 移除某条 curation 建议（确认入库或忽略后调用） */
+  async removeCurationEntity(
+    chapter: number,
+    type: 'characters' | 'hooks' | 'worldEntries',
+    name: string,
+  ) {
+    return this.summaryStorage.removeCurationEntity(this.projectRoot, chapter, type, name);
+  }
+
   private getCuratorAgent(): CuratorAgent {
     if (this.curatorAgent) return this.curatorAgent;
     const apiKey = process.env.OPENAI_API_KEY!;

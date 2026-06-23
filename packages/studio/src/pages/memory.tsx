@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import type { Timeline, CharacterStates } from '@storyweaver/core';
+import type { Timeline, CharacterStates, CurationSuggestions } from '@storyweaver/core';
 import { useChapterStore } from '@/stores/chapter-store';
 
 /**
@@ -12,7 +12,7 @@ import { useChapterStore } from '@/stores/chapter-store';
  * 数据由 GET /memory/timeline 与 /memory/character-states 提供。
  */
 export function MemoryPage() {
-  const [tab, setTab] = useState<'timeline' | 'characters'>('timeline');
+  const [tab, setTab] = useState<'timeline' | 'characters' | 'curator'>('timeline');
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [characters, setCharacters] = useState<CharacterStates | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +57,7 @@ export function MemoryPage() {
       )}
 
       <div className="mb-4 flex gap-2 border-b">
-        {(['timeline', 'characters'] as const).map((t) => (
+        {(['timeline', 'characters', 'curator'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -67,12 +67,18 @@ export function MemoryPage() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t === 'timeline' ? '时间线' : '角色状态'}
+            {t === 'timeline' ? '时间线' : t === 'characters' ? '角色状态' : '实体建议'}
           </button>
         ))}
       </div>
 
-      {tab === 'timeline' ? <TimelineView timeline={timeline} /> : <CharactersView states={characters} />}
+      {tab === 'timeline' ? (
+        <TimelineView timeline={timeline} />
+      ) : tab === 'characters' ? (
+        <CharactersView states={characters} />
+      ) : (
+        <CuratorView />
+      )}
     </div>
   );
 }
@@ -138,6 +144,124 @@ function CharactersView({ states }: { states: CharacterStates | null }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+function CuratorView() {
+  const [data, setData] = useState<CurationSuggestions | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    api
+      .get<CurationSuggestions | null>('/memory/curation')
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleAdd = async (
+    chapter: number,
+    type: 'characters' | 'hooks' | 'worldEntries',
+    payload: Record<string, unknown>,
+  ) => {
+    const key = `${chapter}:${type}:${payload.name}`;
+    setBusy(key);
+    setError(null);
+    try {
+      if (type === 'characters') {
+        await api.post('/knowledge/characters', { name: payload.name, description: payload.description });
+      } else if (type === 'worldEntries') {
+        await api.post('/knowledge/world', { name: payload.name, category: payload.category, content: payload.content });
+      } else {
+        await api.post('/knowledge/hooks', {
+          name: payload.name,
+          description: payload.description,
+          status: 'active',
+          plantedAt: chapter,
+        });
+      }
+      await api.post('/memory/curation/remove', { chapter, type, name: payload.name });
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '加入失败');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (loading) return <div className="text-muted-foreground">加载中...</div>;
+  if (!data || data.suggestions.length === 0)
+    return (
+      <div className="text-muted-foreground">
+        暂无实体建议。发布章节后 AI 自动提取，或对已发布章节触发提取后在此确认入库。
+      </div>
+    );
+
+  return (
+    <div className="space-y-4">
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>
+      )}
+      {data.suggestions.map((s) => {
+        const items: Array<{
+          type: 'characters' | 'hooks' | 'worldEntries';
+          name: string;
+          desc: string;
+          payload: Record<string, unknown>;
+        }> = [
+          ...s.characters.map((c) => ({
+            type: 'characters' as const,
+            name: c.name,
+            desc: c.description,
+            payload: { name: c.name, description: c.description },
+          })),
+          ...s.hooks.map((h) => ({
+            type: 'hooks' as const,
+            name: h.name,
+            desc: h.description,
+            payload: { name: h.name, description: h.description },
+          })),
+          ...s.worldEntries.map((w) => ({
+            type: 'worldEntries' as const,
+            name: w.name,
+            desc: w.content,
+            payload: { name: w.name, category: w.category, content: w.content },
+          })),
+        ];
+        return (
+          <div key={s.chapter} className="rounded-lg border bg-card p-4 shadow-sm">
+            <h3 className="mb-2 font-medium">第 {s.chapter} 章建议</h3>
+            <div className="space-y-2">
+              {items.map((it) => {
+                const key = `${s.chapter}:${it.type}:${it.name}`;
+                const typeLabel = it.type === 'characters' ? '角色' : it.type === 'hooks' ? '伏笔' : '世界观';
+                return (
+                  <div key={key} className="flex items-start justify-between gap-2 rounded-md bg-background p-2 text-sm">
+                    <div>
+                      <span className="mr-1 rounded bg-muted px-1 text-xs">{typeLabel}</span>
+                      <b>{it.name}</b> <span className="text-muted-foreground">{it.desc}</span>
+                    </div>
+                    <Button
+                      size="xs"
+                      disabled={busy === key}
+                      onClick={() => handleAdd(s.chapter, it.type, it.payload)}
+                    >
+                      {busy === key ? '加入中…' : '加入知识库'}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

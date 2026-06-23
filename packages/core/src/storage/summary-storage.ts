@@ -211,4 +211,38 @@ export class SummaryStorage {
       return null;
     }
   }
+
+  /** 移除某条 curation 建议（确认入库或忽略后调用） */
+  async removeCurationEntity(
+    projectRoot: string,
+    chapter: number,
+    type: 'characters' | 'hooks' | 'worldEntries',
+    name: string,
+  ): Promise<void> {
+    const data = await this.getCurationSuggestions(projectRoot);
+    if (!data) return;
+    let changed = false;
+    for (const s of data.suggestions) {
+      if (s.chapter !== chapter) continue;
+      if (type === 'characters') {
+        const before = s.characters.length;
+        s.characters = s.characters.filter((e) => e.name !== name);
+        if (s.characters.length !== before) changed = true;
+      } else if (type === 'hooks') {
+        const before = s.hooks.length;
+        s.hooks = s.hooks.filter((e) => e.name !== name);
+        if (s.hooks.length !== before) changed = true;
+      } else {
+        const before = s.worldEntries.length;
+        s.worldEntries = s.worldEntries.filter((e) => e.name !== name);
+        if (s.worldEntries.length !== before) changed = true;
+      }
+    }
+    if (changed) {
+      data.suggestions = data.suggestions.filter(
+        (s) => s.characters.length || s.hooks.length || s.worldEntries.length,
+      );
+      await this.saveCurationSuggestions(projectRoot, data);
+    }
+  }
 }
