@@ -15,7 +15,7 @@
 - **技术目标**：构建一套个人 AI 辅助小说创作系统，通过多 Agent 协作实现"构思 → 写作 → 审稿 → 修订"全流程辅助，纯本地部署，人主导 AI 辅助
 - **技术栈**：TypeScript + Node.js + React 19 + Hono + pnpm monorepo
 - **详细方案**：`docs/ai/tech-spec-v1.md`
-- **当前阶段**：Phase 3 完成（G03 长篇记忆落地）→ Phase 4 多模型+高级特性
+- **当前阶段**：Phase 3 完成（G03 长篇记忆落地）→ Phase 4 SQLite 缓存层（G04）
 
 ## 2. 总体技术架构
 
@@ -74,19 +74,25 @@
 - **目标范围**：三层记忆系统、章节摘要结构化、多章综合总结、时间线 + 角色状态变迁、Token 预算管理、检索策略、CuratorAgent
 - **完成标准**：AI 写作时能自动检索远期相关内容，发布时自动生成摘要/时间线/角色状态，Token 开销可控
 
-### G04 — Phase 4: 多模型 + 高级特性
+### G04 — Phase 4: SQLite 缓存层
+
+- **目标名称**：百万字长篇的索引加速
+- **目标范围**：SQLite 存储层 + 文件↔缓存一致性、summaries 索引落盘、全文搜索落盘、累积日志（action-log/curation）
+- **完成标准**：百万字长篇下写作记忆注入/检索/重建不再全量扫描，冷启动搜索不需全量扫文件；文件仍为唯一主存储，SQLite 仅作索引/缓存
+
+### G05 — Phase 5: 多模型 + 高级特性
 
 - **目标名称**：生产级多模型适配 + 高级功能
 - **目标范围**：Anthropic/Ollama Provider、模型配置管理页、Agent 模型分配、大纲编辑器、导出（TXT/EPUB/MD）、数据统计、Prompt 管理 UI、对话历史管理
 - **完成标准**：可切换不同 AI 模型，可导出小说，可管理 Prompt 模板
 
-### G05 — Phase 5: 打磨
+### G06 — Phase 6: 打磨
 
 - **目标名称**：体验优化
 - **目标范围**：纸张/手稿视觉风格、深色模式、动效、快捷操作条、响应式布局、性能优化、错误处理完善
 - **完成标准**：视觉风格符合设计系统，大项目下响应流畅
 
-### G06 — Phase 6: 生产化
+### G07 — Phase 7: 生产化
 
 - **目标名称**：发布就绪
 - **目标范围**：测试覆盖、用户文档、npm 发布、CI/CD
@@ -130,30 +136,34 @@
 | G03 | G03-S06 | 检索策略 | 角色关联/伏笔驱动/大纲指引/综合总结兜底 | done | G03-S01, G02-S08 | | accepted | passed | 2026-06-18 | | retriever.ts 四策略纯函数 |
 | G03 | G03-S07 | CuratorAgent | 知识库辅助 Agent | done | G01-S05 | | accepted | passed | 2026-06-18 | | CuratorAgent.suggestEntities |
 | G03 | G03-S08 | AI 记忆浏览页面 | `/memory` 页面 — 摘要/时间线/角色状态浏览 | done | G03-S02, G01-S09 | | accepted | passed | 2026-06-18 | | /memory 页面 时间线+角色状态 Tab |
-| G04 | | Phase 4: 多模型 + 高级特性 | 生产级多模型适配 + 高级功能 | planned | G03 | | pending | not_started | | | |
-| G04 | G04-S01 | Anthropic / Ollama Provider | 多模型 Provider 实现 | planned | G01-S04 | | pending | not_started | | | |
-| G04 | G04-S02 | 模型配置管理页 | 添加/编辑/删除/测试模型 | planned | G04-S01, G01-S09 | | pending | not_started | | | |
-| G04 | G04-S03 | Agent 模型分配 | 一键默认 + 单独覆盖 | planned | G04-S02 | | pending | not_started | | | |
-| G04 | G04-S04 | 大纲编辑器 | 树状大纲编辑 + 与知识库联动 | planned | G02-S01, G01-S09 | | pending | not_started | | | |
-| G04 | G04-S05 | 导出功能 | TXT / EPUB / Markdown 导出 | planned | G01-S03 | | pending | not_started | | | |
-| G04 | G04-S06 | 数据统计看板 | 字数/进度/活动等数据图表 | planned | G01-S09 | | pending | not_started | | | |
-| G04 | G04-S07 | AI 工具调用 / 对话主动操作章节 | 赋予 Agent function calling 能力：用户在对话中让 AI 读/改章节时，AI 主动调用工具读取（注意章节状态，published 只读），改正文时显性提示用户确认。需定义工具清单（读章节/改章节/查知识库）、权限边界、二次确认机制 | planned | G01-S08, G01-S05 | 架构性扩展：当前 Agent 仅纯文本对话，无 tool use | pending | not_started | | | 用户反馈需求 2026-06-16，暂缓；待第一批功能完成后专门设计 |
-| G04 | G04-S08 | Prompt 管理 UI | 查看/编辑/恢复默认 Prompt | planned | G01-S09 | | pending | not_started | | | |
-| G04 | G04-S09 | 对话历史管理 | session 列表/搜索/删除 | planned | G01-S08 | | pending | not_started | | | |
-| G05 | | Phase 5: 打磨 | 体验优化 | planned | G04 | | pending | not_started | | | |
-| G05 | G05-S01 | 纸张/手稿视觉风格 | 衬线字体、纹理背景、柔和阴影 | planned | G01-S10 | | pending | not_started | | | |
-| G05 | G05-S02 | 深色模式 | 亮色=羊皮纸/墨水，暗色=深色/烛光 | planned | G05-S01 | | pending | not_started | | | |
-| G05 | G05-S03 | 动效优化 | 页面淡入、消息滑入、按钮缩放 | planned | G01-S09 | | pending | not_started | | | |
-| G05 | G05-S04 | 快捷操作条 | [构思] [续写] [审稿] 一键触发 | planned | G01-S11 | | pending | not_started | | | |
-| G05 | G05-S05 | 响应式布局 | 适配不同屏幕尺寸 | planned | G01-S09 | | pending | not_started | | | |
-| G05 | G05-S06 | 性能优化 | 大项目下的响应速度 | planned | G02-S08 | | pending | not_started | | | |
-| G05 | G05-S07 | 错误处理完善 | Toast 重试提示、错误卡片、内容保护 | planned | G01-S08 | | pending | not_started | | | |
-| G05 | G05-S08 | SQLite 缓存层 | summaries 索引 + 全文搜索落盘 + 累积日志(action-log/curation），加速百万字长篇的高频全量扫描（写作注入/检索/重建）；文件仍为唯一主存储（可 git/可手改/便携），SQLite 仅作索引/缓存 | planned | G02-S08, G03 | 架构性扩展：引入存储层，需保证文件↔缓存一致性 | pending | not_started | | | tech-spec §3 预留的缓存层；触发点 ~200 万字；优先做 summaries 索引 + 搜索落盘，action-log/curation 次之 |
-| G06 | | Phase 6: 生产化 | 发布就绪 | planned | G05 | | pending | not_started | | | |
-| G06 | G06-S01 | 完善测试覆盖 | 单元/集成/E2E 测试 | planned | G05 | | pending | not_started | | | |
-| G06 | G06-S02 | 用户文档 | 使用说明 + API 文档 | planned | G05 | | pending | not_started | | | |
-| G06 | G06-S03 | npm 发布 | `npx ai-novel --open` 一键启动 | planned | G06-S01 | | pending | not_started | | | |
-| G06 | G06-S04 | CI/CD | 自动构建/测试/发布流水线 | planned | G06-S03 | | pending | not_started | | | |
+| G04 | | Phase 4: SQLite 缓存层 | 百万字长篇的索引加速 | planned | G03 | 架构性扩展：引入存储层，需保证文件↔缓存一致性 | pending | not_started | | | 原 G05-S08 提升 + 拆 4 子目标；tech-spec §3 预留缓存层；触发点 ~200 万字；文件为主存储，SQLite 仅索引/缓存 |
+| G04 | G04-S01 | 存储层 + 文件↔缓存一致性 | 引入 SQLite、Storage 接口、变更监听/invalidate/rebuild | planned | G02-S08, G03 | | pending | not_started | | | 地基，上层索引依赖它 |
+| G04 | G04-S02 | summaries 索引落盘 | 派生记忆读取走索引（替代全量聚合） | planned | G04-S01 | | pending | not_started | | | 加速写作记忆注入/检索 |
+| G04 | G04-S03 | 全文搜索落盘 | 倒排索引落盘，冷启动不全量扫文件 | planned | G04-S01 | | pending | not_started | | | 替代 InMemorySearchEngine 冷启动全量构建 |
+| G04 | G04-S04 | 累积日志（action-log / curation） | 只增日志迁 SQLite，支持累积查询/分页 | planned | G04-S01 | | pending | not_started | | | action-log.json / curation-suggestions.json 迁移 |
+| G05 | | Phase 5: 多模型 + 高级特性 | 生产级多模型适配 + 高级功能 | planned | G04 | | pending | not_started | | | 原 Phase 4 顺延 |
+| G05 | G05-S01 | Anthropic / Ollama Provider | 多模型 Provider 实现 | planned | G01-S04 | | pending | not_started | | | |
+| G05 | G05-S02 | 模型配置管理页 | 添加/编辑/删除/测试模型 | planned | G05-S01, G01-S09 | | pending | not_started | | | |
+| G05 | G05-S03 | Agent 模型分配 | 一键默认 + 单独覆盖 | planned | G05-S02 | | pending | not_started | | | |
+| G05 | G05-S04 | 大纲编辑器 | 树状大纲编辑 + 与知识库联动 | planned | G02-S01, G01-S09 | | pending | not_started | | | |
+| G05 | G05-S05 | 导出功能 | TXT / EPUB / Markdown 导出 | planned | G01-S03 | | pending | not_started | | | |
+| G05 | G05-S06 | 数据统计看板 | 字数/进度/活动等数据图表 | planned | G01-S09 | | pending | not_started | | | |
+| G05 | G05-S07 | AI 工具调用 / 对话主动操作章节 | 赋予 Agent function calling 能力：用户在对话中让 AI 读/改章节时，AI 主动调用工具读取（注意章节状态，published 只读），改正文时显性提示用户确认。需定义工具清单（读章节/改章节/查知识库）、权限边界、二次确认机制 | planned | G01-S08, G01-S05 | 架构性扩展：当前 Agent 仅纯文本对话，无 tool use | pending | not_started | | | 用户反馈需求 2026-06-16，暂缓；待第一批功能完成后专门设计 |
+| G05 | G05-S08 | Prompt 管理 UI | 查看/编辑/恢复默认 Prompt | planned | G01-S09 | | pending | not_started | | | |
+| G05 | G05-S09 | 对话历史管理 | session 列表/搜索/删除 | planned | G01-S08 | | pending | not_started | | | |
+| G06 | | Phase 6: 打磨 | 体验优化 | planned | G05 | | pending | not_started | | | 原 Phase 5 顺延 |
+| G06 | G06-S01 | 纸张/手稿视觉风格 | 衬线字体、纹理背景、柔和阴影 | planned | G01-S10 | | pending | not_started | | | |
+| G06 | G06-S02 | 深色模式 | 亮色=羊皮纸/墨水，暗色=深色/烛光 | planned | G06-S01 | | pending | not_started | | | |
+| G06 | G06-S03 | 动效优化 | 页面淡入、消息滑入、按钮缩放 | planned | G01-S09 | | pending | not_started | | | |
+| G06 | G06-S04 | 快捷操作条 | [构思] [续写] [审稿] 一键触发 | planned | G01-S11 | | pending | not_started | | | |
+| G06 | G06-S05 | 响应式布局 | 适配不同屏幕尺寸 | planned | G01-S09 | | pending | not_started | | | |
+| G06 | G06-S06 | 性能优化 | 大项目下的响应速度 | planned | G02-S08 | | pending | not_started | | | |
+| G06 | G06-S07 | 错误处理完善 | Toast 重试提示、错误卡片、内容保护 | planned | G01-S08 | | pending | not_started | | | |
+| G07 | | Phase 7: 生产化 | 发布就绪 | planned | G06 | | pending | not_started | | | 原 Phase 6 顺延 |
+| G07 | G07-S01 | 完善测试覆盖 | 单元/集成/E2E 测试 | planned | G06 | | pending | not_started | | | |
+| G07 | G07-S02 | 用户文档 | 使用说明 + API 文档 | planned | G06 | | pending | not_started | | | |
+| G07 | G07-S03 | npm 发布 | `npx ai-novel --open` 一键启动 | planned | G07-S01 | | pending | not_started | | | |
+| G07 | G07-S04 | CI/CD | 自动构建/测试/发布流水线 | planned | G07-S03 | | pending | not_started | | | |
 
 ## 6. 开放风险与阻塞
 

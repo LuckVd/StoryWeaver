@@ -1,5 +1,17 @@
 # Change Log
 
+## 2026-06-24 — roadmap 重编号:SQLite 缓存层提升为 G04
+
+- Goal ID: 规划调整(非实现目标)
+- Summary: 把原 G05-S08(SQLite 缓存层)提升为独立顶层阶段 **G04(Phase 4)** 并拆为 4 子目标;原 G04(多模型 + 高级特性)→ G05、原 G05(打磨)→ G06、原 G06(生产化)→ G07,整体后顺移一位。G01–G03 已 done,不动。
+- 改动:
+  - **新 G04 SQLite 缓存层**:G04-S01 存储层 + 文件↔缓存一致性 / G04-S02 summaries 索引落盘 / G04-S03 全文搜索落盘 / G04-S04 累积日志(action-log/curation)
+  - **顺延**:G05 多模型 + 高级特性(原 G04)、G06 打磨(原 G05)、G07 生产化(原 G06);前置依赖列同步更新
+  - `current-goal.md`「下一目标」更新为 G04 SQLite 缓存层;Parent Goal 改为 G04
+- Impact: docs/ai(roadmap.md、current-goal.md)
+- 备注:本日志更早条目中的旧编号(G04 多模型 / G05 打磨 / G06 生产化 / G05-S08 SQLite)均为重编号前的对应关系,一律以 `roadmap.md` 现状为准。
+- Commit Status: 待提交(本次仅规划文档调整)
+
 ## 2026-06-24 — /memory 伏笔追踪 + 状态变更 + 操作日志
 
 - Goal ID: /ai-feat 特性（G03 长篇记忆延续改进，非新 roadmap 子目标）
