@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { join } from 'node:path';
-import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage, WorkspaceStorage, SummaryStorage, InMemorySearchEngine, SqliteCache, CacheStore } from '@storyweaver/core';
+import { BookStorage, ChapterStorage, VolumeIndexStorage, VersionStorage, KnowledgeStorage, OutlineStorage, RelationStorage, WorkspaceStorage, SummaryStorage, InMemorySearchEngine, SqliteCache, CacheStore, ConfigStorage } from '@storyweaver/core';
 import { SSEEmitter } from './sse.js';
 import { AIOperationQueue } from './queue.js';
 import { errorHandler } from './error-handler.js';
@@ -24,6 +24,8 @@ import { WorkspaceService } from './services/workspace-service.js';
 import { SummaryService } from './services/summary-service.js';
 import { ReviewService } from './services/review-service.js';
 import { FileWatcher } from './services/file-watcher.js';
+import { ModelService } from './services/model-service.js';
+import { modelsRoute } from './routes/models.js';
 
 /**
  * 创建 Hono API Server 实例
@@ -77,6 +79,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   );
   const summaryService = new SummaryService(chapterService, summaryStorage, sseEmitter, projectRoot, knowledgeService);
   const reviewService = new ReviewService(chapterService, projectRoot);
+  const modelService = new ModelService(new ConfigStorage(), projectRoot);
 
   // 搜索引擎（全局共享实例;注入 SQLite 索引缓存,G04-S03 启动可从缓存恢复)
   const searchEngine = new InMemorySearchEngine(new CacheStore(cache, 'search-documents'));
@@ -101,6 +104,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   app.route('/api/v1/search', searchRoute(searchEngine));
   app.route('/api/v1/summaries', summariesRoute(summaryService));
   app.route('/api/v1/memory', memoryRoute(summaryService));
+  app.route('/api/v1/models', modelsRoute(modelService));
   app.route('/api/v1', reviewsRoute(projectRoot));
 
   // 健康检查
