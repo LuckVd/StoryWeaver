@@ -31,5 +31,14 @@ export function modelsRoute(service: ModelService) {
   /** 测试连接 */
   app.post('/:id/test', async (c) => c.json(await service.test(c.req.param('id'))));
 
+  /** 读取 Agent 模型分配(G05-S03) */
+  app.get('/assignment', async (c) => c.json(await service.getAssignment()));
+
+  /** 设置 Agent 模型分配 */
+  app.put('/assignment', async (c) => {
+    const body = await c.req.json();
+    return c.json(await service.setAssignment(body));
+  });
+
   return app;
 }

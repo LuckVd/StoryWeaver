@@ -1,10 +1,10 @@
-import { ConfigStorage, createLLMClient, type ModelConfig } from '@storyweaver/core';
+import { ConfigStorage, createLLMClient, type ModelConfig, type AgentModelConfig } from '@storyweaver/core';
 
 /**
- * 模型配置服务(G05-S02)
+ * 模型配置服务(G05-S02 / S03)
  *
- * 管理 config/models.json 的多模型 CRUD,并提供连接测试。
- * 对外(前端)返回脱敏 apiKey;upsert 时若收到脱敏 key(***xxxx)则保留旧 key。
+ * 管理 config/models.json 的多模型 CRUD + Agent 模型分配,并提供连接测试。
+ * 对外(前端)返回脱敏 apiKey;upsert 收到脱敏 key 时保留旧 key。
  */
 export class ModelService {
   constructor(
@@ -52,5 +52,32 @@ export class ModelService {
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : String(e) };
     }
+  }
+
+  // ── Agent 模型分配(G05-S03)──
+
+  /** 读取 Agent 模型分配 */
+  async getAssignment(): Promise<AgentModelConfig> {
+    return this.configStorage.getAssignment(this.projectRoot);
+  }
+
+  /** 设置 Agent 模型分配 */
+  async setAssignment(assignment: AgentModelConfig): Promise<AgentModelConfig> {
+    return this.configStorage.setAssignment(this.projectRoot, assignment);
+  }
+
+  /**
+   * 解析某 Agent 应使用的模型(override 优先,default 兜底)。
+   * 返回未脱敏 ModelConfig,供各 service 初始化 LLM 用。
+   */
+  async resolveModelForAgent(agent: string): Promise<ModelConfig | null> {
+    const [assignment, models] = await Promise.all([
+      this.configStorage.getAssignment(this.projectRoot),
+      this.configStorage.listModels(this.projectRoot),
+    ]);
+    const overrides = assignment.overrides ?? {};
+    const id = (overrides as Record<string, string | undefined>)[agent] ?? assignment.default;
+    if (!id) return null;
+    return models.find((m) => m.id === id) ?? null;
   }
 }

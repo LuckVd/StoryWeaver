@@ -63,4 +63,17 @@ describe('models route (G05-S02)', () => {
     const res = await app.request('/api/v1/models/nope/test', { method: 'POST' });
     expect((await res.json()).ok).toBe(false);
   });
+
+  it('assignment GET 默认 + PUT 设置(G05-S03)', async () => {
+    const getRes = await app.request('/api/v1/models/assignment');
+    expect((await getRes.json()).default).toBe('');
+    const putRes = await app.request('/api/v1/models/assignment', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ default: 'gpt4', overrides: { writer: 'claude' } }),
+    });
+    const a = await putRes.json();
+    expect(a.default).toBe('gpt4');
+    expect(a.overrides.writer).toBe('claude');
+  });
 });

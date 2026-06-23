@@ -50,3 +50,31 @@ describe('ConfigStorage', () => {
     expect((await s2.listModels(root)).length).toBe(1);
   });
 });
+
+describe('ConfigStorage assignment (G05-S03)', () => {
+  let root: string;
+  let storage: ConfigStorage;
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'sw-cfg-a-'));
+    storage = new ConfigStorage();
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  it('默认 assignment { default: "" }', async () => {
+    expect(await storage.getAssignment(root)).toEqual({ default: '' });
+  });
+
+  it('set/get assignment', async () => {
+    await storage.setAssignment(root, { default: 'gpt4', overrides: { writer: 'claude' } });
+    const a = await storage.getAssignment(root);
+    expect(a.default).toBe('gpt4');
+    expect(a.overrides?.writer).toBe('claude');
+  });
+
+  it('saveModels / upsertModel 保留 assignment', async () => {
+    await storage.setAssignment(root, { default: 'gpt4' });
+    await storage.upsertModel(root, { id: 'gpt4', name: 'GPT4', service: 'openai', apiKey: 'sk' });
+    expect((await storage.getAssignment(root)).default).toBe('gpt4');
+    expect((await storage.listModels(root)).length).toBe(1);
+  });
+});

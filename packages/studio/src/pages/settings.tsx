@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api-client';
-import type { ModelConfig } from '@storyweaver/core';
+import type { ModelConfig, AgentModelConfig } from '@storyweaver/core';
 
 interface ModelsResp {
   models: ModelConfig[];
@@ -121,6 +121,8 @@ export function SettingsPage() {
         </div>
       )}
 
+      <AssignmentSection models={models} />
+
       {editing && (
         <ModelForm
           initial={editing}
@@ -219,6 +221,94 @@ function ModelForm({
             {saving ? '保存中…' : '保存'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+const AGENTS = ['brainstormer', 'writer', 'auditor', 'summarizer', 'curator'] as const;
+
+/** Agent 模型分配(G05-S03):默认模型 + 各 Agent 单独覆盖 */
+function AssignmentSection({ models }: { models: ModelConfig[] }) {
+  const [assignment, setAssignment] = useState<AgentModelConfig>({ default: '' });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get<AgentModelConfig>('/models/assignment').then(setAssignment);
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.put('/models/assignment', assignment);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const setDefault = (id: string) => setAssignment((a) => ({ ...a, default: id }));
+  const setOverride = (agent: string, id: string) =>
+    setAssignment((a) => ({
+      ...a,
+      overrides: { ...(a.overrides ?? {}), [agent]: id },
+    }));
+  const applyAll = () =>
+    setAssignment((a) => {
+      const overrides: Record<string, string> = {};
+      for (const ag of AGENTS) overrides[ag] = a.default;
+      return { ...a, overrides };
+    });
+
+  const overrides = assignment.overrides ?? {};
+
+  return (
+    <div className="mt-6">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Agent 模型分配</h2>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="rounded bg-primary px-3 py-1 text-primary-foreground"
+        >
+          {saving ? '保存中…' : '保存分配'}
+        </button>
+      </div>
+      <div className="space-y-2 rounded border p-3">
+        <label className="flex items-center gap-2 text-sm">
+          <span className="w-24">默认模型</span>
+          <select
+            className="flex-1 rounded border px-2 py-1"
+            value={assignment.default}
+            onChange={(e) => setDefault(e.target.value)}
+          >
+            <option value="">(未选)</option>
+            {models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <button onClick={applyAll} className="rounded border px-2 py-1 text-xs">
+            应用到全部
+          </button>
+        </label>
+        {AGENTS.map((ag) => (
+          <label key={ag} className="flex items-center gap-2 text-sm">
+            <span className="w-24 capitalize">{ag}</span>
+            <select
+              className="flex-1 rounded border px-2 py-1"
+              value={overrides[ag] ?? ''}
+              onChange={(e) => setOverride(ag, e.target.value)}
+            >
+              <option value="">(用默认)</option>
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
       </div>
     </div>
   );
