@@ -1,4 +1,5 @@
 import type { ChapterService } from './chapter-service.js';
+import { toPlainText } from '../../lib/md-utils.js';
 
 export interface BookStats {
   chapters: { total: number; draft: number; approved: number; published: number };
@@ -24,7 +25,7 @@ export class StatsService {
       const vol = await this.chapterService.findVolume(m.id);
       if (vol != null) {
         const ch = await this.chapterService.read(vol, m.id);
-        if (ch) totalWords += ch.content.replace(/<[^>]+>/g, '').length;
+        if (ch) totalWords += toPlainText(ch.content).length;
       }
     }
     return { chapters: { total: metas.length, ...status }, totalWords };

@@ -17,6 +17,24 @@ import type { ChapterVersion, VersionTrigger } from '../models/chapter.js';
 const MAX_VERSIONS = 100;
 
 export class VersionStorage {
+  /** 每章一个写锁，保证快照写入串行（避免并发 list→+1→write 算出相同 nextId 互相覆盖） */
+  private locks = new Map<string, Promise<unknown>>();
+
+  /** 串行化执行同一 key 的异步任务（promise-chain 锁） */
+  private async withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.locks.get(key) ?? Promise.resolve();
+    const run = prev.then(fn, fn);
+    // 存一个不会 reject 的完成信号供后续任务 await（每章固定一个 entry，不会无限增长）
+    this.locks.set(
+      key,
+      run.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return run;
+  }
+
   /**
    * 列出章节所有版本（按版本号倒序）
    */
@@ -55,6 +73,9 @@ export class VersionStorage {
 
   /**
    * 创建版本快照（自增 ID）
+   *
+   * 同一章的快照写入经 per-chapter 锁串行化，避免并发触发（如 AI apply + 自动保存）
+   * 时各自 list→+1→write 算出相同 nextId 互相覆盖。
    */
   async write(
     projectRoot: string,
@@ -62,30 +83,32 @@ export class VersionStorage {
     chapterId: number,
     input: { content: string; trigger: VersionTrigger; description?: string },
   ): Promise<ChapterVersion> {
-    const dir = chapterVersionsDir(projectRoot, volume, chapterId);
-    await ensureDir(dir);
+    return this.withLock(`${volume}:${chapterId}`, async () => {
+      const dir = chapterVersionsDir(projectRoot, volume, chapterId);
+      await ensureDir(dir);
 
-    // 确定下一个版本 ID
-    const existing = await this.list(projectRoot, volume, chapterId);
-    const nextId = existing.length > 0 ? existing[0].id + 1 : 1;
+      // 确定下一个版本 ID
+      const existing = await this.list(projectRoot, volume, chapterId);
+      const nextId = existing.length > 0 ? existing[0].id + 1 : 1;
 
-    const version: ChapterVersion = {
-      id: nextId,
-      chapterId,
-      content: input.content,
-      trigger: input.trigger,
-      description: input.description,
-      wordCount: input.content.length,
-      createdAt: new Date().toISOString(),
-    };
+      const version: ChapterVersion = {
+        id: nextId,
+        chapterId,
+        content: input.content,
+        trigger: input.trigger,
+        description: input.description,
+        wordCount: input.content.length,
+        createdAt: new Date().toISOString(),
+      };
 
-    const filePath = versionFilePath(projectRoot, volume, chapterId, nextId);
-    await writeFile(filePath, JSON.stringify(version, null, 2), 'utf-8');
+      const filePath = versionFilePath(projectRoot, volume, chapterId, nextId);
+      await writeFile(filePath, JSON.stringify(version, null, 2), 'utf-8');
 
-    // 自动清理超出限制的版本
-    await this.pruneOld(projectRoot, volume, chapterId, MAX_VERSIONS);
+      // 自动清理超出限制的版本
+      await this.pruneOld(projectRoot, volume, chapterId, MAX_VERSIONS);
 
-    return version;
+      return version;
+    });
   }
 
   /**

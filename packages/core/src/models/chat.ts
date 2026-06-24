@@ -35,6 +35,10 @@ export interface ChatSession {
   messages: ChatMessage[];
   createdAt: string;
   updatedAt: string;
+  /** 早期对话压缩摘要（>10 轮时由 Summarizer 生成，注入 LLM 上下文，C4） */
+  dialogSummary?: string;
+  /** 已压缩到 session.messages 的第几条（0-based，C4） */
+  dialogCompressedUpTo?: number;
 }
 
 /** Apply 操作记录（用户将 AI 生成内容应用到章节） */

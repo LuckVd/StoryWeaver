@@ -13,7 +13,7 @@ import { buildTokenBudget } from './token-budget.js';
  * 见 tech-spec §5.2 / §5.8。
  *
  * Layer3 优先使用检索策略（G03-S06）注入的 remoteRetrieved；
- * 若未提供，则用 timeline / characterStates 兜底（保证远期记忆非空）。
+ * 若未提供，则用 characterStates 兜底（保证远期记忆非空）。
  */
 
 /** 组装结果 */

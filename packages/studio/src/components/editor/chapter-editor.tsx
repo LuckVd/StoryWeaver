@@ -3,6 +3,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect } from 'react';
 import type { Editor } from '@tiptap/react';
+import { toPlainText } from '@/lib/md-utils';
 
 interface ChapterEditorProps {
   content: string;
@@ -44,10 +45,9 @@ export function ChapterEditor({ content, editable, onUpdate }: ChapterEditorProp
   );
 }
 
-export function countWords(html: string): number {
-  const text = html.replace(/<[^>]*>/g, '').trim();
-  if (!text) return 0;
-  return text.length;
+export function countWords(content: string): number {
+  const text = toPlainText(content);
+  return text ? text.length : 0;
 }
 
 export function getEditorHtml(editor: Editor): string {

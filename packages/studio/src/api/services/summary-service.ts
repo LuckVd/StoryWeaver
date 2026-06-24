@@ -17,6 +17,8 @@ import type { ChapterService } from './chapter-service.js';
 import type { KnowledgeService } from './knowledge-service.js';
 import type { ModelService } from './model-service.js';
 import type { SSEEmitter } from '../sse.js';
+import type { AIOperationQueue } from '../queue.js';
+import { toPlainText } from '../../lib/md-utils.js';
 
 /**
  * 章节摘要服务
@@ -37,7 +39,13 @@ export class SummaryService {
     private readonly projectRoot: string,
     private readonly knowledgeService: KnowledgeService,
     private readonly modelService?: ModelService,
+    private readonly aiQueue?: AIOperationQueue,
   ) {}
+
+  /** AI 操作入队（保证全局同一时间仅一个 AI 操作，C3） */
+  private runQueued<T>(fn: () => Promise<T>): Promise<T> {
+    return this.aiQueue ? this.aiQueue.enqueue(fn) : fn();
+  }
 
   /** 解析某 Agent 的 LLM client + 模型 id(assignment 优先,回退 env) */
   private async resolveClient(agentName: string): Promise<{ client: LLMClient; modelId: string }> {
@@ -53,22 +61,24 @@ export class SummaryService {
 
   /** 为章节生成摘要（用正文）并存储；返回摘要，失败抛错（调用方决定如何处理） */
   async summarizeChapter(volume: number, chapterId: number): Promise<ChapterSummary> {
-    if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY 未配置，无法生成摘要');
-    const chapter = await this.chapterService.read(volume, chapterId);
-    if (!chapter) throw new Error('章节不存在');
-    const text = chapter.content.replace(/<[^>]*>/g, '').trim();
-    if (!text) throw new Error('章节内容为空，无法生成摘要');
-    const summary = await (await this.getAgent()).summarizeChapter(
-      [{ role: 'user', content: text }],
-      { chapter: chapterId, volume, title: chapter.title, wordCount: text.length },
-    );
-    await this.summaryStorage.saveChapterSummary(this.projectRoot, summary);
-    // 章节摘要变化后重建时间线 + 角色状态派生视图（失败不阻塞）
-    await this.summaryStorage.rebuildCharacterStates(this.projectRoot).catch(() => {});
-    this.sseEmitter.emit({ type: 'summary:complete', data: { chapter: chapterId } });
-    // 提取知识库实体建议（Curator，异步、失败不阻塞，结果待人工确认）
-    this.startCurate(volume, chapterId);
-    return summary;
+    return this.runQueued(async () => {
+      if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY 未配置，无法生成摘要');
+      const chapter = await this.chapterService.read(volume, chapterId);
+      if (!chapter) throw new Error('章节不存在');
+      const text = toPlainText(chapter.content);
+      if (!text) throw new Error('章节内容为空，无法生成摘要');
+      const summary = await (await this.getAgent()).summarizeChapter(
+        [{ role: 'user', content: text }],
+        { chapter: chapterId, volume, title: chapter.title, wordCount: text.length },
+      );
+      await this.summaryStorage.saveChapterSummary(this.projectRoot, summary);
+      // 章节摘要变化后重建角色状态派生视图（失败不阻塞）
+      await this.summaryStorage.rebuildCharacterStates(this.projectRoot).catch(() => {});
+      this.sseEmitter.emit({ type: 'summary:complete', data: { chapter: chapterId } });
+      // 提取知识库实体建议（Curator，异步、失败不阻塞，结果待人工确认）
+      this.startCurate(volume, chapterId);
+      return summary;
+    });
   }
 
   /** 读取章节摘要 */
@@ -147,31 +157,33 @@ export class SummaryService {
 
   /** 用章节正文调 Curator 提取实体建议，合并存储（同章节覆盖） */
   async curateChapter(volume: number, chapterId: number): Promise<CurationSuggestion | null> {
-    if (!process.env.OPENAI_API_KEY) return null;
-    const chapter = await this.chapterService.read(volume, chapterId);
-    if (!chapter) return null;
-    const text = chapter.content.replace(/<[^>]*>/g, '').trim();
-    if (!text) return null;
-    const suggested = await (await this.getCuratorAgent()).suggestEntities([{ role: 'user', content: text }]);
-    const suggestion: CurationSuggestion = {
-      chapter: chapterId,
-      createdAt: new Date().toISOString(),
-      characters: suggested.characters,
-      hooks: suggested.hooks,
-      worldEntries: suggested.worldEntries,
-    };
-    const existing = (await this.summaryStorage.getCurationSuggestions(this.projectRoot)) ?? {
-      suggestions: [],
-      updatedAt: suggestion.createdAt,
-    };
-    const others = existing.suggestions.filter((s) => s.chapter !== chapterId);
-    const updated: CurationSuggestions = {
-      suggestions: [...others, suggestion].sort((a, b) => a.chapter - b.chapter),
-      updatedAt: suggestion.createdAt,
-    };
-    await this.summaryStorage.saveCurationSuggestions(this.projectRoot, updated);
-    this.sseEmitter.emit({ type: 'curation:complete', data: { chapter: chapterId } });
-    return suggestion;
+    return this.runQueued(async () => {
+      if (!process.env.OPENAI_API_KEY) return null;
+      const chapter = await this.chapterService.read(volume, chapterId);
+      if (!chapter) return null;
+      const text = toPlainText(chapter.content);
+      if (!text) return null;
+      const suggested = await (await this.getCuratorAgent()).suggestEntities([{ role: 'user', content: text }]);
+      const suggestion: CurationSuggestion = {
+        chapter: chapterId,
+        createdAt: new Date().toISOString(),
+        characters: suggested.characters,
+        hooks: suggested.hooks,
+        worldEntries: suggested.worldEntries,
+      };
+      const existing = (await this.summaryStorage.getCurationSuggestions(this.projectRoot)) ?? {
+        suggestions: [],
+        updatedAt: suggestion.createdAt,
+      };
+      const others = existing.suggestions.filter((s) => s.chapter !== chapterId);
+      const updated: CurationSuggestions = {
+        suggestions: [...others, suggestion].sort((a, b) => a.chapter - b.chapter),
+        updatedAt: suggestion.createdAt,
+      };
+      await this.summaryStorage.saveCurationSuggestions(this.projectRoot, updated);
+      this.sseEmitter.emit({ type: 'curation:complete', data: { chapter: chapterId } });
+      return suggestion;
+    });
   }
 
   /** 读取全部实体建议（供前端展示、人工确认） */

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 export interface ColumnDef<T = Record<string, unknown>> {
@@ -28,6 +30,8 @@ export function EntityList<T extends { id: string }>({
   emptyText = '暂无数据',
   createLabel = '新建',
 }: EntityListProps<T>) {
+  const [delTarget, setDelTarget] = useState<string | null>(null);
+
   if (loading) {
     return <div className="py-8 text-center text-sm text-muted-foreground">加载中...</div>;
   }
@@ -82,9 +86,7 @@ export function EntityList<T extends { id: string }>({
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      onClick={() => {
-                        if (confirm('确定删除？')) onDelete(item.id);
-                      }}
+                      onClick={() => setDelTarget(item.id)}
                       title="删除"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -96,6 +98,18 @@ export function EntityList<T extends { id: string }>({
           </tbody>
         </table>
       </div>
+      <ConfirmDialog
+        open={!!delTarget}
+        title="删除"
+        message="确定删除该条目？此操作不可撤销。"
+        variant="danger"
+        confirmText="删除"
+        onConfirm={() => {
+          if (delTarget) onDelete(delTarget);
+          setDelTarget(null);
+        }}
+        onClose={() => setDelTarget(null)}
+      />
     </div>
   );
 }

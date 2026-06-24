@@ -67,7 +67,7 @@ export function ChatPage() {
               key={s.id}
               onClick={() => handleSelectSession(s.id)}
               className={cn(
-                'flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-muted',
+                'group flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-muted',
                 currentSession?.id === s.id && 'bg-muted font-medium',
               )}
             >

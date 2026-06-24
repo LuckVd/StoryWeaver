@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
 import type { KnowledgeService } from '../services/knowledge-service.js';
 import { APIError } from '../error-handler.js';
 import { ErrorCode } from '@storyweaver/core';
@@ -221,6 +222,13 @@ export function knowledgeRoute(service: KnowledgeService): Hono {
   app.post('/custom', validate(createCustomSchema), async (c) => {
     const data = c.get('validated');
     return c.json(await service.createCustom(data.category, data), 201);
+  });
+
+  // 创建空自定义分类（持久化分类名；条目随后添加，分类随首条目真正可用）
+  app.post('/custom-category', validate(z.object({ name: customNameSchema })), async (c) => {
+    const { name } = c.get('validated');
+    await service.ensureCustomCategory(name);
+    return c.json({ ok: true, categories: await service.listCustomCategories() }, 201);
   });
 
   app.put('/custom/:id', validate(updateCustomSchema), async (c) => {

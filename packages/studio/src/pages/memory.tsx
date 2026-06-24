@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import type { CharacterStates, CurationSuggestions, HookTracking, ActionLog } from '@storyweaver/core';
 import { useChapterStore } from '@/stores/chapter-store';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 /**
  * AI 记忆库页面（G03-S08）
  *
- * 展示发布流程自动维护的派生记忆：时间线 + 角色状态变迁。
- * 数据由 GET /memory/timeline 与 /memory/character-states 提供。
+ * 展示发布流程自动维护的派生记忆：伏笔追踪 + 角色状态变迁 + 实体建议 + 操作记录。
+ * 数据由 /memory/* 系列接口提供。
  */
 export function MemoryPage() {
   const [tab, setTab] = useState<'hooks' | 'characters' | 'curator' | 'log'>('hooks');
@@ -88,6 +89,7 @@ export function MemoryPage() {
 function HooksTrackingView({ hooks, reload }: { hooks: HookTracking[]; reload: () => void }) {
   const chapterOrder = useChapterStore((s) => s.chapterOrder);
   const [busy, setBusy] = useState<string | null>(null);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
   if (!hooks || hooks.length === 0)
     return (
       <div className="text-muted-foreground">
@@ -102,7 +104,7 @@ function HooksTrackingView({ hooks, reload }: { hooks: HookTracking[]; reload: (
       await api.post(`/memory/hooks/${encodeURIComponent(name)}/action`, { action });
       reload();
     } catch (e) {
-      alert(e instanceof Error ? e.message : '操作失败');
+      setErrMsg(e instanceof Error ? e.message : '操作失败');
     } finally {
       setBusy(null);
     }
@@ -152,6 +154,15 @@ function HooksTrackingView({ hooks, reload }: { hooks: HookTracking[]; reload: (
           </div>
         );
       })}
+      <ConfirmDialog
+        open={!!errMsg}
+        title="操作失败"
+        message={errMsg ?? ''}
+        confirmText="知道了"
+        cancelText="关闭"
+        onConfirm={() => setErrMsg(null)}
+        onClose={() => setErrMsg(null)}
+      />
     </div>
   );
 }

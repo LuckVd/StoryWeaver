@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useChatStore } from '@/stores/chat-store';
+import { useWorkspaceStore } from '@/stores/workspace-store';
 import type { SSEEvent } from '@storyweaver/core';
 
 /**
@@ -12,6 +13,7 @@ export function useChatSSE() {
   const esRef = useRef<EventSource | null>(null);
   const retries = useRef(0);
   const { startStream, appendStreamToken, completeStream, setStreamError } = useChatStore();
+  const { setPublishProgress } = useWorkspaceStore();
 
   useEffect(() => {
     function connect() {
@@ -32,18 +34,21 @@ export function useChatSSE() {
 
         switch (event.type) {
           case 'agent:start':
-            startStream(event.data.agent);
+            startStream(event.data.agent, event.data.sessionId);
             break;
           case 'agent:token':
-            appendStreamToken(event.data.token);
+            appendStreamToken(event.data.token, event.data.sessionId);
             break;
           case 'agent:complete':
-            completeStream(event.data.messageId ?? `temp-${Date.now()}`);
+            completeStream(event.data.messageId ?? `temp-${Date.now()}`, event.data.sessionId);
             break;
           case 'error':
             if (event.data.recoverable) {
-              setStreamError(event.data.message);
+              setStreamError(event.data.message, event.data.sessionId);
             }
+            break;
+          case 'publish:progress':
+            setPublishProgress(event.data);
             break;
         }
       };
@@ -62,5 +67,5 @@ export function useChatSSE() {
       esRef.current?.close();
       esRef.current = null;
     };
-  }, [startStream, appendStreamToken, completeStream, setStreamError]);
+  }, [startStream, appendStreamToken, completeStream, setStreamError, setPublishProgress]);
 }

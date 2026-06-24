@@ -151,6 +151,8 @@ describe('FileWatcher', () => {
       const store = new CacheStore(cache, 'search-documents');
       const seeded = new InMemorySearchEngine(store);
       seeded.indexChapter(1, '第一章', '张三的故事');
+      // 写入与当前(root 为空目录 → 指纹为空串)一致的指纹标记，使启动走缓存恢复路径
+      seeded.setCacheFingerprint('');
       cache.close();
 
       // 重开同一 cache,新 engine 内存空但 store 有数据
@@ -171,6 +173,24 @@ describe('FileWatcher', () => {
       expect(fs.readFile).not.toHaveBeenCalled();
       await watcher.stop();
       cache2.close();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('缓存指纹读写且不计入搜索文档', () => {
+    const root = mkdtempSync(join(tmpdir(), 'sw-fw-fp2-'));
+    try {
+      const cache = SqliteCache.openSync(join(root, 'cache.db'));
+      const store = new CacheStore(cache, 'search-documents');
+      const engine = new InMemorySearchEngine(store);
+      expect(engine.getCacheFingerprint()).toBeNull();
+      engine.setCacheFingerprint('fp-abc');
+      expect(engine.getCacheFingerprint()).toBe('fp-abc');
+      // 指纹记录非 JSON，loadFromStore 应跳过，不污染文档索引
+      engine.loadFromStore();
+      expect(engine.size).toBe(0);
+      cache.close();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

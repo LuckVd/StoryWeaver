@@ -197,6 +197,12 @@ export const publishSchema = z.object({
   skipSummary: z.boolean().optional(),
 });
 
+// --- Revise (审稿意见 AI 修订) ---
+
+export const reviseSchema = z.object({
+  issues: z.array(z.record(z.string(), z.unknown())).default([]),
+});
+
 // --- Search ---
 
 export const VALID_SEARCH_SCOPES = ['all', 'chapters', 'knowledge', 'summaries'] as const;

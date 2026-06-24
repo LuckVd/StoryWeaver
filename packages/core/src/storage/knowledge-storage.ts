@@ -253,6 +253,13 @@ export class KnowledgeStorage {
     const entries = await readdir(dir);
     return entries.filter((e) => e.endsWith('.json')).map((e) => e.replace(/\.json$/, '')).sort();
   }
+
+  /** 确保自定义分类存在（写入空数组文件，使 listCustomCategories 能扫到）；已存在则无操作 */
+  async ensureCustomCategory(categoryName: string): Promise<void> {
+    const filePath = customFilePath(this.projectRoot, categoryName);
+    if (existsSync(filePath)) return;
+    await writeJsonFile(filePath, []);
+  }
 }
 
 /** 将角色名转为文件名 slug */

@@ -12,7 +12,7 @@ export interface ModelConfig {
   name: string;
   /** 服务商："openai" | "anthropic" | "ollama" | ... */
   service: string;
-  /** API Key（运行时从 .env 读取，永不出现在前端） */
+  /** API Key（明文存于 config/models.json，已 gitignore；对外脱敏展示 ***xxxx） */
   apiKey: string;
   /** 自定义 endpoint */
   baseUrl?: string;

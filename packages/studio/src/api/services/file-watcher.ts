@@ -7,6 +7,7 @@
 
 import { watch, type FSWatcher } from 'chokidar';
 import fs from 'node:fs/promises';
+import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { InMemorySearchEngine } from '@storyweaver/core';
 import type { SSEEmitter } from '../sse.js';
@@ -38,15 +39,71 @@ export class FileWatcher {
     this.watcher.on('change', (filePath: string) => this.handleEvent('change', filePath));
     this.watcher.on('unlink', (filePath: string) => this.handleEvent('unlink', filePath));
 
-    // 启动加载(G04-S03):优先从持久化索引缓存恢复(不扫文件);
-    // 缓存为空时扫文件构建,且 index 自动双写填充缓存,供下次启动恢复。
-    if (this.searchEngine.storeSize > 0) {
+    // 启动加载(G04-S03 + A7 mtime 校验)：见 bootIndex
+    void this.bootIndex(volumesDir, knowledgeDir, summariesDir);
+  }
+
+  /**
+   * 启动索引加载（A7 mtime 校验）：
+   * 优先从持久化缓存恢复，但先比对被监听文件的 mtime 指纹——若进程停机期间
+   * 文件被外部编辑器改动，指纹不一致则放弃缓存、重新扫文件构建，避免脏读。
+   */
+  private async bootIndex(volumesDir: string, knowledgeDir: string, summariesDir: string): Promise<void> {
+    const currentFp = this.computeFingerprint([volumesDir, knowledgeDir, summariesDir]);
+    const cachedFp = this.searchEngine.getCacheFingerprint();
+    if (this.searchEngine.storeSize > 0 && cachedFp !== null && cachedFp === currentFp) {
       const n = this.searchEngine.loadFromStore();
-      console.log(`[fileWatcher] 从缓存恢复索引，共 ${n} 个文档`);
-    } else {
-      Promise.all([this.indexExisting(volumesDir), this.indexExisting(knowledgeDir), this.indexExisting(summariesDir)])
-        .then(() => console.log(`[fileWatcher] 初始索引完成，共 ${this.searchEngine.size} 个文档`))
-        .catch((e) => console.error('[fileWatcher] 初始索引失败:', e));
+      console.log(`[fileWatcher] 从缓存恢复索引（mtime 指纹一致），共 ${n} 个文档`);
+      return;
+    }
+    // 缓存为空 或 文件有外部变更（指纹不一致）→ 清缓存并扫文件重建
+    this.searchEngine.clear();
+    try {
+      await Promise.all([
+        this.indexExisting(volumesDir),
+        this.indexExisting(knowledgeDir),
+        this.indexExisting(summariesDir),
+      ]);
+      this.searchEngine.setCacheFingerprint(currentFp);
+      console.log(`[fileWatcher] 初始索引完成（已更新 mtime 指纹），共 ${this.searchEngine.size} 个文档`);
+    } catch (e) {
+      console.error('[fileWatcher] 初始索引失败:', e instanceof Error ? e.message : e);
+    }
+  }
+
+  /**
+   * 计算被监听文件的 mtime 指纹（"相对路径:mtimeMs" 排序拼接）。
+   * 只 stat 不读内容，速度远快于全量索引；只纳入可被索引的文件（parsePath 命中）。
+   */
+  private computeFingerprint(dirs: string[]): string {
+    const entries: string[] = [];
+    for (const dir of dirs) this.collectMtimes(dir, entries);
+    entries.sort();
+    return entries.join('|');
+  }
+
+  /** 递归收集目录下可索引文件的 "相对路径:mtimeMs"（同步，启动一次性调用） */
+  private collectMtimes(dir: string, out: string[]): void {
+    let entries: import('node:fs').Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return; // 目录不存在
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        this.collectMtimes(full, out);
+      } else if (entry.isFile()) {
+        const relPath = path.relative(this.projectRoot, full);
+        if (!this.searchEngine.parsePath(relPath)) continue; // 非可索引文件不纳入指纹
+        try {
+          const st = statSync(full);
+          out.push(`${relPath}:${st.mtimeMs}`);
+        } catch {
+          // 文件在 stat 前消失等，忽略
+        }
+      }
     }
   }
 

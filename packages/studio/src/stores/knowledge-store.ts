@@ -70,6 +70,7 @@ interface KnowledgeState {
   deleteRule: (id: string) => Promise<void>;
 
   // Custom CRUD
+  createCustomCategory: (name: string) => Promise<void>;
   createCustom: (data: { category: string; name: string; content: string; tags?: string[] }) => Promise<void>;
   updateCustom: (category: string, id: string, data: Partial<{ name: string; content: string; tags?: string[] }>) => Promise<void>;
   deleteCustom: (category: string, id: string) => Promise<void>;
@@ -298,6 +299,11 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   },
 
   // --- Custom CRUD ---
+
+  createCustomCategory: async (name) => {
+    await api.post('/knowledge/custom-category', { name });
+    await get().fetchCustomCategories();
+  },
 
   createCustom: async (data) => {
     const entry = await api.post<CustomKnowledge>('/knowledge/custom', data);

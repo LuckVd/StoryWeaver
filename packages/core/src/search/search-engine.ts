@@ -305,4 +305,16 @@ export class InMemorySearchEngine {
     }
     return this.documents.size;
   }
+
+  // ── 索引指纹(G04-S03 + A7 mtime 校验)──
+
+  /** 读取上次构建索引时写入的文件 mtime 指纹（启动时比对，检测停机期间的外部文件变更） */
+  getCacheFingerprint(): string | null {
+    return this.indexStore?.get('__index_fingerprint__') ?? null;
+  }
+
+  /** 写入当前文件 mtime 指纹（重建索引后调用） */
+  setCacheFingerprint(fp: string): void {
+    this.indexStore?.put('__index_fingerprint__', fp);
+  }
 }

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useChapterStore } from '@/stores/chapter-store';
 import { ChapterEditor, countWords, getEditorHtml } from '@/components/editor/chapter-editor';
+import { htmlToMd, mdToHtml } from '@/lib/md-utils';
 import { VersionPanel } from '@/components/editor/version-panel';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { StatusBadge } from '@/components/chapter/status-badge';
@@ -90,7 +91,9 @@ export function ChapterEditPage() {
 
   const handleSave = async () => {
     if (!currentChapter) return;
-    const content = editorRef.current ? getEditorHtml(editorRef.current) : currentChapter.content;
+    const editorHtml = editorRef.current ? getEditorHtml(editorRef.current) : null;
+    // 存储格式为 Markdown：编辑器 HTML → MD；旧章节首次保存即转为 MD（渐进迁移）
+    const content = editorHtml !== null ? htmlToMd(editorHtml) : currentChapter.content;
     await saveChapter(currentChapter.id, { title, content });
     setDirty(false);
   };
@@ -244,7 +247,7 @@ export function ChapterEditPage() {
         {/* 编辑器 */}
         <div className="flex-1 overflow-auto p-6">
           <ChapterEditor
-            content={currentChapter.content}
+            content={mdToHtml(currentChapter.content)}
             editable={!isReadonly}
             onUpdate={handleEditorUpdate}
           />

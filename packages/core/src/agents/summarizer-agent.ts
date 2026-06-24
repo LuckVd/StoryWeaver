@@ -147,6 +147,40 @@ export class SummarizerAgent extends BaseAgent {
       ...data,
     };
   }
+
+  /**
+   * 对话式流式回复（自然语言总结/回顾）
+   *
+   * 与 summarizeChapter（结构化 JSON）不同：本方法用于对话场景，作者在聊天里
+   * 让 AI「总结这章 / 回顾前文 / 梳理线索」时，用自然语言流式回复。
+   */
+  async *summarizeStream(messages: Message[]): AsyncGenerator<string> {
+    yield* this.chatStream([
+      {
+        role: 'system',
+        content:
+          '你是小说总结助手。根据作者需求，用自然语言回顾、总结指定内容（某章情节、前文剧情线、某角色线索、伏笔进展等）。要求清晰有条理、分点呈现，只基于已给出的信息，不编造未提及的内容。',
+      },
+      ...messages,
+    ]);
+  }
+
+  /**
+   * 压缩早期对话为摘要（C4，对话 >10 轮时调用）
+   *
+   * @param messages 含已压缩摘要（可选，作为首条 user）+ 待压缩的早期对话消息
+   * @returns 压缩后的纯文本摘要（≤300 字）
+   */
+  async compressDialog(messages: Message[]): Promise<string> {
+    return this.chat([
+      {
+        role: 'system',
+        content:
+          '你是对话压缩助手。把以下作者与 AI 助手的早期对话压缩成简洁摘要，保留：已确定的创作决策、已写入/修改的内容要点、尚未解决的问题；丢弃寒暄与重复。直接输出纯文本摘要，不超过 300 字。',
+      },
+      ...messages,
+    ]);
+  }
 }
 
 // ── Prompt 构建函数 ──

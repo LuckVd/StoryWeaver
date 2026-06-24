@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BookOpen, Layers, FileText } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { FormEvent } from 'react';
 
 export function DashboardPage() {
@@ -13,6 +14,15 @@ export function DashboardPage() {
     totalWords: number;
     chapters: { draft: number; approved: number; published: number };
   } | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleDownload = async (format: 'txt' | 'md') => {
+    try {
+      await downloadExport(format);
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : '导出失败');
+    }
+  };
 
   useEffect(() => {
     fetchBook();
@@ -109,13 +119,23 @@ export function DashboardPage() {
         </div>
       )}
       <div className="mt-6 flex gap-2">
-        <Button variant="outline" onClick={() => downloadExport('txt')}>
+        <Button variant="outline" onClick={() => handleDownload('txt')}>
           导出 TXT
         </Button>
-        <Button variant="outline" onClick={() => downloadExport('md')}>
+        <Button variant="outline" onClick={() => handleDownload('md')}>
           导出 Markdown
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={!!exportError}
+        title="导出失败"
+        message={exportError ?? ''}
+        confirmText="知道了"
+        cancelText="关闭"
+        onConfirm={() => setExportError(null)}
+        onClose={() => setExportError(null)}
+      />
     </div>
   );
 }
@@ -123,8 +143,7 @@ export function DashboardPage() {
 async function downloadExport(format: 'txt' | 'md') {
   const res = await fetch(`/api/v1/export?format=${format}`);
   if (!res.ok) {
-    alert('导出失败');
-    return;
+    throw new Error('导出失败');
   }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

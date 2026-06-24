@@ -71,7 +71,7 @@
 ### G03 — Phase 3: 长篇记忆
 
 - **目标名称**：支持百万字长篇
-- **目标范围**：三层记忆系统、章节摘要结构化、多章综合总结、时间线 + 角色状态变迁、Token 预算管理、检索策略、CuratorAgent
+- **目标范围**：三层记忆系统、章节摘要结构化、多章综合总结、角色状态变迁（确定性聚合）、Token 预算管理、检索策略、CuratorAgent（注：原"发布总结 timeline"已于 2026-06-24 取消）
 - **完成标准**：AI 写作时能自动检索远期相关内容，发布时自动生成摘要/时间线/角色状态，Token 开销可控
 
 ### G04 — Phase 4: SQLite 缓存层
@@ -131,7 +131,7 @@
 | G03 | G03-S01 | 三层记忆系统 | Layer 1 永久记忆 + Layer 2 近期 + Layer 3 远期 + 对话上下文压缩（>10 轮自动摘要） | done | G02-S06 | | accepted | passed | 2026-06-18 | | context-builder 三层组装+Token 截断；对话>10轮压缩留 TODO |
 | G03 | G03-S02 | 章节摘要结构化 | ChapterSummary 结构化生成 | done | G02-S06 | | accepted | passed | 2026-06-18 | | 06-18 已实质完成(发布生成入库)，本次核对确认 |
 | G03 | G03-S03 | 多章综合总结 | BatchSummary + 间隔配置 | done | G03-S02 | | accepted | passed | 2026-06-18 | | maybeGenerateBatchSummary 每 10 章触发；interval 读 novel.yaml 留 TODO |
-| G03 | G03-S04 | 时间线 + 角色状态变迁 | AI 维护 timeline.json + character-states.json | done | G03-S02 | | accepted | passed | 2026-06-18 | | aggregator 确定性聚合 + rebuild + GET /memory |
+| G03 | G03-S04 | 角色状态变迁（派生视图） | character-states 确定性聚合（从 ChapterSummary 派生 stateChanges，不调 LLM）；原 timeline.json 已于 2026-06-24 取消（不再维护剧情时间线） | done | G03-S02 | | accepted | passed | 2026-06-18 | | aggregator 确定性聚合 + rebuild + GET /memory/character-states |
 | G03 | G03-S05 | Token 预算管理 | 动态计算 Layer 3 预算，适配不同模型窗口 | done | G03-S01 | | accepted | passed | 2026-06-18 | | token-budget.ts 模型窗口表 + calcLayer3Budget |
 | G03 | G03-S06 | 检索策略 | 角色关联/伏笔驱动/大纲指引/综合总结兜底 | done | G03-S01, G02-S08 | | accepted | passed | 2026-06-18 | | retriever.ts 四策略纯函数 |
 | G03 | G03-S07 | CuratorAgent | 知识库辅助 Agent | done | G01-S05 | | accepted | passed | 2026-06-18 | | CuratorAgent.suggestEntities |

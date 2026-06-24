@@ -6,6 +6,8 @@ import {
   WriterAgent,
   BrainstormerAgent,
   AuditorAgent,
+  SummarizerAgent,
+  CuratorAgent,
   routeUserMessage,
   buildMemoryContext,
   retrieveRemoteMemory,
@@ -29,7 +31,7 @@ import type { KnowledgeService } from './knowledge-service.js';
 import type { ModelService } from './model-service.js';
 
 /** 支持 Agent 类型联合 */
-type AnyAgent = WriterAgent | BrainstormerAgent | AuditorAgent;
+type AnyAgent = WriterAgent | BrainstormerAgent | AuditorAgent | SummarizerAgent | CuratorAgent;
 
 /**
  * 对话服务层
@@ -131,10 +133,8 @@ export class ChatService {
         }
       }
 
-      // 追加聊天历史
-      for (const m of session.messages) {
-        messages.push({ role: m.role, content: m.content });
-      }
+      // 追加聊天历史（>10 轮时压缩早期对话为摘要，仅注入最近 5 轮完整，C4）
+      await this.appendHistory(messages, session);
 
       // 注入长篇记忆（三层）：仅写作/审稿 Agent，让 AI 感知前文剧情与角色状态
       if (agentName === 'writer' || agentName === 'auditor') {
@@ -159,18 +159,18 @@ export class ChatService {
       }
 
       // 广播开始
-      this.sseEmitter.emit({ type: 'agent:start', data: { agent: agentName, stage: 'generating' } });
+      this.sseEmitter.emit({ type: 'agent:start', data: { agent: agentName, stage: 'generating', sessionId } });
 
       let fullContent = '';
       try {
         const stream = getStream(agent, messages);
         for await (const token of stream) {
           fullContent += token;
-          this.sseEmitter.emit({ type: 'agent:token', data: { agent: agentName, token } });
+          this.sseEmitter.emit({ type: 'agent:token', data: { agent: agentName, token, sessionId } });
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
-        this.sseEmitter.emit({ type: 'error', data: { message, recoverable: true } });
+        this.sseEmitter.emit({ type: 'error', data: { message, recoverable: true, sessionId } });
         return;
       }
 
@@ -186,7 +186,7 @@ export class ChatService {
       session.updatedAt = new Date().toISOString();
 
       // 广播完成
-      this.sseEmitter.emit({ type: 'agent:complete', data: { agent: agentName, result: null, messageId: assistantMsg.id } });
+      this.sseEmitter.emit({ type: 'agent:complete', data: { agent: agentName, result: null, messageId: assistantMsg.id, sessionId } });
 
       // Auditor: 额外生成结构化审稿报告
       if (agentName === 'auditor') {
@@ -194,7 +194,7 @@ export class ChatService {
           const chapterId = session.chapterId ?? context?.chapterRef ?? 0;
           const report = await (agent as AuditorAgent).audit(messages, chapterId);
           await this.saveReviewReport(report);
-          this.sseEmitter.emit({ type: 'review:score', data: { score: report.overallScore, issues: report.issues } });
+          this.sseEmitter.emit({ type: 'review:score', data: { score: report.overallScore, issues: report.issues, sessionId } });
         } catch {
           // 审稿报告生成失败不影响对话流程
         }
@@ -204,14 +204,13 @@ export class ChatService {
 
   // --- Apply ---
 
-  /** 将 AI 纯文本转为 HTML（段落用 <p> 包裹） */
-  private textToHtml(text: string): string {
+  /** 将 AI 纯文本转为 Markdown（段落用空行分隔，与章节存储格式一致） */
+  private textToMd(text: string): string {
     return text
       .split(/\n\n+/)
       .map((p) => p.trim())
       .filter((p) => p.length > 0)
-      .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
-      .join('');
+      .join('\n\n');
   }
 
   /** 剥离 AI 误加的 Markdown 标题行（# / ## 等），避免污染正文 */
@@ -240,7 +239,7 @@ export class ChatService {
     }
 
     const aiContent = this.stripTitleLines(target.content ?? message.content);
-    const aiHtml = this.textToHtml(aiContent);
+    const aiMd = this.textToMd(aiContent);
     const volume = await this.chapterService.findVolume(target.chapterId);
     if (volume === null) {
       throw new Error('CHAPTER_NOT_FOUND');
@@ -252,15 +251,16 @@ export class ChatService {
       if (!chapter) {
         throw new Error('CHAPTER_NOT_FOUND');
       }
+      const sep = chapter.content && !chapter.content.endsWith('\n') ? '\n\n' : '';
       updated = await this.chapterService.update(volume, target.chapterId, {
-        content: chapter.content + aiHtml,
+        content: chapter.content + sep + aiMd,
       }, 'ai_apply');
     } else {
       updated = await this.chapterService.update(volume, target.chapterId, {
-        content: aiHtml,
+        content: aiMd,
       }, 'ai_apply');
     }
-    return { content: updated?.content ?? aiHtml };
+    return { content: updated?.content ?? aiMd };
   }
 
   // --- 知识库上下文 ---
@@ -340,16 +340,17 @@ export class ChatService {
 
   /**
    * 构建长篇记忆上下文（三层）：Layer1 故事状态快照 + Layer2 近期章节摘要 +
-   * Layer3 timeline/character-states 兜底。供写作/审稿 Agent 感知前文，保持长篇连贯。
+   * Layer3 character-states 兜底（+ 远期检索）。供写作/审稿 Agent 感知前文，保持长篇连贯。
    * 数据由发布流程自动维护；此处只读组装，失败不阻断对话。
    */
   private async buildMemoryContext(): Promise<string> {
-    const [storyState, summaries, characterStates, hooks, batchSummaries] = await Promise.all([
+    const [storyState, summaries, characterStates, hooks, batchSummaries, outline] = await Promise.all([
       this.summaryStorage.getStoryState(this.projectRoot),
       this.summaryStorage.listChapterSummaries(this.projectRoot),
       this.summaryStorage.getCharacterStates(this.projectRoot),
       this.knowledgeService.listHooks().catch(() => []),
       this.summaryStorage.listBatchSummaries(this.projectRoot),
+      this.knowledgeService.getOutline().catch(() => null),
     ]);
     if (!storyState && summaries.length === 0 && !characterStates) {
       return ''; // 无任何记忆数据，跳过注入
@@ -362,6 +363,7 @@ export class ChatService {
       keywords,
       summaries,
       hooks,
+      outline: outline ? [outline] : [],
       batchSummaries,
       currentChapter,
     });
@@ -375,6 +377,48 @@ export class ChatService {
     const parts = [ctx.layer1, ctx.layer2, ctx.layer3].filter(Boolean);
     if (!parts.length) return '';
     return `## 长篇记忆（前文剧情与角色状态，写作/审稿时参考以保持连贯）\n\n${parts.join('\n\n')}`;
+  }
+
+  /**
+   * 组装聊天历史注入 LLM。
+   * 超过 10 轮（20 条）时，把早期对话压缩成摘要（incremental：仅压缩尚未处理的部分），
+   * 仅保留最近 5 轮（10 条）完整，控制 token 开销、保持长对话连贯（C4）。
+   * session.messages 全量保留（前端显示完整历史），dialogSummary 仅用于 LLM 上下文。
+   */
+  private async appendHistory(messages: Message[], session: ChatSession): Promise<void> {
+    const SUMMARIZE_THRESHOLD = 20;
+    const KEEP_RECENT = 10;
+    const history = session.messages;
+    if (history.length <= SUMMARIZE_THRESHOLD) {
+      for (const m of history) messages.push({ role: m.role, content: m.content });
+      return;
+    }
+    const compressedUpTo = session.dialogCompressedUpTo ?? 0;
+    const olderSlice = history.slice(compressedUpTo, history.length - KEEP_RECENT);
+    if (olderSlice.length > 0) {
+      try {
+        const summarizer = (await this.getAgentForName('summarizer')) as SummarizerAgent;
+        const prev: Message[] = session.dialogSummary
+          ? [{ role: 'user', content: `之前已压缩的早期对话摘要：\n${session.dialogSummary}` }]
+          : [];
+        const compressed = await summarizer.compressDialog([
+          ...prev,
+          ...olderSlice.map((m) => ({ role: m.role, content: m.content })),
+        ]);
+        session.dialogSummary = compressed;
+        session.dialogCompressedUpTo = history.length - KEEP_RECENT;
+      } catch {
+        // 压缩失败不阻断对话，回退全量历史
+        for (const m of history) messages.push({ role: m.role, content: m.content });
+        return;
+      }
+    }
+    if (session.dialogSummary) {
+      messages.push({ role: 'system', content: `早期对话摘要：\n${session.dialogSummary}` });
+    }
+    for (const m of history.slice(-KEEP_RECENT)) {
+      messages.push({ role: m.role, content: m.content });
+    }
   }
 
   // --- LLM 初始化 ---
@@ -419,6 +463,12 @@ export class ChatService {
       case 'auditor':
         agent = new AuditorAgent(client, { model: modelId, temperature: 0.3 });
         break;
+      case 'summarizer':
+        agent = new SummarizerAgent(client, { model: modelId, temperature: 0.3 });
+        break;
+      case 'curator':
+        agent = new CuratorAgent(client, { model: modelId, temperature: 0.3 });
+        break;
       default:
         agent = new WriterAgent(client, { model: modelId, temperature: 0.7 });
         break;
@@ -446,6 +496,12 @@ function getStream(agent: AnyAgent, messages: Message[]): AsyncGenerator<string>
   }
   if (a.name === 'auditor') {
     return (agent as AuditorAgent).auditStream(messages);
+  }
+  if (a.name === 'summarizer') {
+    return (agent as SummarizerAgent).summarizeStream(messages);
+  }
+  if (a.name === 'curator') {
+    return (agent as CuratorAgent).curateStream(messages);
   }
   return (agent as WriterAgent).writeStream(messages);
 }

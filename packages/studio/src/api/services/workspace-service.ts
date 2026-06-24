@@ -12,6 +12,9 @@ import {
 } from '@storyweaver/core';
 import type { SSEEmitter } from '../sse.js';
 import type { ChapterService } from './chapter-service.js';
+import type { ModelService } from './model-service.js';
+import type { AIOperationQueue } from '../queue.js';
+import { toPlainText } from '../../lib/md-utils.js';
 
 /** 发布结果 */
 export interface PublishResult {
@@ -29,8 +32,8 @@ export interface PublishResult {
  * 管理工作区（添加/移除章节）和发布流程（状态锁定 + AI 摘要生成 + SSE 进度）。
  */
 export class WorkspaceService {
-  private llmClient: LLMClient | null = null;
   private summarizerAgent: SummarizerAgent | null = null;
+  private summarizerModelId = '';
 
   constructor(
     private readonly workspaceStorage: WorkspaceStorage,
@@ -38,7 +41,26 @@ export class WorkspaceService {
     private readonly summaryStorage: SummaryStorage,
     private readonly sseEmitter: SSEEmitter,
     private readonly projectRoot: string,
+    private readonly modelService?: ModelService,
+    private readonly aiQueue?: AIOperationQueue,
   ) {}
+
+  /** AI 操作入队（保证全局同一时间仅一个 AI 操作，C3） */
+  private runQueued<T>(fn: () => Promise<T>): Promise<T> {
+    return this.aiQueue ? this.aiQueue.enqueue(fn) : fn();
+  }
+
+  /** 解析某 Agent 的 LLM client + 模型 id（assignment 优先，回退 env） */
+  private async resolveClient(agentName: string): Promise<{ client: LLMClient; modelId: string }> {
+    const resolved = this.modelService ? await this.modelService.resolveModelForAgent(agentName) : null;
+    if (resolved) return { client: createLLMClient(resolved), modelId: resolved.id };
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OPENAI_API_KEY 未配置，无法调用 AI');
+    const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
+    const baseUrl = process.env.OPENAI_BASE_URL;
+    const config: ModelConfig = { id: model, name: model, service: 'openai', apiKey, ...(baseUrl ? { baseUrl } : {}) };
+    return { client: createLLMClient(config), modelId: model };
+  }
 
   // ── 工作区管理 ──
 
@@ -98,6 +120,7 @@ export class WorkspaceService {
 
   /** 批量发布 approved 章节 */
   async publish(chapterIds: number[], skipSummary = false): Promise<PublishResult> {
+    return this.runQueued(async () => {
     const result: PublishResult = { published: [], summarized: [], skipped: [] };
     const total = chapterIds.length;
 
@@ -137,7 +160,13 @@ export class WorkspaceService {
 
     // 3. AI 摘要生成（如果 LLM 可用且未跳过）
     if (!skipSummary) {
-      const llmAvailable = !!process.env.OPENAI_API_KEY;
+      let llmAvailable = false;
+      try {
+        await this.resolveClient('summarizer');
+        llmAvailable = true;
+      } catch {
+        llmAvailable = false;
+      }
       if (llmAvailable) {
         await this.generateSummaries(chapterIds, chapterInfos, result);
       } else {
@@ -159,6 +188,7 @@ export class WorkspaceService {
     });
 
     return result;
+    });
   }
 
   /** 为发布的章节生成摘要并更新剧情状态 */
@@ -167,7 +197,7 @@ export class WorkspaceService {
     chapterInfos: Map<number, { volume: number; meta: Chapter }>,
     result: PublishResult,
   ): Promise<void> {
-    const agent = this.getSummarizerAgent();
+    const agent = await this.getSummarizerAgent();
     const total = chapterIds.length;
     let i = 0;
 
@@ -176,7 +206,7 @@ export class WorkspaceService {
       try {
         // 用去标签正文生成摘要(与 SummaryService.summarizeChapter 一致),
         // 而非仅传标题 —— 否则 LLM 凭标题编造情节,污染派生记忆全链。
-        const text = info.meta.content.replace(/<[^>]*>/g, '').trim();
+        const text = toPlainText(info.meta.content);
         if (!text) {
           result.skipped.push(id);
         } else {
@@ -203,11 +233,20 @@ export class WorkspaceService {
       });
     }
 
-    // 更新全局剧情状态
+    // 更新全局剧情状态（用最新摘要的情节内容，而非仅章节号，避免 LLM 编造）
     try {
       const prevState = await this.summaryStorage.getStoryState(this.projectRoot);
+      const allSummaries = await this.summaryStorage.listChapterSummaries(this.projectRoot);
+      const recent = allSummaries
+        .filter((s) => chapterIds.includes(s.chapter))
+        .sort((a, b) => a.chapter - b.chapter);
+      const digest = recent.length
+        ? recent
+            .map((s) => `第${s.chapter}章 ${s.title}：${s.plotEvents.join('；')}（${s.plotOutcome}）`)
+            .join('\n')
+        : `已发布章节: ${chapterIds.join(', ')}`;
       const newState = await agent.updateStoryState(
-        [{ role: 'user', content: `已发布章节: ${chapterIds.join(', ')}` }],
+        [{ role: 'user', content: digest }],
         prevState,
       );
       newState.lastPublishedChapter = Math.max(...chapterIds);
@@ -216,7 +255,7 @@ export class WorkspaceService {
       // 状态更新失败不阻塞
     }
 
-    // 重建时间线 + 角色状态变迁（派生记忆，失败不阻塞）
+    // 重建角色状态变迁（派生记忆，失败不阻塞）
     await this.summaryStorage.rebuildCharacterStates(this.projectRoot).catch(() => {});
 
     // 多章综合总结（每 BATCH_INTERVAL 章触发，G03-S03，失败不阻塞）
@@ -244,7 +283,7 @@ export class WorkspaceService {
         .map((s) => `第${s.chapter}章 ${s.title}：${s.plotEvents.join('；')}（${s.plotOutcome}）`)
         .join('\n');
       try {
-        const batch = await this.getSummarizerAgent().summarizeBatch(
+        const batch = await (await this.getSummarizerAgent()).summarizeBatch(
           [{ role: 'user', content }],
           [from, end],
           inRange[0].volume,
@@ -256,23 +295,12 @@ export class WorkspaceService {
     }
   }
 
-  /** 懒初始化 LLM 客户端和 SummarizerAgent */
-  private getSummarizerAgent(): SummarizerAgent {
-    if (this.summarizerAgent) return this.summarizerAgent;
-
-    const apiKey = process.env.OPENAI_API_KEY!;
-    const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
-    const baseUrl = process.env.OPENAI_BASE_URL;
-    const config: ModelConfig = {
-      id: model,
-      name: model,
-      service: 'openai',
-      apiKey,
-      ...(baseUrl ? { baseUrl } : {}),
-    };
-
-    this.llmClient = createLLMClient(config);
-    this.summarizerAgent = new SummarizerAgent(this.llmClient, { model, temperature: 0.3 });
+  /** 懒初始化 SummarizerAgent（按 assignment 选模型，模型变更时重建） */
+  private async getSummarizerAgent(): Promise<SummarizerAgent> {
+    const { client, modelId } = await this.resolveClient('summarizer');
+    if (this.summarizerAgent && this.summarizerModelId === modelId) return this.summarizerAgent;
+    this.summarizerAgent = new SummarizerAgent(client, { model: modelId, temperature: 0.3 });
+    this.summarizerModelId = modelId;
     return this.summarizerAgent;
   }
 }

@@ -223,6 +223,8 @@ export function KnowledgePage() {
   const [activeTab, setActiveTab] = useState<TabKey>('characters');
   const [worldSub, setWorldSub] = useState('');
   const [customSub, setCustomSub] = useState('');
+  const [newCatOpen, setNewCatOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
 
   // Dialog 状态
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -530,17 +532,53 @@ export function KnowledgePage() {
               ))}
               <button
                 onClick={() => {
-                  const name = prompt('输入新分类名：');
-                  if (name?.trim()) {
-                    store.fetchCustomCategories();
-                    setCustomSub(name.trim());
-                  }
+                  setNewCatName('');
+                  setNewCatOpen(true);
                 }}
                 className="rounded-md border px-3 py-1 text-sm text-muted-foreground hover:bg-accent"
               >
                 + 新分类
               </button>
             </div>
+
+            {newCatOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+                onClick={() => setNewCatOpen(false)}
+              >
+                <div
+                  className="w-96 rounded-lg border bg-background p-6 shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h2 className="mb-3 text-lg font-semibold">新建自定义分类</h2>
+                  <input
+                    className="w-full rounded border px-3 py-2"
+                    placeholder="分类名（如：势力、功法）"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button onClick={() => setNewCatOpen(false)} className="rounded border px-3 py-1">
+                      取消
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const name = newCatName.trim();
+                        if (!name) return;
+                        await store.createCustomCategory(name);
+                        setCustomSub(name);
+                        store.fetchCustom(name);
+                        setNewCatOpen(false);
+                      }}
+                      className="rounded bg-primary px-3 py-1 text-primary-foreground"
+                    >
+                      创建
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {customSub ? (
               <EntityList
                 columns={customColumns}

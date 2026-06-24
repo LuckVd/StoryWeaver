@@ -110,4 +110,19 @@ describe('VersionStorage', () => {
     // Should keep newest 3: IDs 3, 4, 5
     expect(versions.map((v) => v.id).sort((a, b) => a - b)).toEqual([3, 4, 5]);
   });
+
+  it('should serialize concurrent writes to the same chapter (no ID collision)', async () => {
+    // 并发触发 20 次快照（模拟 AI apply + 多次自动保存同时发生）
+    const N = 20;
+    const results = await Promise.all(
+      Array.from({ length: N }, (_, i) =>
+        versionStorage.write(projectRoot, 1, 4, { content: `concurrent ${i}`, trigger: 'save' }),
+      ),
+    );
+    // 经 per-chapter 锁串行化后，所有 ID 唯一且连续 1..N（修复前会撞 ID 互相覆盖）
+    const ids = results.map((v) => v.id).sort((a, b) => a - b);
+    expect(ids).toEqual(Array.from({ length: N }, (_, i) => i + 1));
+    const onDisk = await versionStorage.list(projectRoot, 1, 4);
+    expect(onDisk.length).toBe(N);
+  });
 });

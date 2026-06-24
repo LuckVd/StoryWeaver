@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api-client';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { ModelConfig, AgentModelConfig } from '@storyweaver/core';
 
 interface ModelsResp {
@@ -22,6 +23,7 @@ export function SettingsPage() {
   const [editing, setEditing] = useState<ModelConfig | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, TestResp>>({});
+  const [delTarget, setDelTarget] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -36,10 +38,13 @@ export function SettingsPage() {
     load();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(`删除模型 ${id}?`)) return;
-    const r = await api.del<ModelsResp>(`/models/${id}`);
+  const handleDelete = (id: string) => setDelTarget(id);
+
+  const confirmDelete = async () => {
+    if (!delTarget) return;
+    const r = await api.del<ModelsResp>(`/models/${delTarget}`);
     setModels(r.models);
+    setDelTarget(null);
   };
 
   const handleTest = async (id: string) => {
@@ -134,6 +139,16 @@ export function SettingsPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!delTarget}
+        title="删除模型"
+        message={`确认删除模型「${delTarget ?? ''}」？此操作不可撤销。`}
+        variant="danger"
+        confirmText="删除"
+        onConfirm={confirmDelete}
+        onClose={() => setDelTarget(null)}
+      />
     </div>
   );
 }

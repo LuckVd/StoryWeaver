@@ -64,6 +64,23 @@ export class CuratorAgent extends BaseAgent {
     ];
     return this.chatStructured(promptMessages, suggestedEntitiesSchema);
   }
+
+  /**
+   * 对话式流式回复（自然语言设定整理）
+   *
+   * 与 suggestEntities（结构化 JSON）不同：本方法用于对话场景，作者在聊天里
+   * 让 AI「整理设定 / 归纳角色 / 梳理世界观 / 补充设定建议」时，用自然语言流式回复。
+   */
+  async *curateStream(messages: Message[]): AsyncGenerator<string> {
+    yield* this.chatStream([
+      {
+        role: 'system',
+        content:
+          '你是小说设定整理助手。根据作者需求，用自然语言梳理、归纳角色 / 世界观 / 力量体系 / 伏笔等已有设定，指出矛盾或缺漏并提出补充建议。要求分点清晰，基于已给出的信息。',
+      },
+      ...messages,
+    ]);
+  }
 }
 
 // ── Prompt 构建函数 ──

@@ -6,7 +6,7 @@ import type { ReviewService } from '../services/review-service.js';
 import { APIError } from '../error-handler.js';
 import { ErrorCode } from '@storyweaver/core';
 import { validate } from '../validate.js';
-import { createChapterSchema, updateChapterSchema, updateStatusSchema, restoreVersionSchema } from '../schemas.js';
+import { createChapterSchema, updateChapterSchema, updateStatusSchema, restoreVersionSchema, reviseSchema } from '../schemas.js';
 
 /**
  * 章节路由
@@ -191,7 +191,7 @@ export function chaptersRoute(bookService: BookService, chapterService: ChapterS
   });
 
   // POST /chapters/:id/revise — 根据审稿意见 AI 修订正文，返回 { original, revised }
-  app.post('/:id/revise', async (c) => {
+  app.post('/:id/revise', validate(reviseSchema), async (c) => {
     const chapterId = Number(c.req.param('id'));
     if (!Number.isInteger(chapterId) || chapterId < 1) {
       throw new APIError(ErrorCode.VALIDATION_ERROR, '章节 ID 必须为正整数');
@@ -200,9 +200,9 @@ export function chaptersRoute(bookService: BookService, chapterService: ChapterS
     if (volume === null) {
       throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
     }
-    const body = await c.req.json().catch(() => ({}));
+    const { issues } = c.get('validated');
     try {
-      const result = await reviewService.reviseChapter(volume, chapterId, body.issues ?? []);
+      const result = await reviewService.reviseChapter(volume, chapterId, issues ?? []);
       return c.json(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '未知错误';

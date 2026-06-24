@@ -84,9 +84,11 @@ export function createServer(projectRoot: string = process.cwd()) {
     summaryStorage,
     sseEmitter,
     projectRoot,
+    modelService,
+    aiQueue,
   );
-  const summaryService = new SummaryService(chapterService, summaryStorage, sseEmitter, projectRoot, knowledgeService, modelService);
-  const reviewService = new ReviewService(chapterService, projectRoot);
+  const summaryService = new SummaryService(chapterService, summaryStorage, sseEmitter, projectRoot, knowledgeService, modelService, aiQueue);
+  const reviewService = new ReviewService(chapterService, projectRoot, modelService, aiQueue);
   const exportService = new ExportService(chapterService);
   const statsService = new StatsService(chapterService);
   const promptService = new PromptService(projectRoot);

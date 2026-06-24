@@ -13,10 +13,10 @@ export type AgentStage = 'thinking' | 'generating' | 'reviewing' | 'summarizing'
 
 /** SSE 事件类型 */
 export type SSEEvent =
-  | { type: 'agent:start'; data: { agent: AgentName; stage: string } }
-  | { type: 'agent:token'; data: { agent: AgentName; token: string } }
-  | { type: 'agent:complete'; data: { agent: AgentName; result: unknown; messageId: string } }
-  | { type: 'review:score'; data: { score: number; issues: unknown[] } }
+  | { type: 'agent:start'; data: { agent: AgentName; stage: string; sessionId?: string } }
+  | { type: 'agent:token'; data: { agent: AgentName; token: string; sessionId?: string } }
+  | { type: 'agent:complete'; data: { agent: AgentName; result: unknown; messageId: string; sessionId?: string } }
+  | { type: 'review:score'; data: { score: number; issues: unknown[]; sessionId?: string } }
   | { type: 'chapter:complete'; data: { chapterId: number; wordCount: number } }
   | { type: 'publish:progress'; data: { step: string; current: number; total: number } }
   | { type: 'publish:complete'; data: { chapters: number[] } }
@@ -25,7 +25,7 @@ export type SSEEvent =
   | { type: 'file:changed'; data: { path: string } }
   | { type: 'file:added'; data: { path: string } }
   | { type: 'file:removed'; data: { path: string } }
-  | { type: 'error'; data: { message: string; recoverable: boolean } }
+  | { type: 'error'; data: { message: string; recoverable: boolean; sessionId?: string } }
   | { type: 'truth:updated'; data: { file: string } };
 
 // ── 错误码 ──

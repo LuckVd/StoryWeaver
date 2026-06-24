@@ -12,6 +12,7 @@ import { SummariesPage } from '@/pages/summaries';
 import { SearchPage } from '@/pages/search';
 import { MemoryPage } from '@/pages/memory';
 import { OutlinePage } from '@/pages/outline';
+import { WorkspacePage } from '@/pages/workspace';
 import { NotFoundPage } from '@/pages/not-found';
 
 const router = createBrowserRouter([
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
       { path: 'search', element: <SearchPage /> },
       { path: 'memory', element: <MemoryPage /> },
       { path: 'outline', element: <OutlinePage /> },
+      { path: 'workspace', element: <WorkspacePage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

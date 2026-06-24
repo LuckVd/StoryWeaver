@@ -168,6 +168,11 @@ export class KnowledgeService {
     return this.knowledgeStorage.listCustomCategories();
   }
 
+  /** 创建空自定义分类（持久化分类名，供后续添加条目） */
+  async ensureCustomCategory(categoryName: string): Promise<void> {
+    await this.knowledgeStorage.ensureCustomCategory(categoryName);
+  }
+
   // ── Outline ──
 
   async getOutline(): Promise<OutlineNode | null> {

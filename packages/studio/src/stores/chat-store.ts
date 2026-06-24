@@ -32,10 +32,10 @@ interface ChatState {
   ) => Promise<void>;
 
   // Stream actions (called by useChatSSE)
-  startStream: (agent: string) => void;
-  appendStreamToken: (token: string) => void;
-  completeStream: (messageId: string) => void;
-  setStreamError: (message: string) => void;
+  startStream: (agent: string, sessionId?: string) => void;
+  appendStreamToken: (token: string, sessionId?: string) => void;
+  completeStream: (messageId: string, sessionId?: string) => void;
+  setStreamError: (message: string, sessionId?: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -148,16 +148,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // --- Streaming ---
 
-  startStream: (agent) => {
+  startStream: (agent, sessionId) => {
+    // 仅处理当前 streaming 目标会话的事件；切换会话后旧流事件被忽略，防止串流
+    if (sessionId !== undefined && get().streamingSessionId !== sessionId) return;
     set({ isStreaming: true, streamingAgent: agent, streamingText: '' });
   },
 
-  appendStreamToken: (token) => {
+  appendStreamToken: (token, sessionId) => {
+    if (sessionId !== undefined && get().streamingSessionId !== sessionId) return;
     set((s) => ({ streamingText: s.streamingText + token }));
   },
 
-  completeStream: (messageId: string) => {
+  completeStream: (messageId: string, sessionId?: string) => {
     const { streamingSessionId, streamingText, currentSession } = get();
+    // 仅处理当前 streaming 目标会话的完成事件，避免旧流的 complete 清掉新流状态
+    if (sessionId !== undefined && streamingSessionId !== sessionId) return;
     // Append assistant message to current session
     if (streamingSessionId && currentSession?.id === streamingSessionId) {
       const assistantMsg: ChatMessage = {
@@ -183,7 +188,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
 
-  setStreamError: (message) => {
+  setStreamError: (message, sessionId) => {
+    if (sessionId !== undefined && get().streamingSessionId !== sessionId) return;
     set({ isStreaming: false, streamingText: '', error: message, streamingSessionId: null });
   },
 }));

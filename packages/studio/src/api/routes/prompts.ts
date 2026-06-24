@@ -1,5 +1,9 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
 import type { PromptService } from '../services/prompt-service.js';
+import { validate } from '../validate.js';
+
+const promptSchema = z.object({ content: z.string() });
 
 /** Prompt 管理路由(G05-S08) */
 export function promptsRoute(service: PromptService) {
@@ -16,8 +20,8 @@ export function promptsRoute(service: PromptService) {
   });
 
   /** 编辑 / 覆盖 */
-  app.put('/:name', async (c) => {
-    const { content } = await c.req.json();
+  app.put('/:name', validate(promptSchema), async (c) => {
+    const { content } = c.get('validated');
     await service.set(c.req.param('name'), content);
     return c.json({ ok: true });
   });
