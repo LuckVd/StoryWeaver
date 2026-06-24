@@ -1,28 +1,22 @@
-goal_id: G03
-title: "Phase 3: 长篇记忆（8 子目标全部完成 + 后续特性改进）"
-stage: done
-status: completed
-selected_option: G03
-design_confirmed: true
+goal_id: null
+title: "无活跃目标 — G04/G05/G06 已完成并合并 main,G07 生产化待启动"
+stage: idle
+status: waiting
+selected_option: null
+design_confirmed: false
 blocked_by: []
-open_questions: []
-implementation_steps:
-  - "G03-S01 三层记忆系统 — core/memory/context-builder.ts"
-  - "G03-S02 章节摘要结构化 — 06-18 已完成，核对确认"
-  - "G03-S03 多章综合总结 — WorkspaceService.maybeGenerateBatchSummary"
-  - "G03-S04 伏笔追踪（原时间线，2026-06-24 替换）— aggregateHooksTracking + GET /memory/hooks-tracking"
-  - "G03-S05 Token 预算 — token-budget.ts"
-  - "G03-S06 检索策略 — retriever.ts"
-  - "G03-S07 CuratorAgent — curator-agent.ts + 实体建议确认入库/放弃"
-  - "G03-S08 /memory 页面 — memory.tsx + 路由 + 侧边栏"
-  - "特性(2026-06-24):伏笔追踪替换时间线 + 状态变更(完成/激活/加入/放弃) + 操作日志(action-log)"
-test_scope:
-  - "core/memory(aggregator/token-budget/context-builder/retriever) 单测"
-  - "SummaryStorage 派生记忆 + action-log 单测"
-  - "CuratorAgent 单测"
-test_result: "core 231 + studio 123 = 354 全绿（2026-06-24 伏笔追踪/状态变更/操作日志特性后重测）"
+open_questions:
+  - "是否启动 G07 生产化(测试覆盖 / 文档 / npm 发布 / CI-CD)?"
+implementation_steps: []
+test_scope: []
+test_result: "core 288 + studio 140 全绿(main,2026-06-24)"
+recent_completed:
+  - "G04 Phase 4 SQLite 缓存层(4 子目标,2de629a)"
+  - "G05 Phase 5 多模型 + 高级特性(8/9,S07 暂缓;多模型端到端接入 + GLM/DeepSeek 原生,4e389b4)"
+  - "G06 Phase 6 打磨(S01-S07,S06 标注,dc172b5)"
 security_blockers: []
 dead_code_actions: []
-goal_candidates: []
+goal_candidates:
+  - "G07 — Phase 7 生产化(待用户决定)"
 sync_status: done
 last_check_at: "2026-06-24"
