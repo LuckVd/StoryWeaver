@@ -1,5 +1,17 @@
 # Change Log
 
+## 2026-06-24 — 多模型端到端接入 + 原生 GLM CodePlan / DeepSeek
+
+- Goal ID: G05-S03 接入补全 + G05-S01 增强(非新 roadmap 子目标,在 feat/g06-polish 分支提交)
+- Summary: 补全 G05-S03 的 LLM 接入(此前标注"留增强"),让模型配置真正生效;并原生支持 GLM CodePlan / DeepSeek(前端选了只需填 key)。
+- 改动:
+  - core:新增 GLMProvider(智谱 CodePlan paas/v4 预设)、DeepSeekProvider(预设),复用 OpenAIClient;OpenAIClient 加 defaultModel 并导出;factory 注册 glm/deepseek
+  - studio:chat-service.getAgentForName / summary-service(summarizer/curator)改为按 Agent 读 ModelService.resolveModelForAgent 选模型(assignment 变更自动重建,无配置回退 .env);server 注入 modelService;前端 settings service 下拉加 glm/deepseek
+- 验证:createLLMClient + WriterAgent 真实调用 GLM(glm-4-flash)/DeepSeek(deepseek-chat)均成功生成;core 288 + studio 140 全绿;tsc 通过
+- 效果:前端 /settings 添加 glm/deepseek(填 key)→ Agent 模型分配给写/审/抽离分别设置或同步默认,即时生效
+- 安全:测试 key 仅用于验证,未写入代码/commit;配置存 config/models.json(已 gitignore)
+- Commit Status: `4e389b4`,合并 main
+
 ## 2026-06-24 — G06 Phase 6 打磨完成(用户目标达成 + merge main)
 
 - Goal ID: G06（Phase 6 打磨;用户目标终点 — 完成到 G06 含 G06）

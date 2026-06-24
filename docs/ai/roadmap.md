@@ -141,10 +141,10 @@
 | G04 | G04-S02 | summaries 索引落盘 | 派生记忆读取走索引（替代全量聚合） | done | G04-S01 | | accepted | passed | 2026-06-24 | b22e88c | SummaryStorage 注入缓存:write-through + 读优先降级回填 + rebuildSummariesCache;server 注入 + 启动重建 |
 | G04 | G04-S03 | 全文搜索落盘 | 倒排索引落盘，冷启动不全量扫文件 | done | G04-S01 | | accepted | passed | 2026-06-24 | aa7c5b6 | InMemorySearchEngine 注入 CacheStore:双写 + loadFromStore;FileWatcher 启动从缓存恢复,空则扫文件填充 |
 | G04 | G04-S04 | 累积日志（action-log / curation） | 只增日志迁 SQLite，支持累积查询/分页 | done | G04-S01 | | accepted | passed | 2026-06-24 | 6b1d0c2 | curation 按章节分键 + action-log seq 自增;append O(1) + get 走索引;rebuildLogsCache |
-| G05 | | Phase 5: 多模型 + 高级特性 | 生产级多模型适配 + 高级功能 | done | G04 | | accepted | passed | 2026-06-24 | 9d242eb(+754180d,008b5fb,7738050,cf3e7ca,4b991bc,85c97d8,3a66482) | 8/9 子目标完成(S07 tool use 暂缓);多模型 Provider + 配置页 + Agent 分配 + 大纲编辑器 + 导出 + 统计看板 + Prompt 管理 + 对话历史 |
-| G05 | G05-S01 | Anthropic / Ollama Provider | 多模型 Provider 实现 | done | G01-S04 | | accepted | passed | 2026-06-24 | 9d242eb | fetch 实现(无新 SDK);Anthropic SSE + Ollama NDJSON |
+| G05 | | Phase 5: 多模型 + 高级特性 | 生产级多模型适配 + 高级功能 | done | G04 | | accepted | passed | 2026-06-24 | 9d242eb(+754180d,008b5fb,7738050,cf3e7ca,4b991bc,85c97d8,3a66482,4e389b4) | 8/9 子目标完成(S07 tool use 暂缓);多模型 Provider(openai/glm/deepseek/anthropic/ollama)+ 配置页 + Agent 分配(端到端接入)+ 大纲编辑器 + 导出 + 统计看板 + Prompt 管理 + 对话历史 |
+| G05 | G05-S01 | Anthropic / Ollama / GLM / DeepSeek Provider | 多模型 Provider 实现 | done | G01-S04 | | accepted | passed | 2026-06-24 | 9d242eb(+4e389b4) | anthropic/ollama(fetch);glm/deepseek 原生(复用 OpenAIClient + 预设 baseUrl,选了只填 key) |
 | G05 | G05-S02 | 模型配置管理页 | 添加/编辑/删除/测试模型 | done | G05-S01, G01-S09 | | accepted | passed | 2026-06-24 | 754180d | ConfigStorage + ModelService(脱敏)+ settings UI |
-| G05 | G05-S03 | Agent 模型分配 | 一键默认 + 单独覆盖 | done | G05-S02 | | accepted | passed | 2026-06-24 | 008b5fb | assignment + resolveModelForAgent helper(LLM 接入留增强) |
+| G05 | G05-S03 | Agent 模型分配 | 一键默认 + 单独覆盖 | done | G05-S02 | | accepted | passed | 2026-06-24 | 008b5fb(+4e389b4) | assignment + resolveModelForAgent;LLM 接入已补(chat/summary 按 Agent 选模型,变更自动重建,无配置回退 env) |
 | G05 | G05-S04 | 大纲编辑器 | 树状大纲编辑 + 与知识库联动 | done | G02-S01, G01-S09 | | accepted | passed | 2026-06-24 | 7738050 | /outline 树状编辑器(chapterId 联动) |
 | G05 | G05-S05 | 导出功能 | TXT / EPUB / Markdown 导出 | done | G01-S03 | | accepted | passed | 2026-06-24 | cf3e7ca | TXT/MD 实现;EPUB 暂未(需依赖) |
 | G05 | G05-S06 | 数据统计看板 | 字数/进度/活动等数据图表 | done | G01-S09 | | accepted | passed | 2026-06-24 | 4b991bc | StatsService + dashboard 统计卡片 |
