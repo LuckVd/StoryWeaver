@@ -55,19 +55,21 @@ function toOpenAIMessages(messages: Message[]): OpenAI.Chat.Completions.ChatComp
 /**
  * OpenAI LLM Client
  */
-class OpenAIClient implements LLMClient {
+export class OpenAIClient implements LLMClient {
   private readonly client: OpenAI;
+  private readonly defaultModel: string;
 
-  constructor(apiKey: string, baseUrl?: string) {
+  constructor(apiKey: string, baseUrl?: string, defaultModel = 'gpt-4o') {
     this.client = new OpenAI({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
     });
+    this.defaultModel = defaultModel;
   }
 
   async chatCompletion(messages: Message[], options?: ChatOptions): Promise<ChatResult> {
     const params: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
-      model: options?.model ?? 'gpt-4o',
+      model: options?.model ?? this.defaultModel,
       messages: toOpenAIMessages(messages),
       ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),
       ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
@@ -92,7 +94,7 @@ class OpenAIClient implements LLMClient {
 
   async *chatCompletionStream(messages: Message[], options?: ChatOptions): AsyncGenerator<string> {
     const params: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
-      model: options?.model ?? 'gpt-4o',
+      model: options?.model ?? this.defaultModel,
       messages: toOpenAIMessages(messages),
       stream: true,
       ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),

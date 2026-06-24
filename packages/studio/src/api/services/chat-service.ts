@@ -26,6 +26,7 @@ import type { AIOperationQueue } from '../queue.js';
 import type { SSEEmitter } from '../sse.js';
 import type { ChapterService } from './chapter-service.js';
 import type { KnowledgeService } from './knowledge-service.js';
+import type { ModelService } from './model-service.js';
 
 /** 支持 Agent 类型联合 */
 type AnyAgent = WriterAgent | BrainstormerAgent | AuditorAgent;
@@ -38,7 +39,7 @@ type AnyAgent = WriterAgent | BrainstormerAgent | AuditorAgent;
 export class ChatService {
   private sessions = new Map<string, ChatSession>();
   private llmClient: LLMClient | null = null;
-  private agents: Partial<Record<AgentName, AnyAgent>> = {};
+  private agents: Partial<Record<AgentName, { agent: AnyAgent; modelId: string }>> = {};
 
   constructor(
     private readonly aiQueue: AIOperationQueue,
@@ -47,6 +48,7 @@ export class ChatService {
     private readonly knowledgeService: KnowledgeService,
     private readonly summaryStorage: SummaryStorage,
     private readonly projectRoot: string,
+    private readonly modelService?: ModelService,
   ) {}
 
   // --- Session CRUD ---
@@ -108,7 +110,7 @@ export class ChatService {
 
     // 入队执行
     this.aiQueue.enqueue(async () => {
-      const agent = this.getAgentForName(agentName);
+      const agent = await this.getAgentForName(agentName);
       const messages: Message[] = [];
 
       // 如果绑定了章节，加载章节内容作为上下文
@@ -401,27 +403,28 @@ export class ChatService {
     return { client: this.llmClient, model };
   }
 
-  /** 根据 Agent 名称获取对应 Agent 实例（懒初始化） */
-  private getAgentForName(name: AgentName): AnyAgent {
+  /** 根据 Agent 名称获取对应 Agent 实例(按 assignment 选模型,模型变更时重建) */
+  private async getAgentForName(name: AgentName): Promise<AnyAgent> {
+    const resolved = this.modelService ? await this.modelService.resolveModelForAgent(name) : null;
+    const modelId = resolved?.id ?? (process.env.OPENAI_MODEL ?? 'gpt-4o');
     const cached = this.agents[name];
-    if (cached) return cached;
+    if (cached && cached.modelId === modelId) return cached.agent;
 
-    const { client, model } = this.initLLM();
-
+    const client = resolved ? createLLMClient(resolved) : this.initLLM().client;
     let agent: AnyAgent;
     switch (name) {
       case 'brainstormer':
-        agent = new BrainstormerAgent(client, { model, temperature: 1.0 });
+        agent = new BrainstormerAgent(client, { model: modelId, temperature: 1.0 });
         break;
       case 'auditor':
-        agent = new AuditorAgent(client, { model, temperature: 0.3 });
+        agent = new AuditorAgent(client, { model: modelId, temperature: 0.3 });
         break;
       default:
-        agent = new WriterAgent(client, { model, temperature: 0.7 });
+        agent = new WriterAgent(client, { model: modelId, temperature: 0.7 });
         break;
     }
 
-    this.agents[name] = agent;
+    this.agents[name] = { agent, modelId };
     return agent;
   }
 

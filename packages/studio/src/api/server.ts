@@ -68,6 +68,7 @@ export function createServer(projectRoot: string = process.cwd()) {
   summaryStorage.rebuildLogsCache(projectRoot).catch((e) =>
     console.error('[cache] logs rebuild 失败:', e instanceof Error ? e.message : e),
   );
+  const modelService = new ModelService(new ConfigStorage(), projectRoot);
   const chatService = new ChatService(
     aiQueue,
     sseEmitter,
@@ -75,6 +76,7 @@ export function createServer(projectRoot: string = process.cwd()) {
     knowledgeService,
     summaryStorage,
     projectRoot,
+    modelService,
   );
   const workspaceService = new WorkspaceService(
     new WorkspaceStorage(projectRoot),
@@ -83,9 +85,8 @@ export function createServer(projectRoot: string = process.cwd()) {
     sseEmitter,
     projectRoot,
   );
-  const summaryService = new SummaryService(chapterService, summaryStorage, sseEmitter, projectRoot, knowledgeService);
+  const summaryService = new SummaryService(chapterService, summaryStorage, sseEmitter, projectRoot, knowledgeService, modelService);
   const reviewService = new ReviewService(chapterService, projectRoot);
-  const modelService = new ModelService(new ConfigStorage(), projectRoot);
   const exportService = new ExportService(chapterService);
   const statsService = new StatsService(chapterService);
   const promptService = new PromptService(projectRoot);

@@ -187,9 +187,11 @@ function ModelForm({
             value={form.service}
             onChange={(e) => set('service', e.target.value)}
           >
-            <option value="openai">openai</option>
-            <option value="anthropic">anthropic</option>
-            <option value="ollama">ollama</option>
+            <option value="openai">openai(含兼容 baseUrl)</option>
+            <option value="glm">glm(智谱 CodePlan)</option>
+            <option value="deepseek">deepseek</option>
+            <option value="anthropic">anthropic(Claude)</option>
+            <option value="ollama">ollama(本地)</option>
           </select>
           <input
             className="w-full rounded border px-2 py-1"

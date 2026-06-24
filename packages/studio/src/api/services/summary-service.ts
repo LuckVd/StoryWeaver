@@ -15,6 +15,7 @@ import {
 } from '@storyweaver/core';
 import type { ChapterService } from './chapter-service.js';
 import type { KnowledgeService } from './knowledge-service.js';
+import type { ModelService } from './model-service.js';
 import type { SSEEmitter } from '../sse.js';
 
 /**
@@ -23,9 +24,10 @@ import type { SSEEmitter } from '../sse.js';
  * 章节发布时用正文（去标签）生成结构化摘要并存储，供前端展示与长篇记忆复用。
  */
 export class SummaryService {
-  private llmClient: LLMClient | null = null;
   private summarizerAgent: SummarizerAgent | null = null;
+  private summarizerModelId = '';
   private curatorAgent: CuratorAgent | null = null;
+  private curatorModelId = '';
   private curating = new Set<number>();
 
   constructor(
@@ -34,7 +36,20 @@ export class SummaryService {
     private readonly sseEmitter: SSEEmitter,
     private readonly projectRoot: string,
     private readonly knowledgeService: KnowledgeService,
+    private readonly modelService?: ModelService,
   ) {}
+
+  /** 解析某 Agent 的 LLM client + 模型 id(assignment 优先,回退 env) */
+  private async resolveClient(agentName: string): Promise<{ client: LLMClient; modelId: string }> {
+    const resolved = this.modelService ? await this.modelService.resolveModelForAgent(agentName) : null;
+    if (resolved) return { client: createLLMClient(resolved), modelId: resolved.id };
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OPENAI_API_KEY 未配置,无法调用 AI');
+    const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
+    const baseUrl = process.env.OPENAI_BASE_URL;
+    const config: ModelConfig = { id: model, name: model, service: 'openai', apiKey, ...(baseUrl ? { baseUrl } : {}) };
+    return { client: createLLMClient(config), modelId: model };
+  }
 
   /** 为章节生成摘要（用正文）并存储；返回摘要，失败抛错（调用方决定如何处理） */
   async summarizeChapter(volume: number, chapterId: number): Promise<ChapterSummary> {
@@ -43,7 +58,7 @@ export class SummaryService {
     if (!chapter) throw new Error('章节不存在');
     const text = chapter.content.replace(/<[^>]*>/g, '').trim();
     if (!text) throw new Error('章节内容为空，无法生成摘要');
-    const summary = await this.getAgent().summarizeChapter(
+    const summary = await (await this.getAgent()).summarizeChapter(
       [{ role: 'user', content: text }],
       { chapter: chapterId, volume, title: chapter.title, wordCount: text.length },
     );
@@ -108,20 +123,11 @@ export class SummaryService {
       }));
   }
 
-  private getAgent(): SummarizerAgent {
-    if (this.summarizerAgent) return this.summarizerAgent;
-    const apiKey = process.env.OPENAI_API_KEY!;
-    const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
-    const baseUrl = process.env.OPENAI_BASE_URL;
-    const config: ModelConfig = {
-      id: model,
-      name: model,
-      service: 'openai',
-      apiKey,
-      ...(baseUrl ? { baseUrl } : {}),
-    };
-    this.llmClient = createLLMClient(config);
-    this.summarizerAgent = new SummarizerAgent(this.llmClient, { model, temperature: 0.3 });
+  private async getAgent(): Promise<SummarizerAgent> {
+    const { client, modelId } = await this.resolveClient('summarizer');
+    if (this.summarizerAgent && this.summarizerModelId === modelId) return this.summarizerAgent;
+    this.summarizerAgent = new SummarizerAgent(client, { model: modelId, temperature: 0.3 });
+    this.summarizerModelId = modelId;
     return this.summarizerAgent;
   }
 
@@ -146,7 +152,7 @@ export class SummaryService {
     if (!chapter) return null;
     const text = chapter.content.replace(/<[^>]*>/g, '').trim();
     if (!text) return null;
-    const suggested = await this.getCuratorAgent().suggestEntities([{ role: 'user', content: text }]);
+    const suggested = await (await this.getCuratorAgent()).suggestEntities([{ role: 'user', content: text }]);
     const suggestion: CurationSuggestion = {
       chapter: chapterId,
       createdAt: new Date().toISOString(),
@@ -265,20 +271,11 @@ export class SummaryService {
     return summaries.length ? Math.max(...summaries.map((s) => s.chapter)) : 0;
   }
 
-  private getCuratorAgent(): CuratorAgent {
-    if (this.curatorAgent) return this.curatorAgent;
-    const apiKey = process.env.OPENAI_API_KEY!;
-    const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
-    const baseUrl = process.env.OPENAI_BASE_URL;
-    const config: ModelConfig = {
-      id: model,
-      name: model,
-      service: 'openai',
-      apiKey,
-      ...(baseUrl ? { baseUrl } : {}),
-    };
-    const client = createLLMClient(config);
-    this.curatorAgent = new CuratorAgent(client, { model, temperature: 0.3 });
+  private async getCuratorAgent(): Promise<CuratorAgent> {
+    const { client, modelId } = await this.resolveClient('curator');
+    if (this.curatorAgent && this.curatorModelId === modelId) return this.curatorAgent;
+    this.curatorAgent = new CuratorAgent(client, { model: modelId, temperature: 0.3 });
+    this.curatorModelId = modelId;
     return this.curatorAgent;
   }
 }

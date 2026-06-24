@@ -3,16 +3,20 @@ import type { LLMClient, LLMProvider } from './types.js';
 import { OpenAIProvider } from './openai-provider.js';
 import { AnthropicProvider } from './anthropic-provider.js';
 import { OllamaProvider } from './ollama-provider.js';
+import { GLMProvider } from './glm-provider.js';
+import { DeepSeekProvider } from './deepseek-provider.js';
 
 /**
  * 已注册的 Provider 列表
  *
- * openai(含兼容 baseUrl,如智谱 GLM)、anthropic、ollama(本地)。
+ * openai(含兼容 baseUrl)、anthropic、ollama(本地)、glm(智谱 CodePlan)、deepseek。
  */
 const providers: Record<string, LLMProvider> = {
   openai: new OpenAIProvider(),
   anthropic: new AnthropicProvider(),
   ollama: new OllamaProvider(),
+  glm: new GLMProvider(),
+  deepseek: new DeepSeekProvider(),
 };
 
 /**
