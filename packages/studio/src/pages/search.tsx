@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '@/lib/api-client';
+import { useChapterStore } from '@/stores/chapter-store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search as SearchIcon, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -57,6 +58,8 @@ function highlight(text: string, query: string): ReactNode {
 
 export function SearchPage() {
   const navigate = useNavigate();
+  const chapterOrder = useChapterStore((s) => s.chapterOrder);
+  const fetchVolumesAndChapters = useChapterStore((s) => s.fetchVolumesAndChapters);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<string>('all');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -65,6 +68,11 @@ export function SearchPage() {
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  // 章节序号映射(chapterId → 第N章),用于章节结果展示
+  useEffect(() => {
+    fetchVolumesAndChapters();
+  }, [fetchVolumesAndChapters]);
 
   const runSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -145,7 +153,7 @@ export function SearchPage() {
                 <span className={`rounded px-2 py-0.5 text-xs ${typeBadgeClass[type]}`}>
                   {typeLabels[type]}
                 </span>
-                <span className="text-muted-foreground">{grouped[type].length}</span>
+                <span className="text-muted-foreground">{grouped[type].length} 条</span>
               </h3>
               <div className="space-y-2">
                 {grouped[type].map((r) => (
@@ -156,7 +164,14 @@ export function SearchPage() {
                     }`}
                     onClick={() => r.type === 'chapter' && navigate(`/chapters/${r.id}`)}
                   >
-                    <div className="mb-1 font-medium">{highlight(cleanSnippet(r.title, 60), query)}</div>
+                    <div className="mb-1 font-medium">
+                      {(r.type === 'chapter' || r.type === 'summary') && (
+                        <span className="mr-1 text-muted-foreground">
+                          第{chapterOrder[Number(r.id)] ?? r.id}章 ·{' '}
+                        </span>
+                      )}
+                      {highlight(cleanSnippet(r.title, 60), query)}
+                    </div>
                     <div className="text-sm leading-relaxed text-muted-foreground">
                       {highlight(cleanSnippet(r.snippet), query)}
                     </div>

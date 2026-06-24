@@ -11,7 +11,7 @@ export function DashboardPage() {
   const { book, loading, error, fetchBook, createBook } = useBookStore();
   const [stats, setStats] = useState<{
     totalWords: number;
-    chapters: { draft: number; approved: number; published: number };
+    chapters: { total: number; draft: number; approved: number; published: number };
   } | null>(null);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">章节总数</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{book.nextChapterId - 1}</div>
+            <div className="text-2xl font-bold">{stats?.chapters.total ?? '-'}</div>
           </CardContent>
         </Card>
         <Card>

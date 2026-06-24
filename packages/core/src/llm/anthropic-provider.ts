@@ -153,6 +153,17 @@ class AnthropicClient implements LLMClient {
       }
     }
   }
+
+  /** 列出可用模型:GET /v1/models */
+  async listModels(): Promise<{ id: string; name?: string }[]> {
+    const url = `${this.baseUrl ?? ANTHROPIC_DEFAULT_BASE_URL}/v1/models?limit=100`;
+    const res = await fetch(url, { headers: this.headers() });
+    if (!res.ok) {
+      throw new Error(`Anthropic models ${res.status}: ${await res.text().catch(() => '')}`);
+    }
+    const data = (await res.json()) as { data?: Array<{ id: string; display_name?: string }> };
+    return (data.data ?? []).map((m) => ({ id: m.id, name: m.display_name ?? m.id }));
+  }
 }
 
 export class AnthropicProvider implements LLMProvider {

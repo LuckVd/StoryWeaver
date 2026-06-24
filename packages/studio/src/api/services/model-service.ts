@@ -1,4 +1,4 @@
-import { ConfigStorage, createLLMClient, type ModelConfig, type AgentModelConfig } from '@storyweaver/core';
+import { ConfigStorage, createLLMClient, type ModelConfig, type AgentModelConfig, type AvailableModel } from '@storyweaver/core';
 
 /**
  * 模型配置服务(G05-S02 / S03)
@@ -52,6 +52,22 @@ export class ModelService {
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : String(e) };
     }
+  }
+
+  /** 列出某供应商在指定凭证下可用的模型(供前端"添加模型"向导选择) */
+  async listAvailable(service: string, apiKey: string, baseUrl?: string): Promise<AvailableModel[]> {
+    const config: ModelConfig = {
+      id: '__probe__',
+      name: '__probe__',
+      service,
+      apiKey,
+      baseUrl,
+    };
+    const client = createLLMClient(config);
+    if (!client.listModels) {
+      throw new Error(`供应商 "${service}" 不支持列出模型`);
+    }
+    return client.listModels();
   }
 
   // ── Agent 模型分配(G05-S03)──

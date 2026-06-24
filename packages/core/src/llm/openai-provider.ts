@@ -109,6 +109,15 @@ export class OpenAIClient implements LLMClient {
       }
     }
   }
+
+  /** 列出可用模型(走 OpenAI SDK models.list(),兼容 openai / glm / deepseek) */
+  async listModels(): Promise<{ id: string; name?: string }[]> {
+    const list: { id: string; name?: string }[] = [];
+    for await (const m of await this.client.models.list()) {
+      list.push({ id: m.id, name: m.id });
+    }
+    return list;
+  }
 }
 
 /**
