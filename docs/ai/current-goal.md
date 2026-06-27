@@ -17,6 +17,16 @@ G06 — Phase 6:打磨(2026-06-24)。视觉基础(衬线标题 + 纸张纹理 + 
 
 > 用户目标(完成到 G06)已达成。G07 为发布就绪阶段,待用户决定是否启动。
 
+## 特性记录:大纲接通 AI 上下文(2026-06-27)
+
+**背景**:审查发现大纲(outline)是"建好管道未接通"的孤立功能 —— 有完整存储层(`OutlineStorage`→`knowledge/outline.json`)、CRUD API(`GET/PUT /knowledge/outline`)、前端树形编辑器(`/outline`),且 `retriever` 策略3「大纲指引」预留了消费逻辑(展平大纲树、筛含「回顾/呼应/伏笔/前文/之前/延续」的节点注入 AI 上下文),但 `chat-service.buildMemoryContext()` 调 `retrieveRemoteMemory` 时**从不传 outline**,致策略3永远拿空数组、事实上的死代码;且大纲与正文无双向联动、搜索引擎不索引。
+
+**实现**:仅改 `chat-service.buildMemoryContext()` —— `Promise.all` 加 `knowledgeService.getOutline().catch(() => null)`(容错,与 `listHooks().catch` 风格一致);`retrieveRemoteMemory(...)` 补 `outline: outlineTree ? [outlineTree] : []`(根节点包数组,retriever 内 `flattenOutline` 递归展平,根节点 filter 不命中关键词,无害)。`retriever` 策略3 已有单测覆盖,行为不变。
+
+**修改文件**:studio(`api/services/chat-service`)
+
+**验收**:core **301** + studio **153** 测试绿、tsc 通过。**注意**:仅接通检索管道,要让大纲真正影响 AI,需在 `/outline` 给节点写带「回顾/呼应/伏笔/前文/之前/延续」的 summary;当前大纲数据为空(仅根 + 一无 summary 章节)。大纲仍纯手动维护、不与正文联动、搜索不索引(这些未变)。
+
 ## 特性记录:多书支持(书架 + 一次打开一本,2026-06-27)
 
 **背景**:原为严格单书架构 —— 所有数据落在单一 projectRoot(packages/studio/)的一个 `novel.yaml` + volumes/knowledge/memory;`BookService.create` 在 `bookStorage.exists()` 时抛 `BOOK_ALREADY_EXISTS`,系统拒绝第二本(`book.test.ts` 还固化此行为)。用户需同时创作多本书。
