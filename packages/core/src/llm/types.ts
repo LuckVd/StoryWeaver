@@ -29,6 +29,16 @@ export interface ChatResult {
 }
 
 /**
+ * 供应商返回的可用模型(轻量,供前端选择)
+ */
+export interface AvailableModel {
+  /** 模型标识,直接填入 ModelConfig.id */
+  id: string;
+  /** 展示名(可选,缺失时用 id) */
+  name?: string;
+}
+
+/**
  * LLM 客户端接口
  */
 export interface LLMClient {
@@ -36,6 +46,8 @@ export interface LLMClient {
   chatCompletion(messages: Message[], options?: ChatOptions): Promise<ChatResult>;
   /** 流式补全 */
   chatCompletionStream(messages: Message[], options?: ChatOptions): AsyncGenerator<string>;
+  /** 列出当前凭证/端点下可用模型(可选,不支持时缺省) */
+  listModels?(): Promise<AvailableModel[]>;
 }
 
 /**

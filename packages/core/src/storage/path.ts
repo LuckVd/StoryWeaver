@@ -1,5 +1,6 @@
 import { resolve, normalize, relative } from 'node:path';
 import { mkdir } from 'node:fs/promises';
+import { homedir } from 'node:os';
 
 /**
  * 存储路径安全工具
@@ -252,4 +253,33 @@ export function parseChapterId(fileName: string): number | null {
 export function parseVersionId(fileName: string): number | null {
   const match = /^v(\d{3,})\.json$/.exec(fileName);
   return match ? parseInt(match[1], 10) : null;
+}
+
+// ── 书架(Library)路径 ──
+
+/**
+ * 书架根目录:默认 ~/.storyweaver/books,可由 STORYWEAVER_LIBRARY 环境变量覆盖。
+ */
+export function libraryDir(): string {
+  const override = process.env.STORYWEAVER_LIBRARY;
+  return override ? resolve(override) : resolve(homedir(), '.storyweaver', 'books');
+}
+
+/**
+ * 书架根下的"当前书"指针文件:<libraryRoot>/.current-book
+ * 内容为当前打开书的 slug。
+ */
+export function currentBookFilePath(libraryRoot: string): string {
+  return resolve(libraryRoot, '.current-book');
+}
+
+/**
+ * 单本书目录:<libraryRoot>/<slug>
+ * slug 必须为纯 ASCII(字母/数字/_/-),否则视为路径遍历并拒绝。
+ */
+export function bookDir(libraryRoot: string, slug: string): string {
+  if (!/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    throw new PathTraversalError(libraryRoot, slug);
+  }
+  return resolve(libraryRoot, slug);
 }

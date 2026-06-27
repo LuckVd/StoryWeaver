@@ -41,9 +41,9 @@ export function ChatPage() {
   return (
     <div className="flex h-full">
       {/* Session 列表侧栏 */}
-      <div className="flex w-60 shrink-0 flex-col border-r">
+      <div className="flex w-60 shrink-0 flex-col border-r bg-sidebar/60">
         <div className="flex items-center justify-between border-b px-3 py-2">
-          <span className="text-sm font-semibold">对话列表</span>
+          <span className="font-heading text-sm font-semibold">对话列表</span>
           <Button variant="ghost" size="icon-xs" onClick={handleNewSession} disabled={loading}>
             <Plus className="h-4 w-4" />
           </Button>
@@ -53,7 +53,7 @@ export function ChatPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜索对话…"
-            className="w-full rounded border px-2 py-1 text-sm"
+            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="flex-1 overflow-auto">
@@ -67,11 +67,11 @@ export function ChatPage() {
               key={s.id}
               onClick={() => handleSelectSession(s.id)}
               className={cn(
-                'flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-muted',
-                currentSession?.id === s.id && 'bg-muted font-medium',
+                'group flex cursor-pointer items-center gap-2 px-3 py-2 font-heading text-sm hover:bg-sidebar-accent/50',
+                currentSession?.id === s.id && 'bookmark-bar bg-sidebar-accent/60 font-medium',
               )}
             >
-              <span className="flex-1 truncate">{s.title}</span>
+              <span className="flex-1 truncate font-heading">{s.title}</span>
               <Button
                 variant="ghost"
                 size="icon-xs"

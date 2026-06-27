@@ -344,12 +344,13 @@ export class ChatService {
    * 数据由发布流程自动维护；此处只读组装，失败不阻断对话。
    */
   private async buildMemoryContext(): Promise<string> {
-    const [storyState, summaries, characterStates, hooks, batchSummaries] = await Promise.all([
+    const [storyState, summaries, characterStates, hooks, batchSummaries, outlineTree] = await Promise.all([
       this.summaryStorage.getStoryState(this.projectRoot),
       this.summaryStorage.listChapterSummaries(this.projectRoot),
       this.summaryStorage.getCharacterStates(this.projectRoot),
       this.knowledgeService.listHooks().catch(() => []),
       this.summaryStorage.listBatchSummaries(this.projectRoot),
+      this.knowledgeService.getOutline().catch(() => null),
     ]);
     if (!storyState && summaries.length === 0 && !characterStates) {
       return ''; // 无任何记忆数据，跳过注入
@@ -364,6 +365,8 @@ export class ChatService {
       hooks,
       batchSummaries,
       currentChapter,
+      // 接通大纲指引：整棵大纲树传入，retriever 展平后筛出含「回顾/呼应/伏笔」等关键词的节点注入
+      outline: outlineTree ? [outlineTree] : [],
     });
     const ctx = buildMemoryContext({
       model,

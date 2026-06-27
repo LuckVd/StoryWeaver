@@ -1,6 +1,46 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import { api } from '../lib/api-client';
-import type { ModelConfig, AgentModelConfig } from '@storyweaver/core';
+import type { ModelConfig, AgentModelConfig, AvailableModel } from '@storyweaver/core';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { Seal } from '@/components/ui/seal';
+import { Plus, Lightbulb, Pen, FileCheck, FileText, Microscope } from 'lucide-react';
+import { Zhipu, DeepSeek, OpenAI, Anthropic, Ollama } from '@lobehub/icons';
+
+/** 供应商预设(添加模型向导 Step1 卡片 + Step2 表单 + 保存回填都用它) */
+type ProviderId = 'glm' | 'deepseek' | 'openai' | 'anthropic' | 'ollama';
+interface ProviderPreset {
+  id: ProviderId;
+  label: string;
+  desc: string;
+  icon: string;
+  baseUrl?: string;
+  needKey: boolean;
+  needBaseUrl: boolean;
+}
+const PROVIDERS: ProviderPreset[] = [
+  { id: 'glm', label: '智谱 GLM', desc: 'CodePlan,OpenAI 兼容', icon: '⚡', baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4', needKey: true, needBaseUrl: false },
+  { id: 'deepseek', label: 'DeepSeek', desc: 'OpenAI 兼容', icon: '🌊', baseUrl: 'https://api.deepseek.com', needKey: true, needBaseUrl: false },
+  { id: 'openai', label: '自定义 OpenAI 兼容', desc: '任意兼容端点', icon: '🔌', needKey: true, needBaseUrl: true },
+  { id: 'anthropic', label: 'Anthropic', desc: 'Claude', icon: '🅰', baseUrl: 'https://api.anthropic.com', needKey: true, needBaseUrl: false },
+  { id: 'ollama', label: 'Ollama', desc: '本地部署', icon: '🦙', baseUrl: 'http://localhost:11434', needKey: false, needBaseUrl: true },
+];
+
+/** 供应商品牌图标(@lobehub/icons 官方 logo,优先 Color 品牌色变体,无则 Mono) */
+const brandIcon = (mod: ComponentType<{ size?: number }>) => {
+  const color = (mod as unknown as { Color?: ComponentType<{ size?: number }> }).Color;
+  return color ?? mod;
+};
+const PROVIDER_ICON: Record<ProviderId, ComponentType<{ size?: number }>> = {
+  glm: brandIcon(Zhipu),
+  deepseek: brandIcon(DeepSeek),
+  openai: brandIcon(OpenAI),
+  anthropic: brandIcon(Anthropic),
+  ollama: brandIcon(Ollama),
+};
 
 interface ModelsResp {
   models: ModelConfig[];
@@ -22,6 +62,7 @@ export function SettingsPage() {
   const [editing, setEditing] = useState<ModelConfig | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, TestResp>>({});
+  const [tab, setTab] = useState<'models' | 'prompts'>('models');
 
   const load = async () => {
     setLoading(true);
@@ -58,71 +99,91 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">模型配置</h1>
-        <button
-          onClick={() => setEditing({ id: '', name: '', service: 'openai', apiKey: '' })}
-          className="rounded bg-primary px-3 py-1.5 text-primary-foreground"
-        >
-          + 添加模型
-        </button>
+    <div className="mx-auto w-full max-w-[1600px] px-6 py-6 sm:px-10 lg:px-16 lg:py-8 xl:px-24">
+      {/* Tab 切换:模型配置 / 提示词(两者关注点不同,分开配置) */}
+      <div className="mb-4 flex gap-1 border-b">
+        {(['models', 'prompts'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`-mb-px border-b-2 px-4 py-2 font-heading text-sm font-medium transition-colors ${
+              tab === t
+                ? 'border-vermilion text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t === 'models' ? '模型配置' : '提示词'}
+          </button>
+        ))}
       </div>
 
-      {loading ? (
-        <div className="text-muted-foreground">加载中…</div>
-      ) : models.length === 0 ? (
-        <div className="text-muted-foreground">
-          暂无模型,点击「添加模型」配置(openai / anthropic / ollama)。
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {models.map((m) => (
-            <div key={m.id} className="flex items-center justify-between rounded border p-3">
-              <div className="min-w-0">
-                <div className="font-medium">
-                  {m.name}{' '}
-                  <span className="text-xs text-muted-foreground">[{m.service}]</span>
-                </div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {m.id} · {m.apiKey || '无 key'} {m.baseUrl ? `· ${m.baseUrl}` : ''}
-                </div>
-                {testResult[m.id] && (
-                  <div
-                    className={`text-xs ${testResult[m.id].ok ? 'text-green-600' : 'text-red-600'}`}
-                  >
-                    {testResult[m.id].ok ? '✓' : '✗'} {testResult[m.id].message}
-                  </div>
-                )}
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  disabled={testing === m.id}
-                  onClick={() => handleTest(m.id)}
-                  className="rounded border px-2 py-1 text-sm"
-                >
-                  {testing === m.id ? '测试中…' : '测试'}
-                </button>
-                <button
-                  onClick={() => setEditing(m)}
-                  className="rounded border px-2 py-1 text-sm"
-                >
-                  编辑
-                </button>
-                <button
-                  onClick={() => handleDelete(m.id)}
-                  className="rounded border px-2 py-1 text-sm text-red-600"
-                >
-                  删除
-                </button>
-              </div>
+      {tab === 'models' ? (
+        <>
+          <div className="mb-6 flex items-end justify-between">
+            <div>
+              <h1 className="font-heading text-xl font-semibold">模型配置</h1>
+              <p className="mt-0.5 text-xs text-muted-foreground">管理可用模型 · 测试连接 · 分配给各环节</p>
             </div>
-          ))}
-        </div>
-      )}
+            <Button onClick={() => setEditing({ id: '', name: '', service: 'openai', apiKey: '' })}>
+              <Plus className="mr-1 h-4 w-4" /> 添加模型
+            </Button>
+          </div>
 
-      <AssignmentSection models={models} />
-      <PromptSection />
+          {loading ? (
+            <div className="text-muted-foreground">加载中…</div>
+          ) : models.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+              暂无模型。点击「添加模型」配置 GLM / DeepSeek / OpenAI 兼容 / Anthropic / Ollama。
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {models.map((m) => {
+                const provider = PROVIDERS.find((p) => p.id === m.service);
+                const ProviderIcon = PROVIDER_ICON[m.service as ProviderId] ?? OpenAI;
+                return (
+                  <div key={m.id} className="flex flex-col rounded-lg border bg-card p-4">
+                    <div className="flex items-center gap-2">
+                      <ProviderIcon size={20} />
+                      <span className="truncate font-heading font-medium">{m.name}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">{provider?.label ?? m.service}</div>
+                    <div className="mt-2 truncate font-mono text-xs text-muted-foreground">
+                      {m.id} · {m.apiKey || '无 key'}{m.baseUrl ? ` · ${m.baseUrl}` : ''}
+                    </div>
+                    {testResult[m.id] && (
+                      <div
+                        className={cn(
+                          'mt-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs',
+                          testResult[m.id].ok
+                            ? 'bg-green-600/10 text-green-600'
+                            : 'bg-destructive/10 text-destructive',
+                        )}
+                      >
+                        {testResult[m.id].ok ? '✓' : '✗'} {testResult[m.id].message}
+                      </div>
+                    )}
+                    <div className="mt-3 flex items-center gap-1 border-t pt-3">
+                      <Button variant="outline" size="sm" className="flex-1" disabled={testing === m.id} onClick={() => handleTest(m.id)}>
+                        {testing === m.id ? '测试中…' : '测试'}
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditing(m)}>
+                        编辑
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(m.id)}>
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <AssignmentSection models={models} />
+        </>
+      ) : (
+        <PromptSection />
+      )}
 
       {editing && (
         <ModelForm
@@ -147,14 +208,63 @@ function ModelForm({
   onCancel: () => void;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState<ModelConfig>(initial);
+  const editing = !!initial.id;
+  const [step, setStep] = useState<1 | 2>(editing ? 2 : 1);
+  const [provider, setProvider] = useState<ProviderId>((initial.service as ProviderId) ?? 'glm');
+  const [apiKey, setApiKey] = useState('');
+  const [baseUrl, setBaseUrl] = useState(initial.baseUrl ?? '');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [contextWindow, setContextWindow] = useState<number | ''>(initial.contextWindow ?? '');
+
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchedModels, setFetchedModels] = useState<AvailableModel[] | null>(null);
+  const [modelId, setModelId] = useState(editing ? initial.id : '');
+  const [modelName, setModelName] = useState(editing ? initial.name : '');
+  const [manualMode, setManualMode] = useState(false);
   const [saving, setSaving] = useState(false);
-  const set = (k: keyof ModelConfig, v: string | number) => setForm((f) => ({ ...f, [k]: v }));
+
+  const preset = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0];
+  const PresetIcon = PROVIDER_ICON[preset.id];
+
+  const handleFetch = async () => {
+    setFetching(true);
+    setFetchError(null);
+    try {
+      const r = await api.post<{ models: AvailableModel[]; error?: string }>('/models/available', {
+        service: provider,
+        apiKey,
+        baseUrl: baseUrl || undefined,
+      });
+      if (!r.models.length) {
+        setFetchError(r.error ?? '未返回任何模型');
+        setManualMode(true);
+      } else {
+        setFetchedModels(r.models);
+        setManualMode(false);
+      }
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : String(e));
+      setManualMode(true);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  const canSave = !!modelId && (!preset.needKey || !!apiKey);
 
   const save = async () => {
     setSaving(true);
     try {
-      await api.post('/models', form);
+      const masked = initial.apiKey?.startsWith('***') ? initial.apiKey : undefined;
+      await api.post('/models', {
+        id: modelId,
+        name: modelName || modelId,
+        service: provider,
+        apiKey: apiKey || masked || '',
+        baseUrl: baseUrl || undefined,
+        contextWindow: contextWindow || undefined,
+      });
       onSaved();
     } finally {
       setSaving(false);
@@ -162,74 +272,203 @@ function ModelForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancel}>
-      <div
-        className="w-96 rounded bg-background p-4 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="mb-3 text-lg font-semibold">{initial.id ? '编辑模型' : '添加模型'}</h2>
-        <div className="space-y-2">
-          <input
-            className="w-full rounded border px-2 py-1"
-            placeholder="ID(如 gpt-4o)"
-            value={form.id}
-            onChange={(e) => set('id', e.target.value)}
-            disabled={!!initial.id}
-          />
-          <input
-            className="w-full rounded border px-2 py-1"
-            placeholder="显示名称"
-            value={form.name}
-            onChange={(e) => set('name', e.target.value)}
-          />
-          <select
-            className="w-full rounded border px-2 py-1"
-            value={form.service}
-            onChange={(e) => set('service', e.target.value)}
-          >
-            <option value="openai">openai(含兼容 baseUrl)</option>
-            <option value="glm">glm(智谱 CodePlan)</option>
-            <option value="deepseek">deepseek</option>
-            <option value="anthropic">anthropic(Claude)</option>
-            <option value="ollama">ollama(本地)</option>
-          </select>
-          <input
-            className="w-full rounded border px-2 py-1"
-            placeholder="API Key(ollama 可空)"
-            value={form.apiKey}
-            onChange={(e) => set('apiKey', e.target.value)}
-          />
-          <input
-            className="w-full rounded border px-2 py-1"
-            placeholder="baseUrl(可选)"
-            value={form.baseUrl ?? ''}
-            onChange={(e) => set('baseUrl', e.target.value)}
-          />
-          <input
-            className="w-full rounded border px-2 py-1"
-            placeholder="contextWindow(可选)"
-            value={form.contextWindow ?? ''}
-            onChange={(e) => set('contextWindow', Number(e.target.value) || 0)}
-          />
-        </div>
-        <div className="mt-3 flex justify-end gap-2">
-          <button onClick={onCancel} className="rounded border px-3 py-1">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
+      <Card className="w-full max-w-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <CardHeader>
+          <CardTitle className="text-lg">{editing ? '编辑模型' : '添加模型'}</CardTitle>
+          <CardDescription>
+            {step === 1 ? '选择 LLM 供应商' : `配置 ${preset.label} 并选择模型`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {step === 1 ? (
+            <div className="grid grid-cols-2 gap-3">
+              {PROVIDERS.map((p) => {
+                const PIcon = PROVIDER_ICON[p.id];
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setProvider(p.id);
+                      setBaseUrl(p.baseUrl ?? '');
+                      setStep(2);
+                    }}
+                    className={cn(
+                      'flex flex-col items-start gap-1.5 rounded-xl border p-4 text-left transition-all hover:border-primary/50 hover:shadow-sm',
+                      provider === p.id
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                        : 'border-border bg-background',
+                    )}
+                  >
+                    {PIcon && <PIcon size={28} />}
+                    <span className="font-medium">{p.label}</span>
+                    <span className="text-xs text-muted-foreground">{p.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
+                  ← 重选
+                </Button>
+                <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  {PresetIcon && <PresetIcon size={16} />}
+                  {preset.label}
+                </span>
+              </div>
+
+              {preset.needKey && (
+                <div className="space-y-1.5">
+                  <Label>
+                    API Key {preset.id !== 'ollama' && <span className="text-destructive">*</span>}
+                  </Label>
+                  <Input
+                    type="password"
+                    placeholder={editing ? '留空则保留原 key' : 'sk-...'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {preset.needBaseUrl && (
+                <div className="space-y-1.5">
+                  <Label>
+                    baseUrl {preset.id === 'openai' && <span className="text-destructive">*</span>}
+                  </Label>
+                  <Input
+                    placeholder={preset.baseUrl ?? 'https://...'}
+                    value={baseUrl}
+                    onChange={(e) => setBaseUrl(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={fetching} onClick={handleFetch}>
+                    {fetching ? '获取中…' : '🔍 获取可用模型'}
+                  </Button>
+                  {fetchedModels && !manualMode && (
+                    <span className="text-xs text-muted-foreground">✓ 共 {fetchedModels.length} 个</span>
+                  )}
+                </div>
+                {fetchError && (
+                  <p className="text-xs text-destructive">
+                    {fetchError}{' '}
+                    <button type="button" className="underline" onClick={() => setManualMode(true)}>
+                      手动输入
+                    </button>
+                  </p>
+                )}
+                {fetchedModels && !manualMode && (
+                  <div className="space-y-1.5">
+                    <Label>模型</Label>
+                    <select
+                      className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={modelId}
+                      onChange={(e) => {
+                        const m = fetchedModels.find((x) => x.id === e.target.value);
+                        setModelId(e.target.value);
+                        setModelName(m?.name ?? e.target.value);
+                      }}
+                    >
+                      <option value="">请选择模型…</option>
+                      {fetchedModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {manualMode && (
+                  <div className="space-y-1.5">
+                    <Label>模型 ID(手动)</Label>
+                    <Input
+                      placeholder="如 gpt-4o"
+                      value={modelId}
+                      onChange={(e) => {
+                        setModelId(e.target.value);
+                        setModelName(e.target.value);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                >
+                  {advancedOpen ? '▾' : '▸'} 高级
+                </button>
+                {advancedOpen && (
+                  <div className="mt-2 space-y-3 rounded-lg border bg-muted/30 p-3">
+                    {!preset.needBaseUrl && (
+                      <div className="space-y-1.5">
+                        <Label>baseUrl(覆盖默认)</Label>
+                        <Input
+                          placeholder={preset.baseUrl ?? 'https://...'}
+                          value={baseUrl}
+                          onChange={(e) => setBaseUrl(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      <Label>contextWindow(tokens,可选)</Label>
+                      <Input
+                        type="number"
+                        placeholder="如 128000"
+                        value={contextWindow}
+                        onChange={(e) => setContextWindow(e.target.value ? Number(e.target.value) : '')}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+        <CardFooter className="justify-end gap-2">
+          <Button variant="outline" onClick={onCancel}>
             取消
-          </button>
-          <button
-            onClick={save}
-            disabled={saving}
-            className="rounded bg-primary px-3 py-1 text-primary-foreground"
-          >
-            {saving ? '保存中…' : '保存'}
-          </button>
-        </div>
-      </div>
+          </Button>
+          {step === 2 && (
+            <Button onClick={save} disabled={saving || !canSave}>
+              {saving ? '保存中…' : '保存'}
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   );
 }
 
 const AGENTS = ['brainstormer', 'writer', 'auditor', 'summarizer', 'curator'] as const;
+
+/** Agent 中文名称(仅显示用,提交仍用英文 key 对应后端) */
+const AGENT_LABELS: Record<string, string> = {
+  brainstormer: '构思',
+  writer: '写作',
+  auditor: '审稿',
+  summarizer: '摘要',
+  curator: '抽离',
+};
+
+/** Agent 环节图标(lucide) */
+const AGENT_ICON: Record<string, ComponentType<{ size?: number; className?: string }>> = {
+  brainstormer: Lightbulb,
+  writer: Pen,
+  auditor: FileCheck,
+  summarizer: FileText,
+  curator: Microscope,
+};
 
 /** Agent 模型分配(G05-S03):默认模型 + 各 Agent 单独覆盖 */
 function AssignmentSection({ models }: { models: ModelConfig[] }) {
@@ -265,53 +504,56 @@ function AssignmentSection({ models }: { models: ModelConfig[] }) {
   const overrides = assignment.overrides ?? {};
 
   return (
-    <div className="mt-6">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Agent 模型分配</h2>
-        <button
-          onClick={save}
-          disabled={saving}
-          className="rounded bg-primary px-3 py-1 text-primary-foreground"
-        >
+    <div className="mt-8">
+      <div className="mb-3 flex items-end justify-between">
+        <div>
+          <h2 className="font-heading text-lg font-semibold">各环节模型分配</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">默认模型 + 单独覆盖某个环节</p>
+        </div>
+        <Button size="sm" onClick={save} disabled={saving}>
           {saving ? '保存中…' : '保存分配'}
-        </button>
+        </Button>
       </div>
-      <div className="space-y-2 rounded border p-3">
-        <label className="flex items-center gap-2 text-sm">
-          <span className="w-24">默认模型</span>
-          <select
-            className="flex-1 rounded border px-2 py-1"
-            value={assignment.default}
-            onChange={(e) => setDefault(e.target.value)}
-          >
-            <option value="">(未选)</option>
-            {models.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <button onClick={applyAll} className="rounded border px-2 py-1 text-xs">
-            应用到全部
-          </button>
-        </label>
-        {AGENTS.map((ag) => (
-          <label key={ag} className="flex items-center gap-2 text-sm">
-            <span className="w-24 capitalize">{ag}</span>
-            <select
-              className="flex-1 rounded border px-2 py-1"
-              value={overrides[ag] ?? ''}
-              onChange={(e) => setOverride(ag, e.target.value)}
-            >
-              <option value="">(用默认)</option>
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
+      <div className="flex flex-wrap items-center gap-3 border-b pb-3">
+        <span className="w-16 shrink-0 font-heading text-sm">默认</span>
+        <select
+          className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          value={assignment.default}
+          onChange={(e) => setDefault(e.target.value)}
+        >
+          <option value="">(未选)</option>
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+        <Button variant="outline" size="xs" onClick={applyAll}>
+          应用到全部
+        </Button>
+      </div>
+      <div className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
+        {AGENTS.map((ag) => {
+          const AgentIcon = AGENT_ICON[ag] ?? Lightbulb;
+          return (
+            <label key={ag} className="flex items-center gap-2">
+              <AgentIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="w-10 shrink-0 font-heading text-sm">{AGENT_LABELS[ag] ?? ag}</span>
+              <select
+                className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                value={overrides[ag] ?? ''}
+                onChange={(e) => setOverride(ag, e.target.value)}
+              >
+                <option value="">(用默认)</option>
+                {models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
+        })}
       </div>
     </div>
   );
@@ -370,41 +612,72 @@ function PromptSection() {
   };
 
   return (
-    <div className="mt-6">
-      <div className="mb-2 flex items-center gap-2">
-        <h2 className="text-lg font-semibold">Prompt 管理</h2>
-        <select
-          value={selected}
-          onChange={(e) => select(e.target.value)}
-          className="rounded border px-2 py-1"
-        >
-          {prompts.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name}
-              {p.overridden ? ' *' : ''}
-            </option>
-          ))}
-        </select>
-        {data?.overridden && (
-          <button onClick={reset} className="rounded border px-2 py-1 text-sm">
-            恢复默认
-          </button>
+    <div className="flex h-[calc(100vh-8rem)] min-h-[24rem] gap-4">
+      {/* 左:提示词列表(替代下拉框,中文名 + 覆盖标记) */}
+      <div className="flex w-56 shrink-0 flex-col overflow-hidden rounded-lg border bg-sidebar/40">
+        <div className="border-b border-sidebar-border px-3 py-2">
+          <span className="font-heading text-sm font-semibold">提示词</span>
+        </div>
+        <div className="flex-1 overflow-auto p-2">
+          {prompts.map((p) => {
+            const active = p.name === selected;
+            return (
+              <button
+                key={p.name}
+                onClick={() => select(p.name)}
+                className={cn(
+                  'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left font-heading text-sm transition-colors',
+                  active
+                    ? 'bookmark-bar bg-sidebar-accent/60 font-medium'
+                    : 'text-muted-foreground hover:bg-sidebar-accent/40 hover:text-foreground',
+                )}
+              >
+                <span>{AGENT_LABELS[p.name] ?? p.name}</span>
+                {p.overridden && (
+                  <Seal className="h-4 w-4 shrink-0 text-[0.5rem] [transform:none]">朱</Seal>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 右:编辑区 */}
+      <div className="flex flex-1 flex-col">
+        {data ? (
+          <>
+            <div className="mb-2 flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-lg font-semibold">
+                  {AGENT_LABELS[selected] ?? selected}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {data.overridden ? '已自定义 · 保存后生效' : '默认提示词'}
+                </p>
+              </div>
+              {data.overridden && (
+                <Button variant="outline" size="sm" onClick={reset}>
+                  恢复默认
+                </Button>
+              )}
+            </div>
+            <textarea
+              className="w-full flex-1 resize-none rounded-lg border bg-background p-3 font-mono text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring"
+              value={data.content}
+              onChange={(e) => setData({ ...data, content: e.target.value })}
+            />
+            <div className="mt-2 flex justify-end">
+              <Button onClick={save} disabled={saving}>
+                {saving ? '保存中…' : '保存'}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+            从左侧选择一个提示词
+          </div>
         )}
       </div>
-      {data && (
-        <textarea
-          className="h-64 w-full rounded border p-2 font-mono text-sm"
-          value={data.content}
-          onChange={(e) => setData({ ...data, content: e.target.value })}
-        />
-      )}
-      <button
-        onClick={save}
-        disabled={saving || !data}
-        className="mt-2 rounded bg-primary px-3 py-1 text-primary-foreground"
-      >
-        {saving ? '保存中…' : '保存'}
-      </button>
     </div>
   );
 }

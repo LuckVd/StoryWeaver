@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppLayout } from '@/components/layout/app-layout';
 import { DashboardPage } from '@/pages/dashboard';
+import { LibraryPage } from '@/pages/library';
 import { ChaptersPage } from '@/pages/chapters';
 import { ChapterEditPage } from '@/pages/chapter-edit';
 import { ReviewPage } from '@/pages/review';
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: 'library', element: <LibraryPage /> },
       { path: 'chapters', element: <ChaptersPage /> },
       { path: 'chapters/:id', element: <ChapterEditPage /> },
       { path: 'chapters/:id/review', element: <ReviewPage /> },

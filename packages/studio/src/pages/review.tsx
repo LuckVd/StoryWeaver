@@ -76,7 +76,7 @@ export function ReviewPage() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-red-500">{error}</p>
+        <p className="text-destructive">{error}</p>
         <Button onClick={() => navigate(`/chapters/${id}`)}>返回章节</Button>
       </div>
     );
@@ -156,7 +156,7 @@ export function ReviewPage() {
           <IssuesList issues={selected.issues} />
           <div className="mt-4">
             {!diff && (
-              <Button onClick={handleRevise} disabled={revising}>
+              <Button variant="vermilion" onClick={handleRevise} disabled={revising}>
                 {revising ? 'AI 修订中…（GLM 推理较慢）' : 'AI 一键修订'}
               </Button>
             )}

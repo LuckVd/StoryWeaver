@@ -95,7 +95,7 @@ export class FileWatcher {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
       if (parsed.type === 'chapter') {
-        const title = this.extractChapterTitle(content);
+        const title = await this.resolveChapterTitle(relPath, content);
         this.searchEngine.updateChapter(parseInt(parsed.id, 10), title, content);
       } else if (parsed.type === 'knowledge') {
         const { title, content: summary } = this.extractKnowledge(content);
@@ -110,6 +110,28 @@ export class FileWatcher {
     } catch {
       // 文件读取失败时静默忽略（可能是临时状态）
     }
+  }
+
+  /** 解析章节真章名：优先读卷索引 index.json 的 meta.title，缺失则回退正文首句 */
+  private async resolveChapterTitle(relPath: string, content: string): Promise<string> {
+    const m = relPath.match(/volumes[/\\]v(\d+)[/\\]ch(\d+)\.md$/);
+    if (m) {
+      try {
+        const indexPath = path.join(
+          this.projectRoot,
+          'volumes',
+          `v${String(parseInt(m[1], 10)).padStart(2, '0')}`,
+          'index.json',
+        );
+        const raw = await fs.readFile(indexPath, 'utf-8');
+        const metas: Array<{ id: number; title: string }> = JSON.parse(raw);
+        const meta = metas.find((x) => x.id === parseInt(m[2], 10));
+        if (meta?.title) return meta.title;
+      } catch {
+        // 卷索引缺失或解析失败 → 回退正文首句
+      }
+    }
+    return this.extractChapterTitle(content);
   }
 
   /** 从章节内容提取标题片段：优先 markdown 首行标题，否则 HTML 去标签取首句，截断 50 字 */
@@ -149,7 +171,8 @@ export class FileWatcher {
   private extractSummary(raw: string): { title: string; content: string } | null {
     try {
       const d = JSON.parse(raw);
-      const title = d.title ? `第${d.chapter}章·${d.title}` : `第${d.chapter}章 摘要`;
+      // 章号由前端按 chapterOrder(连续序号)渲染,这里只存纯章名
+      const title = d.title ?? '章节摘要';
       const parts = [d.plotOutcome, ...(d.plotEvents ?? []), ...(d.charactersPresent ?? [])].filter(Boolean);
       return { title, content: parts.join(' ') };
     } catch {

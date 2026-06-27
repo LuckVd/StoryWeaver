@@ -17,6 +17,95 @@ G06 — Phase 6:打磨(2026-06-24)。视觉基础(衬线标题 + 纸张纹理 + 
 
 > 用户目标(完成到 G06)已达成。G07 为发布就绪阶段,待用户决定是否启动。
 
+## 特性记录:大纲接通 AI 上下文(2026-06-27)
+
+**背景**:审查发现大纲(outline)是"建好管道未接通"的孤立功能 —— 有完整存储层(`OutlineStorage`→`knowledge/outline.json`)、CRUD API(`GET/PUT /knowledge/outline`)、前端树形编辑器(`/outline`),且 `retriever` 策略3「大纲指引」预留了消费逻辑(展平大纲树、筛含「回顾/呼应/伏笔/前文/之前/延续」的节点注入 AI 上下文),但 `chat-service.buildMemoryContext()` 调 `retrieveRemoteMemory` 时**从不传 outline**,致策略3永远拿空数组、事实上的死代码;且大纲与正文无双向联动、搜索引擎不索引。
+
+**实现**:仅改 `chat-service.buildMemoryContext()` —— `Promise.all` 加 `knowledgeService.getOutline().catch(() => null)`(容错,与 `listHooks().catch` 风格一致);`retrieveRemoteMemory(...)` 补 `outline: outlineTree ? [outlineTree] : []`(根节点包数组,retriever 内 `flattenOutline` 递归展平,根节点 filter 不命中关键词,无害)。`retriever` 策略3 已有单测覆盖,行为不变。
+
+**修改文件**:studio(`api/services/chat-service`)
+
+**验收**:core **301** + studio **153** 测试绿、tsc 通过。**注意**:仅接通检索管道,要让大纲真正影响 AI,需在 `/outline` 给节点写带「回顾/呼应/伏笔/前文/之前/延续」的 summary;当前大纲数据为空(仅根 + 一无 summary 章节)。大纲仍纯手动维护、不与正文联动、搜索不索引(这些未变)。
+
+## 特性记录:多书支持(书架 + 一次打开一本,2026-06-27)
+
+**背景**:原为严格单书架构 —— 所有数据落在单一 projectRoot(packages/studio/)的一个 `novel.yaml` + volumes/knowledge/memory;`BookService.create` 在 `bookStorage.exists()` 时抛 `BOOK_ALREADY_EXISTS`,系统拒绝第二本(`book.test.ts` 还固化此行为)。用户需同时创作多本书。
+
+**方案**:书架模式(方案 A,一次打开一本,类似 Obsidian vault)。每本书 = 家目录 `~/.storyweaver/books/<slug>/` 下的独立目录(= 该书的 projectRoot)。storage 层已 `projectRoot` 参数化,故"一本书一个目录"在数据层零改动;核心杠杆是 **`createServer`(单书 app)不变**,在其上加调度层 `library-server.ts`(front app 委托给"当前书"的 app,切书 = 停旧 FileWatcher + 重建 createServer + 启新 watcher)。切书非瞬时(后端重建 + 前端整页 reload),这是"一次一本"的取舍;不做多书同时在线。
+
+**实现**:
+- core:`storage/path.ts` 加 `libraryDir`/`bookDir`/`currentBookFilePath`;`storage/library-storage.ts`(列书/新建/slug 去重/读写 `.current-book` 指针);`models/library.ts`(`BookshelfItem`)
+- studio 后端:`api/library-server.ts`(调度层 front + `switchBook`/`restoreActive`/`dispose`);`api/services/library-service.ts`;`api/routes/library.ts`(`GET /library`、`POST /library`、`POST /library/:slug/activate`);`api/migrate.ts`(首次迁移:复制单书数据→书架第一本,排除 `.cache`,源保留备份);`api/start.ts`(libraryRoot + 迁移 + restoreActive + serve)。**`server.ts`/`createServer` 零改动**,故 10 个单书测试与 `POST /book` 兼容保留
+- studio 前端:`stores/library-store.ts`;`pages/library.tsx`(书架卡片网格 + 新建 + 空架引导);`components/layout/sidebar.tsx`(logo 下"当前书"入口);`pages/dashboard.tsx`(无书→引导书架);`App.tsx`(`/library` 路由)。朱批墨韵:宋体书名 + 朱砂分隔/印章(`Seal`)+ `vermilion` 按钮
+
+**修改文件**:core(`storage/path`、`storage/library-storage`🆕、`storage/index`、`models/library`🆕、`models/index`、`storage/__tests__/library-storage.test`🆕)+ studio(`api/library-server`🆕、`api/services/library-service`🆕、`api/routes/library`🆕、`api/migrate`🆕、`api/start`、`api/__tests__/library.test`🆕、`stores/library-store`🆕、`pages/library`🆕、`components/layout/sidebar`、`pages/dashboard`、`App`)
+
+**验收**:core **297 passed**;studio **148 passed**(19 文件);tsc 通过。实跑:首次启动自动迁移"示例小说·星河边缘"→`~/.storyweaver/books/bk-mcgxwb`(含 6 章 + 知识库 + 摘要,fileWatcher 索引 19 文档);新建第二本自动切换、`GET /book` 跟随新书;`activate` 切回第一本后 `GET /chapters` 返回 6 章(id 1/2/8/11/12/13),内容完整;`GET /library` 的 `current` 指针正确。
+
+## 特性记录:书籍信息编辑 + 作者字段(2026-06-27)
+
+**背景**:多书落地后发现书籍元信息无编辑入口 —— `PUT /book` 后端支持 title/genre/language/status 但前端 `updateBook` 无人调用;且 `Book` 模型无 `author` 字段。
+
+**实现**:
+- core:`Book` 加 `author?: string`(可选,兼容已有 novel.yaml);`BookshelfItem` 透传 author
+- 后端:`createBookSchema`/`updateBookSchema` 加 author 可选;`BookService`/`LibraryService` 的 create 与 `BookService.update` 透传 author
+- 前端:`dashboard` 扉页加「编辑」按钮 → 弹窗(书名/作者/类型/语言/状态)+ 作者副标题;书架新建表单加作者;书卡显示作者。保存经 `PUT /book`,无需重载
+
+**修改文件**:core(`models/book`、`models/library`、`storage/library-storage`)+ studio(`api/schemas`、`api/services/book-service`、`api/services/library-service`、`stores/book-store`、`stores/library-store`、`pages/dashboard`、`pages/library`)
+
+**验收**:core 297 + studio 148 测试绿、tsc 通过;curl `PUT /book {author}` 持久化进 `novel.yaml`、清空生效。
+
+## 特性记录:书架卡片编辑/删除(2026-06-27)
+
+**背景**:编辑入口原仅在 dashboard 扉页(当前书);书架需直接对**任意书**编辑 + 删除。
+
+**实现**:
+- core:`LibraryStorage` 加 `updateBookMeta(slug,patch)`(合并 + 刷新 updatedAt + 持久化)与 `deleteBook(slug)`(rm 目录,带校验)。
+- 后端:`LibraryService` 加同名方法;`library-server` 加 `deleteBook` 协调(**删当前书** → `switchBook` 切到另一本,或书架空时清空 active + 指针);`library route` 加 `PUT /library/:slug`(按 slug 编辑,不依赖当前打开的书)与 `DELETE /library/:slug`。
+- 前端:提取共享 `BookEditDialog`(dashboard 编辑当前书、书架编辑任意书复用,提交语义由 onSubmit 决定);书架 `BookCard` 右上角加编辑(✎)/删除(🗑)按钮(hover 显,`stopPropagation` 不触发卡片打开),当前书印章「阅」移至 eyebrow;`library-store` 加 `updateBook`/`deleteBook`(操作后刷新列表);dashboard 复用共享弹窗。删除前 `confirm` 提示不可恢复。
+
+**修改文件**:core(`storage/library-storage`、`storage/__tests__/library-storage.test`)+ studio(`api/services/library-service`、`api/library-server`、`api/routes/library`、`api/__tests__/library.test`、`stores/library-store`、`components/book-edit-dialog`🆕、`pages/library`、`pages/dashboard`)
+
+**验收**:core 301 + studio 152 测试绿、tsc 通过;curl 验证 `PUT /library/:slug` 改名/状态生效、`DELETE` 删当前书自动 fallback 到另一本(`GET /book` 拿到 fallback)、列表正确刷新、测试书清理后星河边缘恢复为 current。
+
+## 特性记录:导出移至书架 + Dashboard 瘦身(2026-06-27)
+
+**背景**:编辑/导出统一归到书架(对单本书的操作),dashboard 回归"当前书概览"纯展示。
+
+**实现**:
+- 后端:`library route` 加 `GET /library/:slug/export?format=txt|md`(为该书目录临时构建 `ChapterService`/`ExportService` 导出,不依赖当前打开的书)。
+- 前端:书架 `BookCard` 底部常显 TXT/MD 导出小按钮(文件名用书名);`dashboard` 移除编辑按钮与导出按钮,变为纯展示扉页 + 统计。
+
+**修改文件**:studio(`api/routes/library`、`api/__tests__/library.test`、`pages/library`、`pages/dashboard`)
+
+**验收**:studio 153 测试绿、tsc 通过;curl 导出星河边缘 md/txt 返回 200 + 6 章标题、不存在书 404。
+
+## 特性记录:Dashboard 统计增强(2026-06-27)
+
+**背景**:Dashboard 原仅展示卷数/章节数/总字数/状态,信息量不足。
+
+**实现**:
+- 后端:`StatsService` 返回 `avgWords`/`maxWords`/`minWords`/`lastUpdatedAt`;**字数指标(总/平均/最长/最短)只统计已发布章节**(草稿空章不计入,避免拉低),章节状态分布与 lastUpdatedAt 仍覆盖所有章节。
+- 前端:dashboard 分「篇幅 / 进度 / 节奏」三节展示 —— 扉页"始于 X · 已创作 N 天 · 更新 Y"副行;篇幅(已发布字数/章节总数/平均字数/最长·最短)、进度(卷数/草稿/审阅中/已发布)、节奏(创作天数/日均字数/最近写作)。创作天数/日均/相对时间前端计算;**无"完成度"**(系统无计划总章节数,算不出真正的完成度)。
+
+**修改文件**:studio(`api/services/stats-service`、`pages/dashboard`)
+
+**验收**:tsc 通过;curl `/stats` 字数只含已发布(totalWords 6212 / avgWords 1553 / maxWords 2623 / minWords 504),章节分布仍 total 6;`/book` 含 createdAt/updatedAt。
+
+## 特性记录:写作活跃热力图(2026-06-27)
+
+**背景**:书架页需展示写作活跃度(GitHub contribution 风格)。系统无逐日字数日志,采用近似口径。
+
+**实现**:
+- 后端:`LibraryService.getActivity(days)` 遍历书架所有书,每章字数归到其 `updatedAt` 那天,按天聚合,返回近 N 天(含 0)序列;`library route` 加 `GET /library/activity?days=`。
+- 前端:`ActivityGraph` 组件(GitHub 风格热力图:周列 × 7 行,朱砂 5 级色阶,月份标签 + 图例 + 悬浮显示日期字数);书架页"我的作品"标题下渲染;`library-store` 加 `activity`/`fetchActivity`(删除书后刷新)。
+
+**口径**:近似——每章字数归到其最后更新日(多天写的章节归一天),反映写作活动集中度而非精确每日增量。精确每日增量需新增写作日志(后续)。注:活跃图统计所有章节字数(含 draft 写作活动),与 Dashboard「篇幅」只统计已发布不同——两者口径各异但各自合理。
+
+**修改文件**:studio(`api/services/library-service`、`api/routes/library`、`stores/library-store`、`components/activity-graph`🆕、`pages/library`、`api/__tests__/stats-service.test` 口径调整)
+
+**验收**:tsc + studio 153 测试绿;curl `/library/activity?days=120` 返回 120 天,有写作日(06-16 · 6212、06-25 · 3847)。
+
 ## 特性记录:伏笔追踪替换时间线(/memory 页,2026-06-24)
 
 **背景**:时间线对复杂叙事(回忆/穿越/多世界)是错误抽象 —— `narrativeTime` 提取不准(第2章把回溯时间全塞进来),且与章节摘要内容重复。改用「伏笔追踪」:按**章节序**(不受叙事时间结构影响)+ 驱动 AI 写作的伏笔注入,零增量维护。

@@ -1,9 +1,12 @@
 import type { ReviewIssue, IssueSeverity } from '@storyweaver/core';
+import { Seal } from '@/components/ui/seal';
+import { VermilionMark } from '@/components/ui/vermilion-mark';
 
-const severityConfig: Record<IssueSeverity, { label: string; color: string; bg: string }> = {
-  high: { label: '严重', color: 'text-red-600', bg: 'bg-red-100' },
-  medium: { label: '中等', color: 'text-yellow-600', bg: 'bg-yellow-100' },
-  low: { label: '轻微', color: 'text-gray-500', bg: 'bg-gray-100' },
+const severityConfig: Record<IssueSeverity, { label: string; glyph: string; filled: boolean; text: string }> = {
+  // 朱批墨韵:严重度用印章标记,朱砂 = AI 标出的问题
+  high: { label: '严重', glyph: '◆', filled: true, text: 'text-vermilion' },
+  medium: { label: '中等', glyph: '◇', filled: false, text: 'text-vermilion/80' },
+  low: { label: '轻微', glyph: '○', filled: false, text: 'text-muted-foreground' },
 };
 
 const dimensionLabels: Record<string, string> = {
@@ -39,29 +42,29 @@ export function IssuesList({ issues }: { issues: ReviewIssue[] }) {
         const cfg = severityConfig[severity];
         return (
           <div key={severity}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${cfg.color} ${cfg.bg}`}>
-                {cfg.label}
-              </span>
-              <span className="text-xs text-muted-foreground">{items.length} 项</span>
+            <div className="mb-2 flex items-center gap-2">
+              <Seal variant={cfg.filled ? 'filled' : 'outline'} className="h-5 w-5 text-[0.6rem] [transform:none]">{cfg.glyph}</Seal>
+              <span className={`font-heading text-xs font-medium ${cfg.text}`}>{cfg.label}</span>
+              <span className="font-heading text-xs text-muted-foreground">{items.length} 项</span>
             </div>
             <div className="space-y-2">
               {items.map((issue, idx) => (
-                <div key={idx} className="rounded-lg border p-3 text-sm space-y-1">
+                <div key={idx} className="rounded-lg border border-l-2 border-l-vermilion/40 p-3 text-sm space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded text-xs bg-muted">
+                    <span className="rounded bg-muted px-1.5 py-0.5 font-heading text-xs">
                       {dimensionLabels[issue.dimension] ?? issue.dimension}
                     </span>
                     {issue.location && (
-                      <span className="text-xs text-muted-foreground">
+                      <VermilionMark className="text-xs text-muted-foreground">
                         {issue.location}
-                      </span>
+                      </VermilionMark>
                     )}
                   </div>
                   <div>{issue.description}</div>
                   {issue.suggestion && (
-                    <div className="text-muted-foreground">
-                      建议：{issue.suggestion}
+                    <div className="flex gap-1.5 text-muted-foreground">
+                      <Seal className="mt-0.5 h-4 w-4 shrink-0 text-[0.5rem] [transform:none]">朱</Seal>
+                      <span>{issue.suggestion}</span>
                     </div>
                   )}
                 </div>

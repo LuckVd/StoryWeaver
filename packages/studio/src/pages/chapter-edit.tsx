@@ -168,25 +168,25 @@ export function ChapterEditPage() {
   return (
     <div className="flex h-full flex-col">
       {/* 顶部栏 */}
-      <div className="flex items-center gap-3 border-b px-4 py-2">
+      <div className="flex items-center gap-3 border-b bg-card/60 px-5 py-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/chapters')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         {isReadonly ? (
-          <span className="text-lg font-semibold">{currentChapter.title}</span>
+          <span className="font-heading text-xl font-semibold">{currentChapter.title}</span>
         ) : (
           <Input
             value={title}
             onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
-            className="max-w-xs text-lg font-semibold"
+            className="max-w-xs font-heading text-xl font-semibold"
             style={{ border: 'none', boxShadow: 'none', padding: '0 4px' }}
           />
         )}
         <div className="flex shrink-0 items-center gap-2">
           <StatusBadge status={currentChapter.status} />
-          <span className="whitespace-nowrap text-sm text-muted-foreground">{wordCount} 字</span>
+          <span className="whitespace-nowrap font-heading text-sm text-muted-foreground">{wordCount} 字</span>
           {generatingSummary && (
-            <span className="flex items-center gap-1 text-xs text-primary">
+            <span className="flex items-center gap-1 text-xs text-vermilion">
               <RefreshCw className="h-3 w-3 animate-spin" /> 摘要生成中…
             </span>
           )}
@@ -200,7 +200,7 @@ export function ChapterEditPage() {
         )}
         {currentChapter.status === 'draft' && !dirty && (
           <>
-            <Button variant="outline" onClick={handleReview} disabled={loading || reviewing}>
+            <Button variant="vermilion" onClick={handleReview} disabled={loading || reviewing}>
               <CheckCircle className="mr-1 h-4 w-4" />
               {reviewing ? '审稿中...' : '提交审阅'}
             </Button>
@@ -252,7 +252,7 @@ export function ChapterEditPage() {
 
         {/* Chat Panel */}
         {showChat && (
-          <div className="w-[400px] shrink-0 border-l">
+          <div className="w-[400px] shrink-0 border-l bg-sidebar/40">
             <ChatPanel
               chapterId={chapterId}
               onClose={() => setShowChat(false)}

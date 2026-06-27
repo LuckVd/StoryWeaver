@@ -11,15 +11,15 @@ const dimensionLabels: Record<string, string> = {
 };
 
 function scoreColor(score: number): string {
-  if (score >= 8) return 'text-green-500';
-  if (score >= 5) return 'text-yellow-500';
-  return 'text-red-500';
+  if (score >= 8) return 'text-green-600';
+  if (score >= 5) return 'text-amber-600';
+  return 'text-vermilion';
 }
 
 function scoreBarColor(score: number): string {
-  if (score >= 8) return 'bg-green-500';
-  if (score >= 5) return 'bg-yellow-500';
-  return 'bg-red-500';
+  if (score >= 8) return 'bg-green-600';
+  if (score >= 5) return 'bg-amber-600';
+  return 'bg-vermilion';
 }
 
 export function ScoreCard({ report }: { report: ReviewReport }) {
@@ -27,7 +27,7 @@ export function ScoreCard({ report }: { report: ReviewReport }) {
     <div className="space-y-6">
       {/* 综合评分 */}
       <div className="flex items-center gap-6">
-        <div className={`text-5xl font-bold ${scoreColor(report.overallScore)}`}>
+        <div className={`font-heading text-5xl font-bold ${scoreColor(report.overallScore)}`}>
           {report.overallScore.toFixed(1)}
         </div>
         <div className="text-sm text-muted-foreground">
@@ -40,7 +40,7 @@ export function ScoreCard({ report }: { report: ReviewReport }) {
       <div className="space-y-3">
         {report.scores.map((s: ReviewScore) => (
           <div key={s.dimension} className="flex items-center gap-3 text-sm">
-            <div className="w-20 shrink-0 text-muted-foreground">
+            <div className="w-20 shrink-0 font-heading text-muted-foreground">
               {dimensionLabels[s.dimension] ?? s.dimension}
             </div>
             <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">

@@ -5,6 +5,7 @@
  */
 
 export * from './book.js';
+export * from './library.js';
 export * from './chapter.js';
 export * from './config.js';
 export * from './knowledge.js';

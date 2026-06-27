@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '@/lib/api-client';
+import { useChapterStore } from '@/stores/chapter-store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search as SearchIcon, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -22,9 +23,10 @@ const scopes = [
 
 const typeLabels: Record<string, string> = { chapter: '章节', knowledge: '知识库', summary: '摘要' };
 const typeBadgeClass: Record<string, string> = {
-  chapter: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  knowledge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  summary: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  // 朱批墨韵:章节=墨,知识库=朱砂(AI 用),摘要=中性
+  chapter: 'bg-primary/10 text-primary',
+  knowledge: 'bg-vermilion/15 text-vermilion',
+  summary: 'bg-muted text-muted-foreground',
 };
 const typeOrder = ['chapter', 'knowledge', 'summary'];
 const PAGE_SIZE = 8;
@@ -46,7 +48,7 @@ function highlight(text: string, query: string): ReactNode {
   const parts = text.split(new RegExp(`(${escapeRegExp(q)})`, 'gi'));
   return parts.map((p, i) =>
     p.toLowerCase() === q.toLowerCase() ? (
-      <mark key={i} className="rounded bg-yellow-200 px-0.5 text-inherit dark:bg-yellow-500/40">
+      <mark key={i} className="rounded bg-vermilion/20 px-0.5 text-inherit">
         {p}
       </mark>
     ) : (
@@ -57,6 +59,8 @@ function highlight(text: string, query: string): ReactNode {
 
 export function SearchPage() {
   const navigate = useNavigate();
+  const chapterOrder = useChapterStore((s) => s.chapterOrder);
+  const fetchVolumesAndChapters = useChapterStore((s) => s.fetchVolumesAndChapters);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<string>('all');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -65,6 +69,11 @@ export function SearchPage() {
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  // 章节序号映射(chapterId → 第N章),用于章节结果展示
+  useEffect(() => {
+    fetchVolumesAndChapters();
+  }, [fetchVolumesAndChapters]);
 
   const runSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -124,7 +133,7 @@ export function SearchPage() {
       </form>
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -145,7 +154,7 @@ export function SearchPage() {
                 <span className={`rounded px-2 py-0.5 text-xs ${typeBadgeClass[type]}`}>
                   {typeLabels[type]}
                 </span>
-                <span className="text-muted-foreground">{grouped[type].length}</span>
+                <span className="text-muted-foreground">{grouped[type].length} 条</span>
               </h3>
               <div className="space-y-2">
                 {grouped[type].map((r) => (
@@ -156,7 +165,14 @@ export function SearchPage() {
                     }`}
                     onClick={() => r.type === 'chapter' && navigate(`/chapters/${r.id}`)}
                   >
-                    <div className="mb-1 font-medium">{highlight(cleanSnippet(r.title, 60), query)}</div>
+                    <div className="mb-1 font-medium">
+                      {(r.type === 'chapter' || r.type === 'summary') && (
+                        <span className="mr-1 text-muted-foreground">
+                          第{chapterOrder[Number(r.id)] ?? r.id}章 ·{' '}
+                        </span>
+                      )}
+                      {highlight(cleanSnippet(r.title, 60), query)}
+                    </div>
                     <div className="text-sm leading-relaxed text-muted-foreground">
                       {highlight(cleanSnippet(r.snippet), query)}
                     </div>

@@ -84,6 +84,19 @@ class OllamaClient implements LLMClient {
       }
     }
   }
+
+  /** 列出本地已安装模型:GET /api/tags */
+  async listModels(): Promise<{ id: string; name?: string }[]> {
+    const url = `${this.baseUrl ?? OLLAMA_DEFAULT_BASE_URL}/api/tags`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Ollama tags ${res.status}: ${await res.text().catch(() => '')}`);
+    }
+    const data = (await res.json()) as { models?: Array<{ name?: string }> };
+    return (data.models ?? [])
+      .map((m) => ({ id: m.name ?? '', name: m.name }))
+      .filter((m) => m.id);
+  }
 }
 
 export class OllamaProvider implements LLMProvider {
