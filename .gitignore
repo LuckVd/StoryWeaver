@@ -18,5 +18,9 @@ Thumbs.db
 # Cache
 .cache/
 
+# Electron build artifacts
+out/
+release/
+
 # 模型配置(含 API Key,本地)——用 **/ 覆盖根目录及子包(如 packages/studio/config/)
 **/config/models.json

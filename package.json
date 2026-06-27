@@ -9,7 +9,9 @@
     "lint": "eslint packages/*/src --ext .ts,.tsx",
     "format": "prettier --write \"packages/*/src/**/*.{ts,tsx,json,css}\"",
     "test": "pnpm -r run test",
-    "clean": "pnpm -r run clean"
+    "clean": "pnpm -r run clean",
+    "electron:dev": "electron-vite dev",
+    "electron:build": "pnpm --filter @storyweaver/core run build && electron-vite build && electron-builder"
   },
   "engines": {
     "node": ">=20.0.0",
@@ -24,5 +26,14 @@
     "@tiptap/pm": "^3.23.6",
     "@tiptap/react": "^3.23.6",
     "@tiptap/starter-kit": "^3.23.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "dotenv": "^17.4.2",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "tailwindcss": "^4.3.0"
   }
 }
