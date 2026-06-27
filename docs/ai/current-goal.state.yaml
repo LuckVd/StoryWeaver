@@ -1,5 +1,5 @@
 goal_id: null
-title: "无活跃目标 — G04/G05/G06 已完成并合并 main,G07 生产化待启动"
+title: "无活跃目标 — G06 + 多书支持/大纲接通 已合并 main,G07 生产化待启动"
 stage: idle
 status: waiting
 selected_option: null
@@ -9,8 +9,9 @@ open_questions:
   - "是否启动 G07 生产化(测试覆盖 / 文档 / npm 发布 / CI-CD)?"
 implementation_steps: []
 test_scope: []
-test_result: "core 288 + studio 140 全绿(main,2026-06-24)"
+test_result: "core 301 + studio 153 全绿(main,2026-06-27)"
 recent_completed:
+  - "多书支持(书架模式)+ 大纲接通 AI 上下文(2026-06-27,合并 main c055903)"
   - "G04 Phase 4 SQLite 缓存层(4 子目标,2de629a)"
   - "G05 Phase 5 多模型 + 高级特性(8/9,S07 暂缓;多模型端到端接入 + GLM/DeepSeek 原生,4e389b4)"
   - "G06 Phase 6 打磨(S01-S07,S06 标注,dc172b5)"
@@ -19,4 +20,4 @@ dead_code_actions: []
 goal_candidates:
   - "G07 — Phase 7 生产化(待用户决定)"
 sync_status: done
-last_check_at: "2026-06-24"
+last_check_at: "2026-06-27"
