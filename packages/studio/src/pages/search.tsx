@@ -23,9 +23,10 @@ const scopes = [
 
 const typeLabels: Record<string, string> = { chapter: '章节', knowledge: '知识库', summary: '摘要' };
 const typeBadgeClass: Record<string, string> = {
-  chapter: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  knowledge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  summary: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  // 朱批墨韵:章节=墨,知识库=朱砂(AI 用),摘要=中性
+  chapter: 'bg-primary/10 text-primary',
+  knowledge: 'bg-vermilion/15 text-vermilion',
+  summary: 'bg-muted text-muted-foreground',
 };
 const typeOrder = ['chapter', 'knowledge', 'summary'];
 const PAGE_SIZE = 8;
@@ -47,7 +48,7 @@ function highlight(text: string, query: string): ReactNode {
   const parts = text.split(new RegExp(`(${escapeRegExp(q)})`, 'gi'));
   return parts.map((p, i) =>
     p.toLowerCase() === q.toLowerCase() ? (
-      <mark key={i} className="rounded bg-yellow-200 px-0.5 text-inherit dark:bg-yellow-500/40">
+      <mark key={i} className="rounded bg-vermilion/20 px-0.5 text-inherit">
         {p}
       </mark>
     ) : (
@@ -132,7 +133,7 @@ export function SearchPage() {
       </form>
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           {error}
         </div>
       )}

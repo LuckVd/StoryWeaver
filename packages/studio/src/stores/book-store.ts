@@ -7,8 +7,8 @@ interface BookState {
   loading: boolean;
   error: string | null;
   fetchBook: () => Promise<void>;
-  createBook: (input: { title: string; genre: string; language: string }) => Promise<void>;
-  updateBook: (patch: Partial<Pick<Book, 'title' | 'genre' | 'language' | 'status'>>) => Promise<void>;
+  createBook: (input: { title: string; author?: string; genre: string; language: string }) => Promise<void>;
+  updateBook: (patch: Partial<Pick<Book, 'title' | 'author' | 'genre' | 'language' | 'status'>>) => Promise<void>;
 }
 
 export const useBookStore = create<BookState>((set) => ({

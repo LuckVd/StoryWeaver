@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import { api } from '../lib/api-client';
 import type { ModelConfig, AgentModelConfig, AvailableModel } from '@storyweaver/core';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { Seal } from '@/components/ui/seal';
+import { Plus, Lightbulb, Pen, FileCheck, FileText, Microscope } from 'lucide-react';
+import { Zhipu, DeepSeek, OpenAI, Anthropic, Ollama } from '@lobehub/icons';
 
 /** 供应商预设(添加模型向导 Step1 卡片 + Step2 表单 + 保存回填都用它) */
 type ProviderId = 'glm' | 'deepseek' | 'openai' | 'anthropic' | 'ollama';
@@ -25,6 +28,19 @@ const PROVIDERS: ProviderPreset[] = [
   { id: 'anthropic', label: 'Anthropic', desc: 'Claude', icon: '🅰', baseUrl: 'https://api.anthropic.com', needKey: true, needBaseUrl: false },
   { id: 'ollama', label: 'Ollama', desc: '本地部署', icon: '🦙', baseUrl: 'http://localhost:11434', needKey: false, needBaseUrl: true },
 ];
+
+/** 供应商品牌图标(@lobehub/icons 官方 logo,优先 Color 品牌色变体,无则 Mono) */
+const brandIcon = (mod: ComponentType<{ size?: number }>) => {
+  const color = (mod as unknown as { Color?: ComponentType<{ size?: number }> }).Color;
+  return color ?? mod;
+};
+const PROVIDER_ICON: Record<ProviderId, ComponentType<{ size?: number }>> = {
+  glm: brandIcon(Zhipu),
+  deepseek: brandIcon(DeepSeek),
+  openai: brandIcon(OpenAI),
+  anthropic: brandIcon(Anthropic),
+  ollama: brandIcon(Ollama),
+};
 
 interface ModelsResp {
   models: ModelConfig[];
@@ -83,16 +99,16 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className="mx-auto w-full max-w-[1600px] px-6 py-6 sm:px-10 lg:px-16 lg:py-8 xl:px-24">
       {/* Tab 切换:模型配置 / 提示词(两者关注点不同,分开配置) */}
       <div className="mb-4 flex gap-1 border-b">
         {(['models', 'prompts'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+            className={`-mb-px border-b-2 px-4 py-2 font-heading text-sm font-medium transition-colors ${
               tab === t
-                ? 'border-primary text-primary'
+                ? 'border-vermilion text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -103,65 +119,63 @@ export function SettingsPage() {
 
       {tab === 'models' ? (
         <>
-          <div className="mb-4 flex items-center justify-between">
-            <h1 className="text-xl font-semibold">模型配置</h1>
-            <button
-              onClick={() => setEditing({ id: '', name: '', service: 'openai', apiKey: '' })}
-              className="rounded bg-primary px-3 py-1.5 text-primary-foreground"
-            >
-              + 添加模型
-            </button>
+          <div className="mb-6 flex items-end justify-between">
+            <div>
+              <h1 className="font-heading text-xl font-semibold">模型配置</h1>
+              <p className="mt-0.5 text-xs text-muted-foreground">管理可用模型 · 测试连接 · 分配给各环节</p>
+            </div>
+            <Button onClick={() => setEditing({ id: '', name: '', service: 'openai', apiKey: '' })}>
+              <Plus className="mr-1 h-4 w-4" /> 添加模型
+            </Button>
           </div>
 
           {loading ? (
             <div className="text-muted-foreground">加载中…</div>
           ) : models.length === 0 ? (
-            <div className="text-muted-foreground">
-              暂无模型,点击「添加模型」配置(openai / anthropic / ollama)。
+            <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+              暂无模型。点击「添加模型」配置 GLM / DeepSeek / OpenAI 兼容 / Anthropic / Ollama。
             </div>
           ) : (
-            <div className="space-y-2">
-              {models.map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded border p-3">
-                  <div className="min-w-0">
-                    <div className="font-medium">
-                      {m.name}{' '}
-                      <span className="text-xs text-muted-foreground">[{m.service}]</span>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {models.map((m) => {
+                const provider = PROVIDERS.find((p) => p.id === m.service);
+                const ProviderIcon = PROVIDER_ICON[m.service as ProviderId] ?? OpenAI;
+                return (
+                  <div key={m.id} className="flex flex-col rounded-lg border bg-card p-4">
+                    <div className="flex items-center gap-2">
+                      <ProviderIcon size={20} />
+                      <span className="truncate font-heading font-medium">{m.name}</span>
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {m.id} · {m.apiKey || '无 key'} {m.baseUrl ? `· ${m.baseUrl}` : ''}
+                    <div className="mt-1 text-xs text-muted-foreground">{provider?.label ?? m.service}</div>
+                    <div className="mt-2 truncate font-mono text-xs text-muted-foreground">
+                      {m.id} · {m.apiKey || '无 key'}{m.baseUrl ? ` · ${m.baseUrl}` : ''}
                     </div>
                     {testResult[m.id] && (
                       <div
-                        className={`text-xs ${testResult[m.id].ok ? 'text-green-600' : 'text-red-600'}`}
+                        className={cn(
+                          'mt-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs',
+                          testResult[m.id].ok
+                            ? 'bg-green-600/10 text-green-600'
+                            : 'bg-destructive/10 text-destructive',
+                        )}
                       >
                         {testResult[m.id].ok ? '✓' : '✗'} {testResult[m.id].message}
                       </div>
                     )}
+                    <div className="mt-3 flex items-center gap-1 border-t pt-3">
+                      <Button variant="outline" size="sm" className="flex-1" disabled={testing === m.id} onClick={() => handleTest(m.id)}>
+                        {testing === m.id ? '测试中…' : '测试'}
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditing(m)}>
+                        编辑
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(m.id)}>
+                        删除
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      disabled={testing === m.id}
-                      onClick={() => handleTest(m.id)}
-                      className="rounded border px-2 py-1 text-sm"
-                    >
-                      {testing === m.id ? '测试中…' : '测试'}
-                    </button>
-                    <button
-                      onClick={() => setEditing(m)}
-                      className="rounded border px-2 py-1 text-sm"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      onClick={() => handleDelete(m.id)}
-                      className="rounded border px-2 py-1 text-sm text-red-600"
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -211,6 +225,7 @@ function ModelForm({
   const [saving, setSaving] = useState(false);
 
   const preset = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0];
+  const PresetIcon = PROVIDER_ICON[preset.id];
 
   const handleFetch = async () => {
     setFetching(true);
@@ -267,28 +282,31 @@ function ModelForm({
         </CardHeader>
         <CardContent className="space-y-4">
           {step === 1 ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {PROVIDERS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setProvider(p.id);
-                    setBaseUrl(p.baseUrl ?? '');
-                    setStep(2);
-                  }}
-                  className={cn(
-                    'flex flex-col items-start gap-1.5 rounded-xl border p-4 text-left transition-all hover:border-primary/50 hover:shadow-sm',
-                    provider === p.id
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                      : 'border-border bg-background',
-                  )}
-                >
-                  <span className="text-2xl">{p.icon}</span>
-                  <span className="font-medium">{p.label}</span>
-                  <span className="text-xs text-muted-foreground">{p.desc}</span>
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-3">
+              {PROVIDERS.map((p) => {
+                const PIcon = PROVIDER_ICON[p.id];
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setProvider(p.id);
+                      setBaseUrl(p.baseUrl ?? '');
+                      setStep(2);
+                    }}
+                    className={cn(
+                      'flex flex-col items-start gap-1.5 rounded-xl border p-4 text-left transition-all hover:border-primary/50 hover:shadow-sm',
+                      provider === p.id
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                        : 'border-border bg-background',
+                    )}
+                  >
+                    {PIcon && <PIcon size={28} />}
+                    <span className="font-medium">{p.label}</span>
+                    <span className="text-xs text-muted-foreground">{p.desc}</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="space-y-4">
@@ -296,8 +314,9 @@ function ModelForm({
                 <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
                   ← 重选
                 </Button>
-                <span className="text-sm text-muted-foreground">
-                  {preset.icon} {preset.label}
+                <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  {PresetIcon && <PresetIcon size={16} />}
+                  {preset.label}
                 </span>
               </div>
 
@@ -442,6 +461,15 @@ const AGENT_LABELS: Record<string, string> = {
   curator: '抽离',
 };
 
+/** Agent 环节图标(lucide) */
+const AGENT_ICON: Record<string, ComponentType<{ size?: number; className?: string }>> = {
+  brainstormer: Lightbulb,
+  writer: Pen,
+  auditor: FileCheck,
+  summarizer: FileText,
+  curator: Microscope,
+};
+
 /** Agent 模型分配(G05-S03):默认模型 + 各 Agent 单独覆盖 */
 function AssignmentSection({ models }: { models: ModelConfig[] }) {
   const [assignment, setAssignment] = useState<AgentModelConfig>({ default: '' });
@@ -476,53 +504,56 @@ function AssignmentSection({ models }: { models: ModelConfig[] }) {
   const overrides = assignment.overrides ?? {};
 
   return (
-    <div className="mt-6">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">各环节模型分配</h2>
-        <button
-          onClick={save}
-          disabled={saving}
-          className="rounded bg-primary px-3 py-1 text-primary-foreground"
-        >
+    <div className="mt-8">
+      <div className="mb-3 flex items-end justify-between">
+        <div>
+          <h2 className="font-heading text-lg font-semibold">各环节模型分配</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">默认模型 + 单独覆盖某个环节</p>
+        </div>
+        <Button size="sm" onClick={save} disabled={saving}>
           {saving ? '保存中…' : '保存分配'}
-        </button>
+        </Button>
       </div>
-      <div className="space-y-2 rounded border p-3">
-        <label className="flex items-center gap-2 text-sm">
-          <span className="w-24">默认模型</span>
-          <select
-            className="flex-1 rounded border px-2 py-1"
-            value={assignment.default}
-            onChange={(e) => setDefault(e.target.value)}
-          >
-            <option value="">(未选)</option>
-            {models.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <button onClick={applyAll} className="rounded border px-2 py-1 text-xs">
-            应用到全部
-          </button>
-        </label>
-        {AGENTS.map((ag) => (
-          <label key={ag} className="flex items-center gap-2 text-sm">
-            <span className="w-24">{AGENT_LABELS[ag] ?? ag}</span>
-            <select
-              className="flex-1 rounded border px-2 py-1"
-              value={overrides[ag] ?? ''}
-              onChange={(e) => setOverride(ag, e.target.value)}
-            >
-              <option value="">(用默认)</option>
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
+      <div className="flex flex-wrap items-center gap-3 border-b pb-3">
+        <span className="w-16 shrink-0 font-heading text-sm">默认</span>
+        <select
+          className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          value={assignment.default}
+          onChange={(e) => setDefault(e.target.value)}
+        >
+          <option value="">(未选)</option>
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+        <Button variant="outline" size="xs" onClick={applyAll}>
+          应用到全部
+        </Button>
+      </div>
+      <div className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
+        {AGENTS.map((ag) => {
+          const AgentIcon = AGENT_ICON[ag] ?? Lightbulb;
+          return (
+            <label key={ag} className="flex items-center gap-2">
+              <AgentIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="w-10 shrink-0 font-heading text-sm">{AGENT_LABELS[ag] ?? ag}</span>
+              <select
+                className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                value={overrides[ag] ?? ''}
+                onChange={(e) => setOverride(ag, e.target.value)}
+              >
+                <option value="">(用默认)</option>
+                {models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
+        })}
       </div>
     </div>
   );
@@ -581,41 +612,72 @@ function PromptSection() {
   };
 
   return (
-    <div>
-      <div className="mb-2 flex items-center gap-2">
-        <h2 className="text-lg font-semibold">Prompt 管理</h2>
-        <select
-          value={selected}
-          onChange={(e) => select(e.target.value)}
-          className="rounded border px-2 py-1"
-        >
-          {prompts.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name}
-              {p.overridden ? ' *' : ''}
-            </option>
-          ))}
-        </select>
-        {data?.overridden && (
-          <button onClick={reset} className="rounded border px-2 py-1 text-sm">
-            恢复默认
-          </button>
+    <div className="flex h-[calc(100vh-8rem)] min-h-[24rem] gap-4">
+      {/* 左:提示词列表(替代下拉框,中文名 + 覆盖标记) */}
+      <div className="flex w-56 shrink-0 flex-col overflow-hidden rounded-lg border bg-sidebar/40">
+        <div className="border-b border-sidebar-border px-3 py-2">
+          <span className="font-heading text-sm font-semibold">提示词</span>
+        </div>
+        <div className="flex-1 overflow-auto p-2">
+          {prompts.map((p) => {
+            const active = p.name === selected;
+            return (
+              <button
+                key={p.name}
+                onClick={() => select(p.name)}
+                className={cn(
+                  'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left font-heading text-sm transition-colors',
+                  active
+                    ? 'bookmark-bar bg-sidebar-accent/60 font-medium'
+                    : 'text-muted-foreground hover:bg-sidebar-accent/40 hover:text-foreground',
+                )}
+              >
+                <span>{AGENT_LABELS[p.name] ?? p.name}</span>
+                {p.overridden && (
+                  <Seal className="h-4 w-4 shrink-0 text-[0.5rem] [transform:none]">朱</Seal>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 右:编辑区 */}
+      <div className="flex flex-1 flex-col">
+        {data ? (
+          <>
+            <div className="mb-2 flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-lg font-semibold">
+                  {AGENT_LABELS[selected] ?? selected}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {data.overridden ? '已自定义 · 保存后生效' : '默认提示词'}
+                </p>
+              </div>
+              {data.overridden && (
+                <Button variant="outline" size="sm" onClick={reset}>
+                  恢复默认
+                </Button>
+              )}
+            </div>
+            <textarea
+              className="w-full flex-1 resize-none rounded-lg border bg-background p-3 font-mono text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring"
+              value={data.content}
+              onChange={(e) => setData({ ...data, content: e.target.value })}
+            />
+            <div className="mt-2 flex justify-end">
+              <Button onClick={save} disabled={saving}>
+                {saving ? '保存中…' : '保存'}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+            从左侧选择一个提示词
+          </div>
         )}
       </div>
-      {data && (
-        <textarea
-          className="h-64 w-full rounded border p-2 font-mono text-sm"
-          value={data.content}
-          onChange={(e) => setData({ ...data, content: e.target.value })}
-        />
-      )}
-      <button
-        onClick={save}
-        disabled={saving || !data}
-        className="mt-2 rounded bg-primary px-3 py-1 text-primary-foreground"
-      >
-        {saving ? '保存中…' : '保存'}
-      </button>
     </div>
   );
 }

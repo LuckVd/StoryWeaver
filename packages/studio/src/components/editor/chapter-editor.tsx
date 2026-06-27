@@ -38,7 +38,7 @@ export function ChapterEditor({ content, editable, onUpdate }: ChapterEditorProp
   if (!editor) return null;
 
   return (
-    <div className="prose prose-sm max-w-none rounded-md border p-4">
+    <div className="mx-auto max-w-[46rem] px-2 py-8">
       <EditorContent editor={editor} />
     </div>
   );

@@ -107,7 +107,7 @@ export function EntityFormDialog({
               <div key={f.name} className="space-y-1">
                 <Label htmlFor={f.name}>
                   {f.label}
-                  {f.required && <span className="ml-0.5 text-red-500">*</span>}
+                  {f.required && <span className="ml-0.5 text-destructive">*</span>}
                 </Label>
 
                 {/* select */}
@@ -148,7 +148,7 @@ export function EntityFormDialog({
                             </span>
                             <button
                               type="button"
-                              className="text-red-400 hover:text-red-600"
+                              className="text-destructive/70 hover:text-destructive"
                               onClick={() => handleChange(f.name, undefined)}
                             >
                               清除

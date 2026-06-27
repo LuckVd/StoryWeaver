@@ -4,12 +4,14 @@ import { z } from 'zod';
 
 export const createBookSchema = z.object({
   title: z.string().min(1, '标题不能为空'),
+  author: z.string().optional(),
   genre: z.string().min(1, '类型不能为空'),
   language: z.string().min(1, '语言不能为空'),
 });
 
 export const updateBookSchema = z.object({
   title: z.string().min(1).optional(),
+  author: z.string().optional(),
   genre: z.string().min(1).optional(),
   language: z.string().min(1).optional(),
   status: z.enum(['drafting', 'in_progress', 'completed', 'archived']).optional(),

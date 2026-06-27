@@ -44,9 +44,9 @@ export function DiffViewer({ oldText, newText, oldLabel, newLabel }: DiffViewerP
         <pre className="font-mono leading-relaxed">
           {parts.map((part, i) => {
             const cls = part.added
-              ? 'bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-200'
+              ? 'bg-green-600/15'
               : part.removed
-                ? 'bg-red-100 text-red-900 line-through dark:bg-red-900/30 dark:text-red-200'
+                ? 'bg-destructive/15 text-destructive line-through'
                 : '';
             return (
               <span

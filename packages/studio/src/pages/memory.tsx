@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { Seal } from '@/components/ui/seal';
 import type { CharacterStates, CurationSuggestions, HookTracking, ActionLog } from '@storyweaver/core';
 import { useChapterStore } from '@/stores/chapter-store';
 
@@ -51,7 +52,7 @@ export function MemoryPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -61,9 +62,9 @@ export function MemoryPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm transition-colors ${
+            className={`-mb-px border-b-2 px-4 py-2 font-heading text-sm transition-colors ${
               tab === t
-                ? 'border-primary font-medium'
+                ? 'border-vermilion font-medium text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -258,7 +259,7 @@ function CuratorView() {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">{error}</div>
       )}
       {data.suggestions.map((s) => {
         const items: Array<{
@@ -287,8 +288,11 @@ function CuratorView() {
           })),
         ];
         return (
-          <div key={s.chapter} className="rounded-lg border bg-card p-4 shadow-sm">
-            <h3 className="mb-2 font-medium">第 {s.chapter} 章建议</h3>
+          <div key={s.chapter} className="rounded-lg border border-l-2 border-l-vermilion/40 bg-card p-4 shadow-sm">
+            <h3 className="mb-2 flex items-center gap-1.5 font-heading font-medium">
+              <Seal className="h-4 w-4 text-[0.5rem] [transform:none]">朱</Seal>
+              第 {s.chapter} 章建议
+            </h3>
             <div className="space-y-2">
               {items.map((it) => {
                 const key = `${s.chapter}:${it.type}:${it.name}`;
@@ -296,7 +300,7 @@ function CuratorView() {
                 return (
                   <div key={key} className="flex items-start justify-between gap-2 rounded-md bg-background p-2 text-sm">
                     <div>
-                      <span className="mr-1 rounded bg-muted px-1 text-xs">{typeLabel}</span>
+                      <span className="mr-1 rounded bg-muted px-1 font-heading text-xs">{typeLabel}</span>
                       <b>{it.name}</b> <span className="text-muted-foreground">{it.desc}</span>
                     </div>
                     <div className="flex gap-1">
@@ -346,7 +350,7 @@ function ActionLogView() {
   }, []);
 
   if (loading) return <div className="text-muted-foreground">加载中...</div>;
-  if (error) return <div className="text-sm text-red-600">{error}</div>;
+  if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (!log || log.entries.length === 0)
     return (
       <div className="text-muted-foreground">
@@ -367,7 +371,7 @@ function ActionLogView() {
         <div key={i} className="rounded-md border bg-card p-3 text-sm shadow-sm">
           <div className="flex items-center justify-between">
             <span>
-              <span className="rounded bg-muted px-1 text-xs">{label[e.action] ?? e.action}</span>{' '}
+              <span className="rounded bg-muted px-1 font-heading text-xs">{label[e.action] ?? e.action}</span>{' '}
               <b>{e.target}</b>
             </span>
             <span className="text-xs text-muted-foreground">{new Date(e.at).toLocaleString('zh-CN')}</span>

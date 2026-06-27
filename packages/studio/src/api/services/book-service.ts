@@ -11,13 +11,14 @@ export class BookService {
   ) {}
 
   /** 初始化新书 */
-  async create(input: { title: string; genre: string; language: string }): Promise<Book> {
+  async create(input: { title: string; author?: string; genre: string; language: string }): Promise<Book> {
     if (this.bookStorage.exists()) {
       throw new Error('BOOK_ALREADY_EXISTS');
     }
     const now = new Date().toISOString();
     const book: Book = {
       title: input.title,
+      author: input.author,
       genre: input.genre,
       language: input.language,
       status: 'drafting',
@@ -37,7 +38,7 @@ export class BookService {
   }
 
   /** 更新书籍信息 */
-  async update(patch: Partial<Pick<Book, 'title' | 'genre' | 'language' | 'status'>>): Promise<Book> {
+  async update(patch: Partial<Pick<Book, 'title' | 'author' | 'genre' | 'language' | 'status'>>): Promise<Book> {
     const book = await this.bookStorage.read();
     if (!book) {
       throw new Error('BOOK_NOT_FOUND');

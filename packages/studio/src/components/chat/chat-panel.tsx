@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useChatStore } from '@/stores/chat-store';
 import { ChatMessage } from './chat-message';
 import { ChatInput } from './chat-input';
+import { Seal } from '@/components/ui/seal';
 import { Button } from '@/components/ui/button';
 import { X, Check, Replace } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '@storyweaver/core';
@@ -77,11 +78,12 @@ export function ChatPanel({ chapterId, onClose, embedded }: ChatPanelProps) {
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center gap-2 border-b px-4 py-2">
-        <span className="text-sm font-semibold">
+        <Seal className="h-5 w-5 text-[0.6rem] [transform:none]">朱</Seal>
+        <span className="font-heading text-sm font-semibold">
           {currentSession?.title ?? '对话'}
         </span>
         {isStreaming && streamingAgent && (
-          <span className="text-xs text-muted-foreground">
+          <span className="font-heading text-xs text-vermilion/80">
             {streamingAgent} 正在生成…
           </span>
         )}

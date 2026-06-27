@@ -18,6 +18,8 @@ export interface VolumeMeta {
 /** 书籍元信息（对应 novel.yaml） */
 export interface Book {
   title: string;
+  /** 作者(可选) */
+  author?: string;
   genre: string;
   language: string;
   status: BookStatus;

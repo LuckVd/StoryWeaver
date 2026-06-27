@@ -262,7 +262,7 @@ function NodeEditor({
           </>
         )}
         {node.type !== 'book' && (
-          <button onClick={onRemove} className="rounded border px-2 py-1 text-sm text-red-600">
+          <button onClick={onRemove} className="rounded border px-2 py-1 text-sm text-destructive">
             删除节点
           </button>
         )}
