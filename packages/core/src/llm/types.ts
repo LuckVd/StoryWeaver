@@ -1,4 +1,14 @@
-import type { Message } from '../models/index.js';
+import type { Message, ToolCall } from '../models/index.js';
+
+/** 工具定义(原生 function calling) */
+export interface ToolDefinition {
+  /** 工具名 */
+  name: string;
+  /** 工具用途描述(供 LLM 决策是否调用) */
+  description: string;
+  /** 参数 JSON Schema */
+  parameters: Record<string, unknown>;
+}
 
 /**
  * LLM 调用选项
@@ -7,6 +17,10 @@ export interface ChatOptions {
   model: string;
   temperature?: number;
   maxTokens?: number;
+  /** 可用工具定义(原生 function calling);provider 不支持时忽略 */
+  tools?: ToolDefinition[];
+  /** 工具调用策略:'auto' 自动 / 'none' 禁用 / 'required' 必须调用 */
+  toolChoice?: 'auto' | 'none' | 'required';
   /** 额外传递给 Provider 的参数 */
   [key: string]: unknown;
 }
@@ -26,6 +40,8 @@ export interface TokenUsage {
 export interface ChatResult {
   content: string;
   usage?: TokenUsage;
+  /** 模型发起的工具调用(原生 function calling);无则为 undefined */
+  toolCalls?: ToolCall[];
 }
 
 /**
@@ -46,6 +62,8 @@ export interface LLMClient {
   chatCompletion(messages: Message[], options?: ChatOptions): Promise<ChatResult>;
   /** 流式补全 */
   chatCompletionStream(messages: Message[], options?: ChatOptions): AsyncGenerator<string>;
+  /** 是否支持原生工具调用(function calling);缺省 false。brainstormer 据此决定是否启用 agentic 探索 */
+  readonly supportsTools?: boolean;
   /** 列出当前凭证/端点下可用模型(可选,不支持时缺省) */
   listModels?(): Promise<AvailableModel[]>;
 }

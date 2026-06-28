@@ -5,12 +5,28 @@
  */
 
 /** LLM 消息角色 */
-export type MessageRole = 'system' | 'user' | 'assistant';
+export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
+
+/** 一次工具调用(由 assistant 消息发起) */
+export interface ToolCall {
+  /** 调用 ID,用于关联后续 tool 角色消息 */
+  id: string;
+  /** 工具名 */
+  name: string;
+  /** 参数(JSON 字符串) */
+  arguments: string;
+}
 
 /** LLM 消息 */
 export interface Message {
   role: MessageRole;
   content: string;
+  /** assistant 消息附带的一次或多次工具调用 */
+  toolCalls?: ToolCall[];
+  /** tool 角色消息关联的调用 ID */
+  toolCallId?: string;
+  /** tool 角色消息的工具名(部分 provider 需要) */
+  name?: string;
 }
 
 /** 对话消息（含元信息） */
