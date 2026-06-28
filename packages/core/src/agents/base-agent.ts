@@ -1,5 +1,5 @@
-import type { LLMClient, ChatOptions } from '../llm/types.js';
-import type { Message, AgentConfig } from '../models/index.js';
+import type { LLMClient, ChatOptions, ToolDefinition } from '../llm/types.js';
+import type { Message, AgentConfig, ToolCall } from '../models/index.js';
 import { z } from 'zod';
 
 /**
@@ -68,5 +68,63 @@ export abstract class BaseAgent {
       });
     }
     throw new Error('Failed to get structured output after retries');
+  }
+
+  /**
+   * 带工具的流式补全(原生 function calling 循环)。
+   *
+   * 循环调用 LLM:有 toolCalls 则经 executor 执行并追加 tool 消息后继续;
+   * 无 toolCalls(或迭代用尽)时输出最终回答(伪流式分段 yield,
+   * 避开流式 tool_calls 增量累积的复杂度)。
+   * 仅当 client.supportsTools 为真时使用;否则调用方应回退 chatStream。
+   */
+  protected async *chatWithToolsStream(
+    messages: Message[],
+    tools: ToolDefinition[],
+    executor: (call: ToolCall) => Promise<string>,
+    opts?: { maxIterations?: number; onToolCall?: (name: string, args: string) => void },
+  ): AsyncGenerator<string> {
+    const maxIterations = opts?.maxIterations ?? 5;
+    const history = [...messages];
+    for (let i = 0; i < maxIterations; i++) {
+      const forceFinal = i === maxIterations - 1;
+      const result = await this.client.chatCompletion(history, {
+        model: this.config.model,
+        temperature: this.config.temperature ?? 0.7,
+        tools,
+        toolChoice: forceFinal ? 'none' : 'auto',
+      });
+      const calls = result.toolCalls ?? [];
+      if (calls.length === 0 || forceFinal) {
+        yield* chunkStream(result.content);
+        return;
+      }
+      history.push({ role: 'assistant', content: result.content, toolCalls: calls });
+      for (const call of calls) {
+        opts?.onToolCall?.(call.name, call.arguments);
+        let toolResult: string;
+        try {
+          toolResult = await executor(call);
+        } catch (err) {
+          toolResult = JSON.stringify({
+            error: err instanceof Error ? err.message : '工具执行失败',
+          });
+        }
+        history.push({
+          role: 'tool',
+          content: toolResult,
+          toolCallId: call.id,
+          name: call.name,
+        });
+      }
+    }
+  }
+}
+
+/** 将文本按句号/换行分段 yield,模拟流式打字效果(用于工具循环的最终回答) */
+function* chunkStream(text: string): Generator<string> {
+  const parts = text.split(/(?<=[。！？\n.!?])/);
+  for (const p of parts) {
+    if (p) yield p;
   }
 }

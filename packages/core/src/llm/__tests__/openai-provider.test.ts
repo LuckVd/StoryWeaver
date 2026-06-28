@@ -117,6 +117,62 @@ describe('OpenAIProvider', () => {
 
       expect(mockCreate).toHaveBeenCalledTimes(3);
     });
+
+    it('原生 FC: supportsTools + 传 tools → 请求含 tools/tool_choice', async () => {
+      expect(client.supportsTools).toBe(true);
+      mockCreate.mockResolvedValue({ choices: [{ message: { content: 'ok' } }] });
+
+      await client.chatCompletion([{ role: 'user', content: 'Hi' }], {
+        model: 'gpt-4o',
+        tools: [{ name: 'search_knowledge', description: '查', parameters: { type: 'object' } }],
+        toolChoice: 'auto',
+      });
+
+      const params = mockCreate.mock.calls[0][0];
+      expect(params.tools).toEqual([
+        {
+          type: 'function',
+          function: { name: 'search_knowledge', description: '查', parameters: { type: 'object' } },
+        },
+      ]);
+      expect(params.tool_choice).toBe('auto');
+    });
+
+    it('原生 FC: 解析 response.tool_calls → ChatResult.toolCalls', async () => {
+      mockCreate.mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: '',
+              tool_calls: [
+                {
+                  id: 'call_1',
+                  type: 'function',
+                  function: { name: 'search_knowledge', arguments: '{"q":"x"}' },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      const result = await client.chatCompletion([{ role: 'user', content: 'Hi' }], {
+        model: 'gpt-4o',
+        tools: [{ name: 'search_knowledge', description: '查', parameters: { type: 'object' } }],
+      });
+
+      expect(result.toolCalls).toEqual([
+        { id: 'call_1', name: 'search_knowledge', arguments: '{"q":"x"}' },
+      ]);
+    });
+
+    it('无 tools 时不注入 tools/tool_choice(向后兼容)', async () => {
+      mockCreate.mockResolvedValue({ choices: [{ message: { content: 'ok' } }] });
+      await client.chatCompletion([{ role: 'user', content: 'Hi' }], { model: 'gpt-4o' });
+      const params = mockCreate.mock.calls[0][0];
+      expect(params.tools).toBeUndefined();
+      expect(params.tool_choice).toBeUndefined();
+    });
   });
 
   describe('chatCompletionStream', () => {

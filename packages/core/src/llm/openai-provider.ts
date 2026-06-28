@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import type { Message } from '../models/index.js';
-import type { LLMClient, LLMProvider, ChatOptions, ChatResult, TokenUsage } from './types.js';
+import type { LLMClient, LLMProvider, ChatOptions, ChatResult, TokenUsage, ToolDefinition } from './types.js';
 
 /** 重试配置 */
 const RETRY_MAX_ATTEMPTS = 3;
@@ -42,20 +42,51 @@ function extractUsage(response: OpenAI.Chat.Completions.ChatCompletion): TokenUs
   };
 }
 
-/**
- * 将 Message[] 转换为 OpenAI 格式
- */
-function toOpenAIMessages(messages: Message[]): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
-  return messages.map((m) => ({
-    role: m.role,
-    content: m.content,
-  })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+/** 将内部 ToolDefinition 转为 OpenAI tools 格式 */
+function toOpenAITool(tool: ToolDefinition): OpenAI.Chat.Completions.ChatCompletionTool {
+  return {
+    type: 'function',
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    },
+  };
 }
 
 /**
- * OpenAI LLM Client
+ * 将 Message[] 转换为 OpenAI 格式(支持 tool 角色 / assistant 的 toolCalls)
+ */
+function toOpenAIMessages(messages: Message[]): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
+  return messages.map((m): OpenAI.Chat.Completions.ChatCompletionMessageParam => {
+    if (m.role === 'tool') {
+      return {
+        role: 'tool',
+        content: m.content,
+        tool_call_id: m.toolCallId ?? '',
+        ...(m.name ? { name: m.name } : {}),
+      };
+    }
+    if (m.role === 'assistant' && m.toolCalls?.length) {
+      return {
+        role: 'assistant',
+        content: m.content ?? '',
+        tool_calls: m.toolCalls.map((tc) => ({
+          id: tc.id,
+          type: 'function' as const,
+          function: { name: tc.name, arguments: tc.arguments },
+        })),
+      };
+    }
+    return { role: m.role, content: m.content } as OpenAI.Chat.Completions.ChatCompletionMessageParam;
+  });
+}
+
+/**
+ * OpenAI LLM Client(同时服务于 GLM / DeepSeek —— 它们复用本类以获得原生 function calling)
  */
 export class OpenAIClient implements LLMClient {
+  readonly supportsTools = true;
   private readonly client: OpenAI;
   private readonly defaultModel: string;
 
@@ -73,14 +104,28 @@ export class OpenAIClient implements LLMClient {
       messages: toOpenAIMessages(messages),
       ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),
       ...(options?.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
+      ...(options?.tools?.length
+        ? {
+            tools: options.tools.map(toOpenAITool),
+            tool_choice: options.toolChoice ?? 'auto',
+          }
+        : {}),
     };
 
     let lastError: unknown;
     for (let attempt = 0; attempt < RETRY_MAX_ATTEMPTS; attempt++) {
       try {
         const response = await this.client.chat.completions.create(params);
-        const content = response.choices[0]?.message?.content ?? '';
-        return { content, usage: extractUsage(response) };
+        const msg = response.choices[0]?.message;
+        const content = msg?.content ?? '';
+        const toolCalls = msg?.tool_calls?.map((tc) => ({
+          id: tc.id,
+          name: tc.function.name,
+          arguments: tc.function.arguments,
+        }));
+        const result: ChatResult = { content, usage: extractUsage(response) };
+        if (toolCalls?.length) result.toolCalls = toolCalls;
+        return result;
       } catch (error) {
         lastError = error;
         if (!isRetryableError(error) || attempt === RETRY_MAX_ATTEMPTS - 1) {

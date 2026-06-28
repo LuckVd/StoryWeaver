@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { LLMClient, ChatOptions, ChatResult } from '../../llm/types.js';
-import type { Message, AgentConfig } from '../../models/index.js';
+import type { LLMClient, ChatOptions, ChatResult, ToolDefinition } from '../../llm/types.js';
+import type { Message, AgentConfig, ToolCall } from '../../models/index.js';
 import { BaseAgent } from '../base-agent.js';
 import { z } from 'zod';
 
@@ -16,6 +16,15 @@ class TestAgent extends BaseAgent {
 
   async callChatStructured<T>(messages: Message[], schema: z.ZodSchema<T>, maxRetries = 3) {
     return this.chatStructured(messages, schema, maxRetries);
+  }
+
+  async *callChatWithTools(
+    messages: Message[],
+    tools: ToolDefinition[],
+    executor: (call: ToolCall) => Promise<string>,
+    opts?: { maxIterations?: number; onToolCall?: (name: string, args: string) => void },
+  ) {
+    yield* this.chatWithToolsStream(messages, tools, executor, opts);
   }
 }
 
@@ -150,6 +159,89 @@ describe('BaseAgent', () => {
           2,
         ),
       ).rejects.toThrow('Failed to get structured output after retries');
+    });
+  });
+
+  describe('chatWithToolsStream()', () => {
+    const TOOLS: ToolDefinition[] = [
+      { name: 'search_knowledge', description: '查知识库', parameters: { type: 'object', properties: {} } },
+    ];
+
+    /** 按顺序返回预设响应的 mock client */
+    const mockClientSeq = (responses: ChatResult[]): { client: LLMClient; callCount: () => number } => {
+      let i = 0;
+      return {
+        client: {
+          supportsTools: true,
+          chatCompletion: vi.fn(async () => {
+            const r = responses[Math.min(i, responses.length - 1)];
+            i++;
+            return r;
+          }),
+          chatCompletionStream: async function* () {
+            yield 'unused';
+          },
+        } as unknown as LLMClient,
+        callCount: () => i,
+      };
+    };
+
+    const collect = async (gen: AsyncGenerator<string>): Promise<string> => {
+      const chunks: string[] = [];
+      for await (const c of gen) chunks.push(c);
+      return chunks.join('');
+    };
+
+    it('第1轮 toolCalls → 执行 → 第2轮输出最终回答', async () => {
+      const { client } = mockClientSeq([
+        { content: '', toolCalls: [{ id: 'c1', name: 'search_knowledge', arguments: '{"query":"张三"}' }] },
+        { content: '这是基于检索的最终回答。' },
+      ]);
+      const executor = vi.fn(async () => JSON.stringify({ results: ['张三是主角'] }));
+      const onToolCall = vi.fn();
+      const agent = new TestAgent(client, defaultConfig);
+
+      const out = await collect(agent.callChatWithTools([], TOOLS, executor, { onToolCall }));
+
+      expect(executor).toHaveBeenCalledTimes(1);
+      expect(executor.mock.calls[0][0].name).toBe('search_knowledge');
+      expect(onToolCall).toHaveBeenCalledWith('search_knowledge', '{"query":"张三"}');
+      expect(out).toBe('这是基于检索的最终回答。');
+    });
+
+    it('第1轮无 toolCalls → 直接输出,不执行工具', async () => {
+      const { client } = mockClientSeq([{ content: '直接回答。' }]);
+      const executor = vi.fn();
+      const agent = new TestAgent(client, defaultConfig);
+      const out = await collect(agent.callChatWithTools([], TOOLS, executor));
+      expect(executor).not.toHaveBeenCalled();
+      expect(out).toBe('直接回答。');
+    });
+
+    it('迭代上限用尽 → forceFinal 强制输出该轮 content', async () => {
+      const { client, callCount } = mockClientSeq([
+        { content: '', toolCalls: [{ id: 'c1', name: 'search_knowledge', arguments: '{}' }] },
+        { content: '收敛回答。', toolCalls: [{ id: 'c2', name: 'search_knowledge', arguments: '{}' }] },
+      ]);
+      const executor = vi.fn(async () => '{"ok":true}');
+      const agent = new TestAgent(client, defaultConfig);
+      const out = await collect(agent.callChatWithTools([], TOOLS, executor, { maxIterations: 2 }));
+      expect(callCount()).toBe(2);
+      expect(executor).toHaveBeenCalledTimes(1);
+      expect(out).toBe('收敛回答。');
+    });
+
+    it('executor 抛错 → 回填错误,循环继续到最终回答', async () => {
+      const { client } = mockClientSeq([
+        { content: '', toolCalls: [{ id: 'c1', name: 'search_knowledge', arguments: '{}' }] },
+        { content: '兜底回答。' },
+      ]);
+      const executor = vi.fn(async () => {
+        throw new Error('boom');
+      });
+      const agent = new TestAgent(client, defaultConfig);
+      const out = await collect(agent.callChatWithTools([], TOOLS, executor));
+      expect(out).toBe('兜底回答。');
     });
   });
 });
