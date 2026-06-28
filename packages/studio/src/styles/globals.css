@@ -58,6 +58,13 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* 自定义标题栏拖拽区(Electron frame:false);dev 浏览器无效 */
+.storyweaver-titlebar { -webkit-app-region: drag; }
+.storyweaver-titlebar button { -webkit-app-region: no-drag; }
+
+/* 4K/HiDPI 适配改由 Electron 主进程按物理像素设 zoomFactor(4K≈1.5x,见 electron/main.ts),
+   使物理字号与 2K 一致;CSS media query 会与 zoom 叠加,已移除。用户可 Ctrl+= / Ctrl+- / Ctrl+0 微调 */
+
 :root {
     /* 朱批墨韵 light:纸白 + 靛青墨 + 朱砂 */
     --background: oklch(0.958 0.008 95);
