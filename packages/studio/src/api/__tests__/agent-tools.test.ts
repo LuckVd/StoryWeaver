@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createToolExecutor, BRAINSTORMER_TOOLS } from '../services/agent-tools.js';
+import { createToolExecutor, AGENT_TOOLS } from '../services/agent-tools.js';
 import type { ToolCall } from '@storyweaver/core';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -27,8 +27,8 @@ function mockDeps(overrides: Record<string, any> = {}): any {
 }
 
 describe('agent-tools', () => {
-  it('BRAINSTORMER_TOOLS 含 5 个工具', () => {
-    expect(BRAINSTORMER_TOOLS.map((t) => t.name)).toEqual([
+  it('AGENT_TOOLS 含 5 个工具', () => {
+    expect(AGENT_TOOLS.map((t) => t.name)).toEqual([
       'search_knowledge',
       'get_character_history',
       'search_chapters',

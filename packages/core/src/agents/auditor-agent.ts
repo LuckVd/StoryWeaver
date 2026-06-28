@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import type { LLMClient, ChatOptions } from '../llm/types.js';
-import type { Message, AgentConfig } from '../models/index.js';
+import type { LLMClient, ChatOptions, ToolDefinition } from '../llm/types.js';
+import type { Message, AgentConfig, ToolCall } from '../models/index.js';
 import type { ReviewDimension, IssueSeverity, ReviewReport } from '../models/review.js';
 import { BaseAgent } from './base-agent.js';
 import { loadPrompt } from './prompts.js';
@@ -79,6 +79,27 @@ export class AuditorAgent extends BaseAgent {
     yield* this.chatStream(
       [{ role: 'system', content: this.systemPrompt }, ...messages],
       options,
+    );
+  }
+
+  /**
+   * 带工具的流式审稿(原生 function calling):审稿时可核对前文/设定/伏笔一致性。
+   * 不支持 FC 的 provider 自动降级。
+   */
+  async *auditStreamWithTools(
+    messages: Message[],
+    tools: ToolDefinition[],
+    executor: (call: ToolCall) => Promise<string>,
+    opts?: { maxIterations?: number; onToolCall?: (name: string, args: string) => void },
+  ): AsyncGenerator<string> {
+    const guidance = `\n\n【工具使用】审稿时可调用工具核对前文/设定/伏笔一致性:${tools
+      .map((t) => t.name)
+      .join('、')}。需要时调用核对,无需则直接审查。`;
+    yield* this.chatWithToolsStream(
+      [{ role: 'system', content: this.systemPrompt + guidance }, ...messages],
+      tools,
+      executor,
+      opts,
     );
   }
 

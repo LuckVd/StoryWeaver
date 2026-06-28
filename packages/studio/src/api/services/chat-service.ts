@@ -21,8 +21,8 @@ import {
   type SummaryStorage,
   type InjectionChapter,
 } from '@storyweaver/core';
-import type { InMemorySearchEngine } from '@storyweaver/core';
-import { BRAINSTORMER_TOOLS, createToolExecutor } from './agent-tools.js';
+import type { InMemorySearchEngine, ToolCall } from '@storyweaver/core';
+import { AGENT_TOOLS, createToolExecutor } from './agent-tools.js';
 import type { AIOperationQueue } from '../queue.js';
 import type { SSEEmitter } from '../sse.js';
 import type { ChapterService } from './chapter-service.js';
@@ -174,20 +174,16 @@ export class ChatService {
       // 广播开始
       this.sseEmitter.emit({ type: 'agent:start', data: { agent: agentName, stage: 'generating' } });
 
-      // brainstormer(有搜索引擎时)走原生 FC agentic:按需调用工具查阅资料;其余走普通流式
+      // 有搜索引擎时,所有 agent 走原生 FC agentic(按需查阅资料换准确度);否则普通流式
       let stream: AsyncGenerator<string>;
-      if (agentName === 'brainstormer' && this.searchEngine) {
+      if (this.searchEngine) {
         const executor = createToolExecutor({
           searchEngine: this.searchEngine,
           knowledgeService: this.knowledgeService,
           summaryStorage: this.summaryStorage,
           projectRoot: this.projectRoot,
         });
-        stream = (agent as BrainstormerAgent).brainstormStreamWithTools(messages, BRAINSTORMER_TOOLS, executor, {
-          maxIterations: 5,
-          onToolCall: (n) =>
-            this.sseEmitter.emit({ type: 'agent:thinking', data: { agent: 'brainstormer', stage: `查询 ${n}` } }),
-        });
+        stream = getStreamWithTools(agent, messages, executor, agentName, this.sseEmitter);
       } else {
         stream = getStream(agent, messages);
       }
@@ -380,6 +376,27 @@ function getStream(agent: AnyAgent, messages: Message[]): AsyncGenerator<string>
     return (agent as AuditorAgent).auditStream(messages);
   }
   return (agent as WriterAgent).writeStream(messages);
+}
+
+/** 获取 Agent 带工具的流式输出(原生 FC agentic,writer/auditor/brainstormer 通用) */
+function getStreamWithTools(
+  agent: AnyAgent,
+  messages: Message[],
+  executor: (call: ToolCall) => Promise<string>,
+  agentName: AgentName,
+  sseEmitter: SSEEmitter,
+): AsyncGenerator<string> {
+  const onToolCall = (n: string) =>
+    sseEmitter.emit({ type: 'agent:thinking', data: { agent: agentName, stage: `查询 ${n}` } });
+  const opts = { maxIterations: 5, onToolCall };
+  const a = agent as unknown as Record<string, unknown>;
+  if (a.name === 'writer') {
+    return (agent as WriterAgent).writeStreamWithTools(messages, AGENT_TOOLS, executor, opts);
+  }
+  if (a.name === 'auditor') {
+    return (agent as AuditorAgent).auditStreamWithTools(messages, AGENT_TOOLS, executor, opts);
+  }
+  return (agent as BrainstormerAgent).brainstormStreamWithTools(messages, AGENT_TOOLS, executor, opts);
 }
 
 /** 从最近几章摘要提取角色/地点关键词，供相关性检索召回 */

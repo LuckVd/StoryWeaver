@@ -18,6 +18,11 @@ vi.mock('@storyweaver/core', async (importOriginal) => {
         yield '，';
         yield '世界';
       },
+      writeStreamWithTools: async function* () {
+        yield '你好';
+        yield '，';
+        yield '世界';
+      },
     })),
     BrainstormerAgent: vi.fn().mockImplementation(() => ({
       name: 'brainstormer',
@@ -33,6 +38,10 @@ vi.mock('@storyweaver/core', async (importOriginal) => {
     AuditorAgent: vi.fn().mockImplementation(() => ({
       name: 'auditor',
       auditStream: async function* () {
+        yield '审稿';
+        yield '结果';
+      },
+      auditStreamWithTools: async function* () {
         yield '审稿';
         yield '结果';
       },

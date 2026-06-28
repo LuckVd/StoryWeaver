@@ -1,5 +1,5 @@
-import type { LLMClient, ChatOptions } from '../llm/types.js';
-import type { Message, AgentConfig } from '../models/index.js';
+import type { LLMClient, ChatOptions, ToolDefinition } from '../llm/types.js';
+import type { Message, AgentConfig, ToolCall } from '../models/index.js';
 import { BaseAgent } from './base-agent.js';
 import { loadPrompt } from './prompts.js';
 
@@ -33,6 +33,27 @@ export class WriterAgent extends BaseAgent {
     yield* this.chatStream(
       [{ role: 'system', content: this.systemPrompt }, ...messages],
       options,
+    );
+  }
+
+  /**
+   * 带工具的流式写作(原生 function calling):续写时可查阅前文/设定/伏笔/大纲以保持准确。
+   * 不支持 FC 的 provider 自动降级;最终仍只输出正文。
+   */
+  async *writeStreamWithTools(
+    messages: Message[],
+    tools: ToolDefinition[],
+    executor: (call: ToolCall) => Promise<string>,
+    opts?: { maxIterations?: number; onToolCall?: (name: string, args: string) => void },
+  ): AsyncGenerator<string> {
+    const guidance = `\n\n【工具使用】续写/改写时可调用工具查阅前文/设定/伏笔/大纲以保持准确:${tools
+      .map((t) => t.name)
+      .join('、')}。需要时调用,但最终只输出小说正文,不要解释或标注。`;
+    yield* this.chatWithToolsStream(
+      [{ role: 'system', content: this.systemPrompt + guidance }, ...messages],
+      tools,
+      executor,
+      opts,
     );
   }
 }

@@ -19,10 +19,10 @@ export interface ToolDeps {
 const MAX_TOOL_RESULT_CHARS = 2000;
 
 /**
- * brainstormer 可用的只读探索工具(原生 function calling)。
- * 让构思助手能按需查阅知识库/历史章节/伏笔/大纲,激发扎实灵感。
+ * 全 agent 通用只读探索工具(原生 function calling)。
+ * writer/auditor/brainstormer 均可按需查阅知识库/历史章节/伏笔/大纲,提升准确度。
  */
-export const BRAINSTORMER_TOOLS: ToolDefinition[] = [
+export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: 'search_knowledge',
     description: '按关键词检索知识库设定(角色/世界观/物品/规则等),返回相关条目。',
