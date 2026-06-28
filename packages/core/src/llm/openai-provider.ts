@@ -118,11 +118,11 @@ export class OpenAIClient implements LLMClient {
         const response = await this.client.chat.completions.create(params);
         const msg = response.choices[0]?.message;
         const content = msg?.content ?? '';
-        const toolCalls = msg?.tool_calls?.map((tc) => ({
-          id: tc.id,
-          name: tc.function.name,
-          arguments: tc.function.arguments,
-        }));
+        const toolCalls = msg?.tool_calls?.map((tc) => {
+          // 防御异常 provider 响应(function 缺失/字段异常),避免 TypeError
+          const fn = tc.function ?? { name: '', arguments: '{}' };
+          return { id: tc.id, name: fn.name ?? '', arguments: fn.arguments ?? '{}' };
+        });
         const result: ChatResult = { content, usage: extractUsage(response) };
         if (toolCalls?.length) result.toolCalls = toolCalls;
         return result;

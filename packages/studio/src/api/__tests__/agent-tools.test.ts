@@ -72,12 +72,12 @@ describe('agent-tools', () => {
     expect(parsed.hooks[0].name).toBe('伏笔A');
   });
 
-  it('结果超长被截断', async () => {
+  it('结果超长被截断(包装为合法 JSON)', async () => {
     const se = { search: vi.fn(() => [{ title: 'T', snippet: '字'.repeat(3000), score: 1 }]) };
     const executor = createToolExecutor(mockDeps({ searchEngine: se }));
     const r = await executor(mkCall('search_knowledge', { query: 'x' }));
     expect(r.length).toBeLessThan(3000);
-    expect(r.endsWith('…')).toBe(true);
+    expect(JSON.parse(r).truncated).toBe(true); // 合法 JSON + truncated 标志
   });
 
   it('get_outline_node 无大纲时回 error', async () => {

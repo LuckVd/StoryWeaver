@@ -114,7 +114,7 @@ export class ChatService {
     session.updatedAt = new Date().toISOString();
 
     // 确定 Agent
-    const llmClient = this.llmClient ?? undefined;
+    const llmClient = this.ensureLLMClient();
     const agentName: AgentName =
       context?.agentOverride ?? (await routeUserMessage(userContent, undefined, llmClient));
 
@@ -218,7 +218,9 @@ export class ChatService {
       if (agentName === 'auditor') {
         try {
           const chapterId = session.chapterId ?? context?.chapterRef ?? 0;
-          const report = await (agent as AuditorAgent).audit(messages, chapterId);
+          // 把流式审阅注入 audit 上下文,使结构化报告(评分/问题)与用户所见审阅一致
+          const auditMessages: Message[] = [...messages, { role: 'assistant', content: fullContent }];
+          const report = await (agent as AuditorAgent).audit(auditMessages, chapterId);
           await this.saveReviewReport(report);
           this.sseEmitter.emit({ type: 'review:score', data: { score: report.overallScore, issues: report.issues } });
         } catch {
@@ -307,16 +309,12 @@ export class ChatService {
 
   // --- LLM 初始化 ---
 
-  private initLLM(): { client: LLMClient; model: string } {
-    if (this.llmClient) {
-      return { client: this.llmClient, model: process.env.OPENAI_MODEL ?? 'gpt-4o' };
-    }
-
+  /** 确保 LLM client 就绪(有 key 则构建并缓存,无则返回 undefined 降级)。
+   *  路由分类需在 agent 创建前使用 client,故提前由此方法初始化 this.llmClient。 */
+  private ensureLLMClient(): LLMClient | undefined {
+    if (this.llmClient) return this.llmClient;
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY 未配置，请在 .env 文件中设置');
-    }
-
+    if (!apiKey) return undefined;
     const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
     const baseUrl = process.env.OPENAI_BASE_URL;
     const config: ModelConfig = {
@@ -326,9 +324,16 @@ export class ChatService {
       apiKey,
       ...(baseUrl ? { baseUrl } : {}),
     };
-
     this.llmClient = createLLMClient(config);
-    return { client: this.llmClient, model };
+    return this.llmClient;
+  }
+
+  private initLLM(): { client: LLMClient; model: string } {
+    const client = this.ensureLLMClient();
+    if (!client) {
+      throw new Error('OPENAI_API_KEY 未配置，请在 .env 文件中设置');
+    }
+    return { client, model: process.env.OPENAI_MODEL ?? 'gpt-4o' };
   }
 
   /** 根据 Agent 名称获取对应 Agent 实例(按 assignment 选模型,模型变更时重建) */

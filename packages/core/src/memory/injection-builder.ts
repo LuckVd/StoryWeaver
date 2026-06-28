@@ -73,11 +73,11 @@ export interface InjectionBudget {
   budgetFill: number;
 }
 
-/** 估算 token 数:中文按字(≈1 token/字),英文按词(≈1.3 token/词),比纯字符数更贴近实际 */
-function estimateTokens(text: string): number {
-  const cjk = (text.match(/[一-鿿]/g) || []).length;
-  const words = (text.replace(/[一-鿿]/g, ' ').match(/[a-zA-Z0-9]+/g) || []).length;
-  return cjk + Math.ceil(words * 1.3);
+/** 估算上下文占用(按字符数,中文标点全计入)。
+ *  全程统一字符单位,与 dialogChars/truncate 一致;模型窗口(token)直接作字符预算
+ *  (中文 1 字≈1 token,作安全上界;英文偏保守,不会溢出)。*/
+function estimateChars(text: string): number {
+  return text.length;
 }
 
 /** 按字符截断(保留前部 + 省略号) */
@@ -109,7 +109,7 @@ export function coordinateBudget(
 /** 组装四档注入文本 */
 export function buildInjection(input: InjectionInput): InjectionResult {
   const constant = buildConstant(input);
-  const budget = coordinateBudget(input.model, estimateTokens(constant), input.dialogChars);
+  const budget = coordinateBudget(input.model, estimateChars(constant), input.dialogChars);
 
   const chapterContext = input.chapter
     ? truncate(buildChapterContext(input.chapter), budget.chapterContext)

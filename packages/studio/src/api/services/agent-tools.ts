@@ -110,7 +110,9 @@ function str(v: unknown, d = ''): string {
 
 function cap(obj: unknown): string {
   const s = JSON.stringify(obj);
-  return s.length > MAX_TOOL_RESULT_CHARS ? s.slice(0, MAX_TOOL_RESULT_CHARS) + '…' : s;
+  if (s.length <= MAX_TOOL_RESULT_CHARS) return s;
+  // 截断时包装为合法 JSON(原前缀转字符串),避免坏 JSON 喂回模型
+  return JSON.stringify({ truncated: true, partial: s.slice(0, MAX_TOOL_RESULT_CHARS) });
 }
 
 async function runSearchKnowledge(deps: ToolDeps, args: Record<string, unknown>): Promise<string> {

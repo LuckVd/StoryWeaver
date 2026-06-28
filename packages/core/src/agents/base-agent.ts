@@ -84,7 +84,8 @@ export abstract class BaseAgent {
     executor: (call: ToolCall) => Promise<string>,
     opts?: { maxIterations?: number; onToolCall?: (name: string, args: string) => void },
   ): AsyncGenerator<string> {
-    const maxIterations = opts?.maxIterations ?? 5;
+    // 至少 2 轮:1 次工具调用 + 1 次最终生成;=1 会无法在调工具后生成最终回答
+    const maxIterations = Math.max(2, opts?.maxIterations ?? 5);
     const history = [...messages];
     for (let i = 0; i < maxIterations; i++) {
       const forceFinal = i === maxIterations - 1;
