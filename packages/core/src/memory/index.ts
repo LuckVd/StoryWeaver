@@ -10,3 +10,10 @@ export {
   getChapterNodesFlat,
 } from './outline-locator.js';
 export type { OutlineNeighbors } from './outline-locator.js';
+export { buildInjection, coordinateBudget } from './injection-builder.js';
+export type {
+  InjectionInput,
+  InjectionResult,
+  InjectionChapter,
+  InjectionBudget,
+} from './injection-builder.js';

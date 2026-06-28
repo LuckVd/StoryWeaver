@@ -1,0 +1,162 @@
+import { describe, it, expect, vi } from 'vitest';
+import { buildInjection, coordinateBudget } from '../injection-builder.js';
+import type { InjectionInput } from '../injection-builder.js';
+import type { Rule } from '../../models/knowledge.js';
+import type { ChapterSummary, StoryStateSnapshot } from '../../models/memory.js';
+import type { InMemorySearchEngine, SearchResult } from '../../search/index.js';
+import type { OutlineNode } from '../../models/knowledge.js';
+
+function mockSearchEngine(results: SearchResult[]): InMemorySearchEngine {
+  return { search: vi.fn(() => results) } as unknown as InMemorySearchEngine;
+}
+
+function mkRule(id: string, name: string, priority: Rule['priority']): Rule {
+  return { id, category: 'custom', name, content: `${name}内容`, priority, createdAt: '', updatedAt: '' };
+}
+
+function mkSummary(chapter: number, title: string): ChapterSummary {
+  return {
+    chapter,
+    volume: 1,
+    title,
+    plotEvents: [],
+    plotOutcome: `${title}结果`,
+    charactersPresent: [],
+    characterActions: {},
+    newRevealedInfo: [],
+    locationsUsed: [],
+    hooksAdvanced: [],
+    hooksPlanted: [],
+    stateChanges: [],
+    wordCount: 100,
+  };
+}
+
+function mkChapter(id: number, title: string, summary?: string): OutlineNode {
+  return { id: `c${id}`, type: 'chapter', title, summary, chapterId: id, sortOrder: id };
+}
+
+function baseInput(overrides: Partial<InjectionInput> = {}): InjectionInput {
+  return {
+    model: 'glm-4',
+    systemPrompt: '你是写作助手',
+    chapter: null,
+    outlineNeighbors: { current: null, before: [], after: [] },
+    rules: [],
+    storyState: null,
+    entities: [],
+    summaries: [],
+    hooks: [],
+    batchSummaries: [],
+    characterStates: null,
+    dialogChars: 0,
+    currentChapter: 0,
+    ...overrides,
+  };
+}
+
+describe('injection-builder', () => {
+  describe('coordinateBudget', () => {
+    it('① + 对话 + 输出预留后,②③④ 按比例分配', () => {
+      // 128000 - 5000 - 4000 - 3000 = 116000;②=23200;③=(116000-23200)*0.6=55680
+      const b = coordinateBudget('glm-4', 5000, 3000);
+      expect(b.constant).toBe(5000);
+      expect(b.chapterContext).toBe(23200);
+      expect(b.retrieved).toBe(55680);
+      expect(b.budgetFill).toBeGreaterThan(0);
+    });
+
+    it('① 过大挤压窗口时 ②③④ 归零但①不丢', () => {
+      // gpt-3.5-turbo 窗口 16385;①16000 + 输出4000 > 窗口 → remaining=0
+      const b = coordinateBudget('gpt-3.5-turbo', 16000, 0);
+      expect(b.constant).toBe(16000);
+      expect(b.chapterContext).toBe(0);
+      expect(b.retrieved).toBe(0);
+      expect(b.budgetFill).toBe(0);
+    });
+  });
+
+  describe('buildInjection', () => {
+    it('① 含 systemPrompt + 规则全量 + 大纲导航 + 状态', () => {
+      const r = buildInjection(
+        baseInput({
+          rules: [mkRule('r1', '禁穿越', 'high'), mkRule('r2', '人称', 'low')],
+          outlineNeighbors: {
+            current: mkChapter(3, '第三章', '高潮'),
+            before: [mkChapter(2, '第二章', '铺垫')],
+            after: [mkChapter(4, '第四章', '收尾')],
+          },
+          storyState: {
+            lastPublishedChapter: 2,
+            currentArc: '主线',
+            activeCharacters: ['张三'],
+            currentLocation: '京城',
+            recentEvents: ['e1'],
+            openQuestions: ['q1'],
+            updatedAt: '',
+          } as StoryStateSnapshot,
+        }),
+      );
+      expect(r.constant).toContain('你是写作助手');
+      expect(r.constant).toContain('禁穿越');
+      expect(r.constant).toContain('人称');
+      expect(r.constant).toContain('[本章] 第三章:高潮');
+      expect(r.constant).toContain('[前文] 第二章:铺垫');
+      expect(r.constant).toContain('当前主线:主线');
+    });
+
+    it('规则按优先级排序(high 在前)', () => {
+      const r = buildInjection(
+        baseInput({ rules: [mkRule('r1', '低优', 'low'), mkRule('r2', '高优', 'high')] }),
+      );
+      expect(r.constant.indexOf('高优')).toBeLessThan(r.constant.indexOf('低优'));
+    });
+
+    it('② 含章节标题/卷序 + 尾部正文', () => {
+      const r = buildInjection(
+        baseInput({
+          chapter: { id: 5, title: '决战', volumeTitle: '第二卷', contentTail: '他拔剑。' },
+        }),
+      );
+      expect(r.chapterContext).toContain('第5章「决战」');
+      expect(r.chapterContext).toContain('第二卷');
+      expect(r.chapterContext).toContain('他拔剑。');
+    });
+
+    it('③ 含按实体检索的相关设定', () => {
+      const se = mockSearchEngine([
+        { type: 'knowledge', id: 'k1', title: '张三', snippet: '主角', score: 1 },
+      ]);
+      const r = buildInjection(baseInput({ searchEngine: se, entities: ['张三'] }));
+      expect(r.retrieved).toContain('张三');
+      expect(r.retrieved).toContain('主角');
+    });
+
+    it('④ 近章摘要按近→远排列', () => {
+      const r = buildInjection(
+        baseInput({
+          summaries: [mkSummary(3, '三章'), mkSummary(1, '一章'), mkSummary(2, '二章')],
+        }),
+      );
+      expect(r.budgetFill).toContain('三章');
+      expect(r.budgetFill.indexOf('三章')).toBeLessThan(r.budgetFill.indexOf('二章'));
+    });
+
+    it('长正文尾部按②预算截断(小窗口)', () => {
+      const longTail = '字'.repeat(50000);
+      const r = buildInjection(
+        baseInput({
+          model: 'gpt-3.5-turbo',
+          chapter: { id: 1, title: 't', contentTail: longTail },
+        }),
+      );
+      expect(r.chapterContext.length).toBeLessThan(longTail.length);
+      expect(r.chapterContext.endsWith('…')).toBe(true);
+    });
+
+    it('无章节绑定时 ② 为空', () => {
+      const r = buildInjection(baseInput());
+      expect(r.chapterContext).toBe('');
+    });
+  });
+});
