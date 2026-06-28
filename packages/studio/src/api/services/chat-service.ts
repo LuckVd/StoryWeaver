@@ -22,6 +22,7 @@ import {
   type InjectionChapter,
 } from '@storyweaver/core';
 import type { InMemorySearchEngine } from '@storyweaver/core';
+import { BRAINSTORMER_TOOLS, createToolExecutor } from './agent-tools.js';
 import type { AIOperationQueue } from '../queue.js';
 import type { SSEEmitter } from '../sse.js';
 import type { ChapterService } from './chapter-service.js';
@@ -173,9 +174,26 @@ export class ChatService {
       // 广播开始
       this.sseEmitter.emit({ type: 'agent:start', data: { agent: agentName, stage: 'generating' } });
 
+      // brainstormer(有搜索引擎时)走原生 FC agentic:按需调用工具查阅资料;其余走普通流式
+      let stream: AsyncGenerator<string>;
+      if (agentName === 'brainstormer' && this.searchEngine) {
+        const executor = createToolExecutor({
+          searchEngine: this.searchEngine,
+          knowledgeService: this.knowledgeService,
+          summaryStorage: this.summaryStorage,
+          projectRoot: this.projectRoot,
+        });
+        stream = (agent as BrainstormerAgent).brainstormStreamWithTools(messages, BRAINSTORMER_TOOLS, executor, {
+          maxIterations: 5,
+          onToolCall: (n) =>
+            this.sseEmitter.emit({ type: 'agent:thinking', data: { agent: 'brainstormer', stage: `查询 ${n}` } }),
+        });
+      } else {
+        stream = getStream(agent, messages);
+      }
+
       let fullContent = '';
       try {
-        const stream = getStream(agent, messages);
         for await (const token of stream) {
           fullContent += token;
           this.sseEmitter.emit({ type: 'agent:token', data: { agent: agentName, token } });

@@ -1,5 +1,5 @@
-import type { LLMClient, ChatOptions } from '../llm/types.js';
-import type { Message, AgentConfig } from '../models/index.js';
+import type { LLMClient, ChatOptions, ToolDefinition } from '../llm/types.js';
+import type { Message, AgentConfig, ToolCall } from '../models/index.js';
 import { BaseAgent } from './base-agent.js';
 import { loadPrompt } from './prompts.js';
 
@@ -33,6 +33,27 @@ export class BrainstormerAgent extends BaseAgent {
     yield* this.chatStream(
       [{ role: 'system', content: this.systemPrompt }, ...messages],
       options,
+    );
+  }
+
+  /**
+   * 带工具的流式构思(原生 function calling):允许 AI 按需查阅知识库/历史章节/伏笔/大纲。
+   * 内部走 BaseAgent.chatWithToolsStream 工具循环;不支持 FC 的 provider 会自动降级(忽略工具直接回答)。
+   */
+  async *brainstormStreamWithTools(
+    messages: Message[],
+    tools: ToolDefinition[],
+    executor: (call: ToolCall) => Promise<string>,
+    opts?: { maxIterations?: number; onToolCall?: (name: string, args: string) => void },
+  ): AsyncGenerator<string> {
+    const guidance = `\n\n【工具使用】构思时可调用工具按需查阅资料以丰富灵感:${tools
+      .map((t) => t.name)
+      .join('、')}。需要时调用,无需则直接回答。`;
+    yield* this.chatWithToolsStream(
+      [{ role: 'system', content: this.systemPrompt + guidance }, ...messages],
+      tools,
+      executor,
+      opts,
     );
   }
 }
