@@ -158,5 +158,23 @@ describe('injection-builder', () => {
       const r = buildInjection(baseInput());
       expect(r.chapterContext).toBe('');
     });
+
+    it('极端:小窗口 + 大量规则 → ①规则全保,②③④让位', () => {
+      const rules = Array.from({ length: 60 }, (_, i) => mkRule(`r${i}`, `规则${i}`, 'high'));
+      const r = buildInjection(
+        baseInput({
+          model: 'gpt-3.5-turbo',
+          rules,
+          chapter: { id: 1, title: 't', contentTail: '字'.repeat(50000) },
+          summaries: [mkSummary(1, 's1'), mkSummary(2, 's2')],
+        }),
+      );
+      // ① 所有规则全保(恒定档不截断,溢出从②③④丢)
+      for (let i = 0; i < 60; i++) {
+        expect(r.constant).toContain(`规则${i}`);
+      }
+      // ② 长正文被截断,不溢出
+      expect(r.chapterContext.length).toBeLessThan(50000);
+    });
   });
 });
