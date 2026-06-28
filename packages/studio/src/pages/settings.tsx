@@ -63,6 +63,14 @@ export function SettingsPage() {
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, TestResp>>({});
   const [tab, setTab] = useState<'models' | 'prompts'>('models');
+  const [zoom, setZoom] = useState(1);
+  useEffect(() => {
+    window.storyweaver?.getZoom().then(setZoom);
+  }, []);
+  const changeZoom = async (v: number) => {
+    setZoom(v);
+    await window.storyweaver?.setZoom(v);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -100,6 +108,27 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-6 py-6 sm:px-10 lg:px-16 lg:py-8 xl:px-24">
+      {/* 界面缩放(4K/高分辨率屏调节,持久化到 userData) */}
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <CardTitle className="font-heading text-base">界面缩放</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center gap-4">
+          <input
+            type="range"
+            min={0.5}
+            max={2.5}
+            step={0.1}
+            value={zoom}
+            onChange={(e) => changeZoom(Number(e.target.value))}
+            className="flex-1 accent-vermilion"
+          />
+          <span className="w-14 shrink-0 text-right font-heading text-sm tabular-nums text-muted-foreground">
+            {Math.round(zoom * 100)}%
+          </span>
+        </CardContent>
+      </Card>
+
       {/* Tab 切换:模型配置 / 提示词(两者关注点不同,分开配置) */}
       <div className="mb-4 flex gap-1 border-b">
         {(['models', 'prompts'] as const).map((t) => (

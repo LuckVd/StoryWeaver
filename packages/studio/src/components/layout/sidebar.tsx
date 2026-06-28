@@ -7,7 +7,7 @@ import { useBookStore } from '@/stores/book-store';
 import { Seal } from '@/components/ui/seal';
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: Home },
+  { to: '/dashboard', label: '仪表盘', icon: Home },
   { to: '/chapters', label: '章节', icon: BookOpen },
   { to: '/outline', label: '大纲', icon: ListTree },
   { to: '/chat', label: 'AI 对话', icon: MessageSquare },
@@ -20,7 +20,7 @@ const navItems = [
 
 export function Sidebar() {
   const { theme, toggle } = useTheme();
-  const { book, fetchBook } = useBookStore();
+  const { fetchBook } = useBookStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,25 +28,21 @@ export function Sidebar() {
   }, [fetchBook]);
 
   return (
-    <aside className="flex h-screen w-56 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <aside className="flex h-full w-56 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
         <Seal variant="filled" className="h-6 w-6 text-[0.6rem]">墨</Seal>
         <span className="font-heading text-lg font-bold tracking-wide">StoryWeaver</span>
       </div>
 
-      {/* 当前书入口:点击进入书架切换/新建 */}
+      {/* 书架入口:点击进入书架切换/新建(书名显示在顶部标题栏) */}
       <button
         onClick={() => navigate('/library')}
         className="mx-2 mt-2 flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-left transition-colors hover:bg-sidebar-accent/50"
       >
-        <Seal variant="filled" className="h-5 w-5 shrink-0 text-[0.5rem]">书</Seal>
+        <Seal variant="filled" className="h-5 w-5 shrink-0 text-[0.5rem]">架</Seal>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-heading text-sm font-medium text-sidebar-foreground">
-            {book?.title ?? '打开书架'}
-          </span>
-          <span className="block font-heading text-[0.65rem] text-sidebar-foreground/50">
-            {book ? '点击切换书籍' : '尚无打开的书'}
-          </span>
+          <span className="block font-heading text-sm font-medium text-sidebar-foreground">书架</span>
+          <span className="block font-heading text-[0.65rem] text-sidebar-foreground/50">管理 / 切换书籍</span>
         </span>
       </button>
 
@@ -55,7 +51,6 @@ export function Sidebar() {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-md px-3 py-2 font-heading text-sm transition-colors',

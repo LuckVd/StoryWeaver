@@ -90,7 +90,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       await api.post<{ slug: string; book: Book }>(`/library/${slug}/activate`, {});
-      window.location.href = '/';
+      // 切书后整页刷新,所有 store 重新拉取新书(file:// 下不能用 href='/',会跳文件系统根)
+      window.location.reload();
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Unknown error', loading: false });
     }

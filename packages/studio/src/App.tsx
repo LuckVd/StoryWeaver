@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router';
+import { createHashRouter, RouterProvider, Navigate } from 'react-router';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppLayout } from '@/components/layout/app-layout';
 import { DashboardPage } from '@/pages/dashboard';
@@ -15,12 +15,15 @@ import { MemoryPage } from '@/pages/memory';
 import { OutlinePage } from '@/pages/outline';
 import { NotFoundPage } from '@/pages/not-found';
 
-const router = createBrowserRouter([
+// HashRouter:Electron 以 file:// 加载 index.html,BrowserRouter 依 pathname 匹配
+// 会落到文件路径 → 404;hash 路由(#/path)不依赖 pathname,桌面应用标准做法。
+const router = createHashRouter([
   {
     element: <AppLayout />,
     children: [
-      { index: true, element: <DashboardPage /> },
+      { index: true, element: <Navigate to="/library" replace /> }, // 启动 → 书架
       { path: 'library', element: <LibraryPage /> },
+      { path: 'dashboard', element: <DashboardPage /> }, // 当前书概览(从书架点书进入)
       { path: 'chapters', element: <ChaptersPage /> },
       { path: 'chapters/:id', element: <ChapterEditPage /> },
       { path: 'chapters/:id/review', element: <ReviewPage /> },
