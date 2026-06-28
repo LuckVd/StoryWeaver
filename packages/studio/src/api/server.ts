@@ -69,6 +69,9 @@ export function createServer(projectRoot: string = process.cwd()) {
     console.error('[cache] logs rebuild 失败:', e instanceof Error ? e.message : e),
   );
   const modelService = new ModelService(new ConfigStorage(), projectRoot);
+  // 搜索引擎（全局共享实例;注入 SQLite 索引缓存,G04-S03 启动可从缓存恢复)
+  // 在 ChatService 之前创建,以便注入供四档注入的③相关性检索使用
+  const searchEngine = new InMemorySearchEngine(new CacheStore(cache, 'search-documents'));
   const chatService = new ChatService(
     aiQueue,
     sseEmitter,
@@ -77,6 +80,7 @@ export function createServer(projectRoot: string = process.cwd()) {
     summaryStorage,
     projectRoot,
     modelService,
+    searchEngine,
   );
   const workspaceService = new WorkspaceService(
     new WorkspaceStorage(projectRoot),
@@ -90,9 +94,6 @@ export function createServer(projectRoot: string = process.cwd()) {
   const exportService = new ExportService(chapterService);
   const statsService = new StatsService(chapterService);
   const promptService = new PromptService(projectRoot);
-
-  // 搜索引擎（全局共享实例;注入 SQLite 索引缓存,G04-S03 启动可从缓存恢复)
-  const searchEngine = new InMemorySearchEngine(new CacheStore(cache, 'search-documents'));
 
   // 文件监听
   const fileWatcher = new FileWatcher(searchEngine, sseEmitter, projectRoot);

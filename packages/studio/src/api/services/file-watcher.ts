@@ -152,15 +152,19 @@ export class FileWatcher {
     return firstSentence.slice(0, 50) || 'Untitled';
   }
 
-  /** 从知识库 JSON 中提取 title 和内容摘要 */
+  /** 从知识库 JSON 中提取 title 和可检索内容(拼入 aliases/tags/profile 提升召回) */
   private extractKnowledge(raw: string): { title: string; content: string } {
     try {
       const data = JSON.parse(raw);
       const title = data.name || data.title || 'Untitled';
-      const content =
-        typeof data.description === 'string'
-          ? data.description
-          : JSON.stringify(data);
+      // 兼容各实体:Character(description/aliases/profile/tags)、WorldEntry/Rule/Custom(content/tags)、Item/Hook(description)
+      const parts: string[] = [];
+      if (Array.isArray(data.aliases)) parts.push(data.aliases.join(' '));
+      if (Array.isArray(data.tags)) parts.push(data.tags.join(' '));
+      if (typeof data.description === 'string') parts.push(data.description);
+      else if (typeof data.content === 'string') parts.push(data.content);
+      if (typeof data.profile === 'string') parts.push(data.profile);
+      const content = parts.filter(Boolean).join(' ') || JSON.stringify(data);
       return { title, content };
     } catch {
       return { title: 'Untitled', content: raw };

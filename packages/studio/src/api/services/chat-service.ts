@@ -7,21 +7,21 @@ import {
   BrainstormerAgent,
   AuditorAgent,
   routeUserMessage,
-  buildMemoryContext,
-  retrieveRemoteMemory,
+  buildInjection,
+  getOutlineNeighbors,
   type LLMClient,
   type AgentName,
   type Message,
   type ChatSession,
   type ChatMessage,
   type ModelConfig,
-  type AgentConfig,
   type ReviewReport,
   type Chapter,
   type ChapterSummary,
-  type WorldSubCategory,
   type SummaryStorage,
+  type InjectionChapter,
 } from '@storyweaver/core';
+import type { InMemorySearchEngine } from '@storyweaver/core';
 import type { AIOperationQueue } from '../queue.js';
 import type { SSEEmitter } from '../sse.js';
 import type { ChapterService } from './chapter-service.js';
@@ -31,10 +31,17 @@ import type { ModelService } from './model-service.js';
 /** 支持 Agent 类型联合 */
 type AnyAgent = WriterAgent | BrainstormerAgent | AuditorAgent;
 
+/** 当前章正文尾部保留字数(接续点) */
+const CHAPTER_TAIL_CHARS = 2000;
+
+/** 对话历史占窗口的比例(滑动窗口配额) */
+const DIALOG_WINDOW_RATIO = 0.15;
+
 /**
  * 对话服务层
  *
  * 管理会话、执行 AI 对话（路由 → Agent → 流式输出）、应用内容到章节。
+ * 上下文注入采用四档模型（恒定→当前→相关→填充），见 core/memory/injection-builder。
  */
 export class ChatService {
   private sessions = new Map<string, ChatSession>();
@@ -49,6 +56,7 @@ export class ChatService {
     private readonly summaryStorage: SummaryStorage,
     private readonly projectRoot: string,
     private readonly modelService?: ModelService,
+    private readonly searchEngine?: InMemorySearchEngine,
   ) {}
 
   // --- Session CRUD ---
@@ -106,57 +114,61 @@ export class ChatService {
 
     // 确定 Agent
     const llmClient = this.llmClient ?? undefined;
-    const agentName: AgentName = context?.agentOverride ?? await routeUserMessage(userContent, undefined, llmClient);
+    const agentName: AgentName =
+      context?.agentOverride ?? (await routeUserMessage(userContent, undefined, llmClient));
 
     // 入队执行
     this.aiQueue.enqueue(async () => {
       const agent = await this.getAgentForName(agentName);
-      const messages: Message[] = [];
 
-      // 如果绑定了章节，加载章节内容作为上下文
+      // 并行收集四档注入所需数据(各源失败均降级为空,不阻断对话)
       const chapterRef = context?.chapterRef ?? session.chapterId;
-      if (chapterRef) {
-        const volume = await this.chapterService.findVolume(chapterRef);
-        if (volume !== null) {
-          const chapter = await this.chapterService.read(volume, chapterRef);
-          if (chapter) {
-            const textContent = chapter.content.replace(/<[^>]*>/g, '').trim();
-            if (textContent) {
-              messages.push({
-                role: 'system',
-                content: `以下是当前章节「${chapter.title}」的已有内容（共${textContent.length}字）：\n\n${textContent}`,
-              });
-            }
-          }
-        }
-      }
+      const [outlineTree, rules, storyState, summaries, characterStates, hooks, batchSummaries, chapterData] =
+        await Promise.all([
+          this.knowledgeService.getOutline().catch(() => null),
+          this.knowledgeService.listRules().catch(() => []),
+          this.summaryStorage.getStoryState(this.projectRoot).catch(() => null),
+          this.summaryStorage.listChapterSummaries(this.projectRoot).catch(() => []),
+          this.summaryStorage.getCharacterStates(this.projectRoot).catch(() => null),
+          this.knowledgeService.listHooks().catch(() => []),
+          this.summaryStorage.listBatchSummaries(this.projectRoot).catch(() => []),
+          this.loadChapterTail(chapterRef),
+        ]);
 
-      // 追加聊天历史
-      for (const m of session.messages) {
-        messages.push({ role: m.role, content: m.content });
-      }
+      const outlineNeighbors = chapterRef
+        ? getOutlineNeighbors(outlineTree, chapterRef, 1, 1)
+        : { current: null, before: [], after: [] };
+      const entities = extractRecentKeywords(summaries);
+      const currentChapter = summaries.length
+        ? Math.max(...summaries.map((s) => s.chapter))
+        : chapterRef ?? 0;
+      const dialogChars = session.messages.reduce((n, m) => n + m.content.length, 0);
 
-      // 注入长篇记忆（三层）：仅写作/审稿 Agent，让 AI 感知前文剧情与角色状态
-      if (agentName === 'writer' || agentName === 'auditor') {
-        try {
-          const memoryContext = await this.buildMemoryContext();
-          if (memoryContext) {
-            messages.unshift({ role: 'system', content: memoryContext });
-          }
-        } catch {
-          // 记忆加载失败不阻断对话
-        }
-      }
+      // 四档注入(恒定→当前→相关→填充,全局预算协调)
+      const injection = buildInjection({
+        model: process.env.OPENAI_MODEL ?? 'gpt-4o',
+        chapter: chapterData,
+        outlineNeighbors,
+        rules,
+        storyState,
+        searchEngine: this.searchEngine,
+        entities,
+        summaries,
+        hooks,
+        batchSummaries,
+        characterStates,
+        dialogChars,
+        currentChapter,
+      });
 
-      // 注入知识库设定（全量），放在最前，确保 AI 遵守已有设定
-      try {
-        const kbContext = await this.buildKnowledgeContext();
-        if (kbContext) {
-          messages.unshift({ role: 'system', content: kbContext });
-        }
-      } catch {
-        // 知识库加载失败不阻断对话
-      }
+      // 组装 messages:四档 system(按优先级)+ 滑动窗口对话历史
+      // (agent.writeStream 会自动在最前注入 Agent systemPrompt 人格)
+      const messages: Message[] = [];
+      if (injection.constant) messages.push({ role: 'system', content: injection.constant });
+      if (injection.chapterContext) messages.push({ role: 'system', content: injection.chapterContext });
+      if (injection.retrieved) messages.push({ role: 'system', content: injection.retrieved });
+      if (injection.budgetFill) messages.push({ role: 'system', content: injection.budgetFill });
+      messages.push(...slidingWindow(session.messages, Math.floor(injection.budget.total * DIALOG_WINDOW_RATIO)));
 
       // 广播开始
       this.sseEmitter.emit({ type: 'agent:start', data: { agent: agentName, stage: 'generating' } });
@@ -200,6 +212,22 @@ export class ChatService {
         }
       }
     });
+  }
+
+  /** 加载当前章正文尾部(去 HTML,取接续点) */
+  private async loadChapterTail(chapterRef: number | null): Promise<InjectionChapter | null> {
+    if (!chapterRef) return null;
+    const volume = await this.chapterService.findVolume(chapterRef);
+    if (volume === null) return null;
+    const chapter = await this.chapterService.read(volume, chapterRef);
+    if (!chapter) return null;
+    const textContent = chapter.content.replace(/<[^>]*>/g, '').trim();
+    if (!textContent) return null;
+    return {
+      id: chapterRef,
+      title: chapter.title,
+      contentTail: textContent.slice(-CHAPTER_TAIL_CHARS),
+    };
   }
 
   // --- Apply ---
@@ -261,123 +289,6 @@ export class ChatService {
       }, 'ai_apply');
     }
     return { content: updated?.content ?? aiHtml };
-  }
-
-  // --- 知识库上下文 ---
-
-  /**
-   * 构建知识库上下文（全量），作为 system 设定注入对话。
-   * 让写作/审稿 Agent 能感知角色、世界观、规则、伏笔等已有设定，避免自由发挥。
-   */
-  private async buildKnowledgeContext(maxChars = 8000): Promise<string> {
-    const ks = this.knowledgeService;
-    const worldSubs: WorldSubCategory[] = ['geography', 'power-system', 'factions', 'history', 'glossary'];
-
-    const [characters, items, hooks, rules, customCats, ...worldBySub] = await Promise.all([
-      ks.listCharacters(),
-      ks.listItems(),
-      ks.listHooks(),
-      ks.listRules(),
-      ks.listCustomCategories(),
-      ...worldSubs.map((s) => ks.listWorld(s)),
-    ]);
-    const worldEntries = worldBySub.flat();
-    const customs = await Promise.all(customCats.map((c) => ks.listCustom(c)));
-    const customEntries = customs.flat();
-
-    const lines: string[] = ['## 知识库设定（写作时必须严格遵守，不得违背已有设定）'];
-
-    if (characters.length) {
-      lines.push('### 角色');
-      for (const c of characters) {
-        const parts: string[] = [c.description];
-        if (c.aliases?.length) parts.push(`别名：${c.aliases.join('、')}`);
-        if (c.profile) parts.push(`档案：${c.profile}`);
-        if (c.firstAppearance) parts.push(`首次出场：第${c.firstAppearance}章`);
-        lines.push(`- **${c.name}**：${parts.join('；')}`);
-      }
-    }
-    if (worldEntries.length) {
-      lines.push('### 世界观');
-      for (const w of worldEntries) {
-        lines.push(`- **${w.name}**：${w.content}`);
-      }
-    }
-    if (items.length) {
-      lines.push('### 物品');
-      for (const it of items) {
-        lines.push(`- **${it.name}**：${it.description}`);
-      }
-    }
-    if (hooks.length) {
-      lines.push('### 伏笔');
-      for (const h of hooks) {
-        const status = h.status === 'active' ? '进行中' : '已回收';
-        lines.push(`- **${h.name}**（${status}）：${h.description}`);
-      }
-    }
-    if (rules.length) {
-      lines.push('### 规则（必须遵守）');
-      const prioMap: Record<string, string> = { high: '高', medium: '中', low: '低' };
-      for (const r of rules) {
-        lines.push(`- [${prioMap[r.priority] ?? r.priority}] **${r.name}**：${r.content}`);
-      }
-    }
-    if (customEntries.length) {
-      lines.push('### 其他设定');
-      for (const cu of customEntries) {
-        lines.push(`- **${cu.name}**：${cu.content}`);
-      }
-    }
-
-    if (lines.length === 1) return ''; // 仅标题，无实质内容
-    const text = lines.join('\n');
-    // 知识库随长篇累积会膨胀，设字符上限避免挤占正文/历史 token（与 G03 token 预算哲学一致）；
-    // 顺序已按重要性（角色→世界观→物品→伏笔→规则→自定义）排列，截断保留靠前的重要设定。
-    if (text.length <= maxChars) return text;
-    return text.slice(0, maxChars) + '\n…（知识库内容过长，已截断；重要设定在前）';
-  }
-
-  /**
-   * 构建长篇记忆上下文（三层）：Layer1 故事状态快照 + Layer2 近期章节摘要 +
-   * Layer3 timeline/character-states 兜底。供写作/审稿 Agent 感知前文，保持长篇连贯。
-   * 数据由发布流程自动维护；此处只读组装，失败不阻断对话。
-   */
-  private async buildMemoryContext(): Promise<string> {
-    const [storyState, summaries, characterStates, hooks, batchSummaries, outlineTree] = await Promise.all([
-      this.summaryStorage.getStoryState(this.projectRoot),
-      this.summaryStorage.listChapterSummaries(this.projectRoot),
-      this.summaryStorage.getCharacterStates(this.projectRoot),
-      this.knowledgeService.listHooks().catch(() => []),
-      this.summaryStorage.listBatchSummaries(this.projectRoot),
-      this.knowledgeService.getOutline().catch(() => null),
-    ]);
-    if (!storyState && summaries.length === 0 && !characterStates) {
-      return ''; // 无任何记忆数据，跳过注入
-    }
-    const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
-    // 远期检索（G03-S06）：用近期出现的角色/地点作关键词，召回相关章节、待回收伏笔与综合总结
-    const keywords = extractRecentKeywords(summaries);
-    const currentChapter = summaries.length ? Math.max(...summaries.map((s) => s.chapter)) : 0;
-    const remoteRetrieved = retrieveRemoteMemory({
-      keywords,
-      summaries,
-      hooks,
-      batchSummaries,
-      currentChapter,
-      // 接通大纲指引：整棵大纲树传入，retriever 展平后筛出含「回顾/呼应/伏笔」等关键词的节点注入
-      outline: outlineTree ? [outlineTree] : [],
-    });
-    const ctx = buildMemoryContext({
-      model,
-      storyState,
-      recentSummaries: summaries,
-      characterStates,
-      remoteRetrieved, // 检索结果优先；无命中时 buildMemoryContext 自动回退 characterStates
-    });
-    const parts = [ctx.layer1, ctx.layer2, ctx.layer3].filter(Boolean);
-    if (!parts.length) return '';
-    return `## 长篇记忆（前文剧情与角色状态，写作/审稿时参考以保持连贯）\n\n${parts.join('\n\n')}`;
   }
 
   // --- LLM 初始化 ---
@@ -453,7 +364,7 @@ function getStream(agent: AnyAgent, messages: Message[]): AsyncGenerator<string>
   return (agent as WriterAgent).writeStream(messages);
 }
 
-/** 从最近几章摘要提取角色/地点关键词，供远期检索召回相关章节 */
+/** 从最近几章摘要提取角色/地点关键词，供相关性检索召回 */
 function extractRecentKeywords(summaries: ChapterSummary[]): string[] {
   const recent = [...summaries].sort((a, b) => b.chapter - a.chapter).slice(0, 3);
   const set = new Set<string>();
@@ -462,4 +373,17 @@ function extractRecentKeywords(summaries: ChapterSummary[]): string[] {
     s.locationsUsed.forEach((l) => set.add(l));
   }
   return [...set].slice(0, 20);
+}
+
+/** 对话历史滑动窗口:从最新往回取,累计到 maxChars 为止(至少保留最新一条) */
+function slidingWindow(messages: ChatMessage[], maxChars: number): Message[] {
+  const picked: Message[] = [];
+  let chars = 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (picked.length > 0 && chars + m.content.length > maxChars) break;
+    picked.unshift({ role: m.role, content: m.content });
+    chars += m.content.length;
+  }
+  return picked;
 }

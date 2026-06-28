@@ -24,8 +24,8 @@ export interface InjectionChapter {
 /** buildInjection 输入 */
 export interface InjectionInput {
   model: string;
-  /** Agent systemPrompt */
-  systemPrompt: string;
+  /** Agent systemPrompt(可选;agent.writeStream 已自动注入人格,通常不传以避免重复) */
+  systemPrompt?: string;
   /** 当前章(null=未绑定章节) */
   chapter: InjectionChapter | null;
   /** 大纲当前章节点 + 前后相邻(① 导航) */
