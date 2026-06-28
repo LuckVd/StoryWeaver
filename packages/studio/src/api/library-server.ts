@@ -93,7 +93,8 @@ export function createLibraryServer(libraryRoot: string = libraryDir()): Library
 
   const front = new Hono();
   front.onError(errorHandler);
-  front.use('/api/v1/*', cors({ origin: 'http://localhost:3000' }));
+  // 放开 origin:web dev(:3000)、electron dev(:5173)、electron prod(file://)均允许(loopback 单机,安全)
+  front.use('/api/v1/*', cors({ origin: '*' }));
   // 书架路由始终可用(即使尚未打开任何书)
   front.route('/api/v1/library', libraryRoute(libraryService, switchBook, deleteBook));
   front.get('/api/v1/health', (c) => c.json({ status: 'ok' }));
