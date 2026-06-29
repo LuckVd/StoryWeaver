@@ -1,11 +1,11 @@
-import type { Rule, Hook } from '../models/knowledge.js';
+import type { Rule, Hook, OutlineNode } from '../models/knowledge.js';
 import type {
   StoryStateSnapshot,
   ChapterSummary,
   CharacterStates,
   BatchSummary,
 } from '../models/memory.js';
-import type { OutlineNeighbors } from './outline-locator.js';
+import type { ActiveArc } from './outline-locator.js';
 import { getModelContextWindow } from './token-budget.js';
 import { retrieveRemoteMemory } from './retriever.js';
 import type { InMemorySearchEngine } from '../search/index.js';
@@ -28,8 +28,8 @@ export interface InjectionInput {
   systemPrompt?: string;
   /** 当前章(null=未绑定章节) */
   chapter: InjectionChapter | null;
-  /** 大纲当前章节点 + 前后相邻(① 导航) */
-  outlineNeighbors: OutlineNeighbors;
+  /** 大纲当前剧情卷 + 下一卷(① 前方规划) */
+  activeArc: ActiveArc;
   /** 强制规则(①,全量不截断) */
   rules: Rule[];
   /** Layer1 剧情状态快照(①) */
@@ -137,20 +137,23 @@ function buildConstant(input: InjectionInput): string {
     );
   }
 
-  const outlineText = formatOutlineNav(input.outlineNeighbors);
-  if (outlineText) parts.push(outlineText);
+  const arcText = formatArcDirection(input.activeArc);
+  if (arcText) parts.push(arcText);
 
   if (input.storyState) parts.push(formatStoryState(input.storyState));
 
   return parts.filter(Boolean).join('\n\n');
 }
 
-function formatOutlineNav(n: OutlineNeighbors): string {
-  if (!n.current) return '';
-  const lines: string[] = ['【本章大纲导航(这章按计划该写什么)】'];
-  n.before.forEach((b) => lines.push(`[前文] ${b.title}:${b.summary ?? ''}`));
-  lines.push(`[本章] ${n.current.title}:${n.current.summary ?? ''}`);
-  n.after.forEach((a) => lines.push(`[后续] ${a.title}:${a.summary ?? ''}`));
+function formatArcDirection(a: ActiveArc): string {
+  if (!a.current) return '';
+  const fmt = (n: OutlineNode, tag: string): string => {
+    const range = n.chapterRange ? `(第${n.chapterRange[0]}-${n.chapterRange[1]}章)` : '';
+    return `[${tag}] ${n.title}${range}\n  方向: ${n.summary ?? ''}`;
+  };
+  const lines: string[] = ['【剧情方向(前方规划)】'];
+  lines.push(fmt(a.current, '当前卷'));
+  if (a.next) lines.push(fmt(a.next, '下一卷'));
   return lines.join('\n');
 }
 
@@ -187,12 +190,11 @@ function buildRetrieved(input: InjectionInput): string {
     }
   }
 
-  // 远期记忆:相关章节回顾 / 待回收伏笔 / 综合总结(大纲已在①,此处 outline 留空不重复)
+  // 远期记忆:相关章节回顾 / 待回收伏笔 / 综合总结(大纲方向已在①恒定档,此处不重复)
   const remote = retrieveRemoteMemory({
     keywords: input.entities,
     summaries: input.summaries,
     hooks: input.hooks,
-    outline: [],
     batchSummaries: input.batchSummaries ?? [],
     currentChapter: input.currentChapter,
     maxTokens: 4000,

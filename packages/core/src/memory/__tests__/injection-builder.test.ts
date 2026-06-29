@@ -32,8 +32,8 @@ function mkSummary(chapter: number, title: string): ChapterSummary {
   };
 }
 
-function mkChapter(id: number, title: string, summary?: string): OutlineNode {
-  return { id: `c${id}`, type: 'chapter', title, summary, chapterId: id, sortOrder: id };
+function mkArc(id: number, title: string, summary?: string, range?: [number, number]): OutlineNode {
+  return { id: `a${id}`, type: 'arc', title, summary, chapterRange: range, sortOrder: id };
 }
 
 function baseInput(overrides: Partial<InjectionInput> = {}): InjectionInput {
@@ -41,7 +41,7 @@ function baseInput(overrides: Partial<InjectionInput> = {}): InjectionInput {
     model: 'glm-4',
     systemPrompt: '你是写作助手',
     chapter: null,
-    outlineNeighbors: { current: null, before: [], after: [] },
+    activeArc: { current: null, next: null },
     rules: [],
     storyState: null,
     entities: [],
@@ -77,14 +77,13 @@ describe('injection-builder', () => {
   });
 
   describe('buildInjection', () => {
-    it('① 含 systemPrompt + 规则全量 + 大纲导航 + 状态', () => {
+    it('① 含 systemPrompt + 规则全量 + 剧情方向 + 状态', () => {
       const r = buildInjection(
         baseInput({
           rules: [mkRule('r1', '禁穿越', 'high'), mkRule('r2', '人称', 'low')],
-          outlineNeighbors: {
-            current: mkChapter(3, '第三章', '高潮'),
-            before: [mkChapter(2, '第二章', '铺垫')],
-            after: [mkChapter(4, '第四章', '收尾')],
+          activeArc: {
+            current: mkArc(3, '第二卷·抗争', '与反派冲突', [15, 40]),
+            next: mkArc(4, '第三卷·陨落', '代价与重生', [41, 60]),
           },
           storyState: {
             lastPublishedChapter: 2,
@@ -100,8 +99,9 @@ describe('injection-builder', () => {
       expect(r.constant).toContain('你是写作助手');
       expect(r.constant).toContain('禁穿越');
       expect(r.constant).toContain('人称');
-      expect(r.constant).toContain('[本章] 第三章:高潮');
-      expect(r.constant).toContain('[前文] 第二章:铺垫');
+      expect(r.constant).toContain('[当前卷] 第二卷·抗争(第15-40章)');
+      expect(r.constant).toContain('方向: 与反派冲突');
+      expect(r.constant).toContain('[下一卷] 第三卷·陨落');
       expect(r.constant).toContain('当前主线:主线');
     });
 

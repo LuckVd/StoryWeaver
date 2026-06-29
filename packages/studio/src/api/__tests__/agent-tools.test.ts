@@ -85,4 +85,42 @@ describe('agent-tools', () => {
     const r = await executor(mkCall('get_outline_node', { chapterId: 1 }));
     expect(JSON.parse(r).error).toBe('无大纲');
   });
+
+  it('get_outline_node 传章节号返回当前卷+下一卷方向', async () => {
+    const tree = {
+      id: 'root',
+      type: 'book',
+      title: '书',
+      sortOrder: 0,
+      children: [
+        { id: 'a1', type: 'arc', title: '第一卷', summary: '觉醒', chapterRange: [1, 14], sortOrder: 0 },
+        { id: 'a2', type: 'arc', title: '第二卷', summary: '冲突', chapterRange: [15, 40], sortOrder: 1 },
+      ],
+    };
+    const ks = { listHooks: vi.fn(async () => []), getOutline: vi.fn(async () => tree) };
+    const executor = createToolExecutor(mockDeps({ knowledgeService: ks }));
+    const r = await executor(mkCall('get_outline_node', { chapterId: 20 }));
+    const parsed = JSON.parse(r);
+    expect(parsed.current.title).toBe('第二卷');
+    expect(parsed.next).toBeNull();
+  });
+
+  it('get_outline_node 不传章节号列出所有卷概要', async () => {
+    const tree = {
+      id: 'root',
+      type: 'book',
+      title: '书',
+      sortOrder: 0,
+      children: [
+        { id: 'a1', type: 'arc', title: '第一卷', summary: '觉醒', chapterRange: [1, 14], sortOrder: 0 },
+        { id: 'a2', type: 'arc', title: '第二卷', summary: '冲突', chapterRange: [15, 40], sortOrder: 1 },
+      ],
+    };
+    const ks = { listHooks: vi.fn(async () => []), getOutline: vi.fn(async () => tree) };
+    const executor = createToolExecutor(mockDeps({ knowledgeService: ks }));
+    const r = await executor(mkCall('get_outline_node', {}));
+    const parsed = JSON.parse(r);
+    expect(parsed.arcs).toHaveLength(2);
+    expect(parsed.arcs[0].title).toBe('第一卷');
+  });
 });

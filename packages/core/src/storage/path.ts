@@ -145,6 +145,14 @@ export function outlineFilePath(projectRoot: string): string {
 }
 
 /**
+ * 生成旧版大纲归档路径：knowledge/outline.legacy.json
+ * （检测到旧结构 book|volume|chapter / chapterId 时,原 outline.json 改名至此,新模型从空开始）
+ */
+export function outlineLegacyFilePath(projectRoot: string): string {
+  return resolveSafe(projectRoot, 'knowledge/outline.legacy.json');
+}
+
+/**
  * 生成关系图文件路径：knowledge/relations.json
  */
 export function relationsFilePath(projectRoot: string): string {

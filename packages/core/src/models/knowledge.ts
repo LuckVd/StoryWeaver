@@ -78,17 +78,23 @@ export interface Item {
 
 // ── 大纲 ──
 
-/** 大纲节点（全书 > 卷 > 章节，树状结构） */
+/**
+ * 大纲节点（全书 > 剧情卷 > 大事件，树状结构）
+ *
+ * 粗粒度的"剧情方向把控层":卷(arc)给宏观走向,大事件(milestone)标卷内关键节点。
+ * 与章节摘要(实际发生)、StoryState(当前状态)分工——大纲只讲"往哪走"的前方规划。
+ * arc 用 chapterRange 关联其覆盖的正文章节范围,供按"当前写到第几章"定位当前卷。
+ */
 export interface OutlineNode {
   id: string;
-  /** 节点类型 */
-  type: 'book' | 'volume' | 'chapter';
+  /** 节点类型:book 书根 / arc 剧情卷 / milestone 大事件 */
+  type: 'book' | 'arc' | 'milestone';
   title: string;
-  /** 概要描述 */
+  /** 概要:arc=本卷方向(目标/冲突/走向);milestone=该大事件要点 */
   summary?: string;
-  /** 关联章节 ID（仅 chapter 类型） */
-  chapterId?: number;
-  /** 子节点 */
+  /** 仅 arc:覆盖的正文章节范围 [起, 止],用于按当前章定位当前卷 */
+  chapterRange?: [number, number];
+  /** 子节点:book→arc;arc→milestone */
   children?: OutlineNode[];
   sortOrder: number;
 }

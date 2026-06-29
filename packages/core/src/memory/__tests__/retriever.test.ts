@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { retrieveRemoteMemory } from '../retriever.js';
 import type { ChapterSummary, BatchSummary } from '../../models/memory.js';
-import type { Hook, OutlineNode } from '../../models/knowledge.js';
+import type { Hook } from '../../models/knowledge.js';
 
 const sum = (chapter: number, overrides: Partial<ChapterSummary> = {}): ChapterSummary => ({
   chapter,
@@ -90,23 +90,7 @@ describe('retrieveRemoteMemory', () => {
     expect(text).not.toContain('已解伏笔');
   });
 
-  it('策略3：大纲含回顾关键词的节点被列出', () => {
-    const outline: OutlineNode[] = [
-      { id: '1', type: 'chapter', title: '第11章', summary: '回顾第一卷伏笔', sortOrder: 1 },
-      { id: '2', type: 'chapter', title: '第12章', summary: '日常推进', sortOrder: 2 },
-    ];
-    const text = retrieveRemoteMemory({
-      keywords: [],
-      summaries: [],
-      outline,
-      currentChapter: 11,
-    });
-    expect(text).toContain('大纲指引');
-    expect(text).toContain('第11章');
-    expect(text).not.toContain('日常推进');
-  });
-
-  it('策略4：综合总结兜底', () => {
+  it('策略3：综合总结兜底', () => {
     const batch: BatchSummary = {
       chapterRange: [1, 10],
       volume: 1,

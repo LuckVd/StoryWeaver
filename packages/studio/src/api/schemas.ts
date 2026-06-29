@@ -164,10 +164,10 @@ export const updateCustomSchema = z.object({
 
 export const outlineSchema: z.ZodType = z.object({
   id: z.string().min(1),
-  type: z.enum(['book', 'volume', 'chapter']),
+  type: z.enum(['book', 'arc', 'milestone']),
   title: z.string().min(1),
   summary: z.string().optional(),
-  chapterId: z.number().int().positive().optional(),
+  chapterRange: z.tuple([z.number().int(), z.number().int()]).optional(),
   children: z.lazy(() => z.array(outlineSchema)).optional(),
   sortOrder: z.number().int().min(0),
 });

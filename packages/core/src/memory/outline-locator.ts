@@ -3,70 +3,62 @@ import type { OutlineNode } from '../models/knowledge.js';
 /**
  * 大纲定位(纯函数)
  *
- * 将"当前写到第 N 章"映射到大纲里对应的 chapter 节点及其前后相邻节点,
- * 供四档注入的①恒定档注入"这章按计划该写什么"。见注入升级方案。
+ * 将"当前写到第 N 章"映射到大纲里对应的剧情卷(arc)及其下一卷,
+ * 供四档注入的①恒定档注入"前方剧情方向(往哪走)"。
  *
- * 依赖 OutlineNode.chapterId(仅 chapter 节点)做精确关联。
- * 兜底:chapterId 缺失 / 不匹配 → 返回 null(不做标题解析,大纲标题与正文标题不可靠),
- * 调用方据此跳过大纲部分注入。
+ * 依赖 arc 节点的 chapterRange([起,止])做定位。无任何 arc 带 chapterRange →
+ * 返回 {current:null,next:null}(不注入),调用方据此跳过。
  */
 
-/** 相邻节点定位结果 */
-export interface OutlineNeighbors {
-  /** 当前章节对应的大纲节点(null 表示无法定位) */
+/** 当前卷定位结果 */
+export interface ActiveArc {
+  /** 当前章节所属的剧情卷(null=无法定位) */
   current: OutlineNode | null;
-  /** 前若干章的大纲节点(按 sortOrder 升序) */
-  before: OutlineNode[];
-  /** 后若干章的大纲节点(按 sortOrder 升序) */
-  after: OutlineNode[];
+  /** 下一卷(方向预告) */
+  next: OutlineNode | null;
 }
 
-/** 收集所有 type==='chapter' 节点,按 sortOrder 升序 */
-export function getChapterNodesFlat(root: OutlineNode | null): OutlineNode[] {
+/** 收集所有 type==='arc' 节点,按 sortOrder 升序 */
+export function getArcsFlat(root: OutlineNode | null): OutlineNode[] {
   if (!root) return [];
   const out: OutlineNode[] = [];
   const walk = (n: OutlineNode): void => {
-    if (n.type === 'chapter') out.push(n);
+    if (n.type === 'arc') out.push(n);
     n.children?.forEach(walk);
   };
   walk(root);
   return out.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 }
 
-/** 按 chapterId 精确查找 chapter 节点;未设/不匹配返回 null */
-export function findOutlineNodeByChapterId(
-  root: OutlineNode | null,
-  chapterId: number,
-): OutlineNode | null {
-  if (!root) return null;
-  let found: OutlineNode | null = null;
-  const walk = (n: OutlineNode): boolean => {
-    if (n.type === 'chapter' && n.chapterId === chapterId) {
-      found = n;
-      return true;
-    }
-    return (n.children ?? []).some(walk);
-  };
-  walk(root);
-  return found;
-}
-
 /**
- * 定位当前章节节点及其前后相邻节点(按 sortOrder)。
- * 当前章 chapterId 不在大纲中 → current=null, before/after 为空。
+ * 定位当前章节所在的剧情卷及其下一卷。
+ *
+ * - 精确:chapterRange 覆盖 currentChapter 的 arc → current,其后一个 → next
+ * - fallback(落在间隙/已超过某卷范围但下一卷未起始):current = 最后一个
+ *   range[0] <= currentChapter 的 arc(正在写的卷)
+ * - fallback(currentChapter 早于所有 arc 起始):current = 第一个 arc
+ * - 无 arc / 无任何 arc 带 chapterRange → {null, null}
  */
-export function getOutlineNeighbors(
-  root: OutlineNode | null,
-  chapterId: number,
-  before = 1,
-  after = 1,
-): OutlineNeighbors {
-  const flat = getChapterNodesFlat(root);
-  const idx = flat.findIndex((n) => n.chapterId === chapterId);
-  if (idx === -1) return { current: null, before: [], after: [] };
-  return {
-    current: flat[idx],
-    before: flat.slice(Math.max(0, idx - before), idx),
-    after: flat.slice(idx + 1, idx + 1 + after),
-  };
+export function getActiveArc(root: OutlineNode | null, currentChapter: number): ActiveArc {
+  const arcs = getArcsFlat(root).filter((a) => Array.isArray(a.chapterRange));
+  if (!arcs.length) return { current: null, next: null };
+
+  // 1. 精确:落在某 arc 的 [起,止] 内
+  const hitIdx = arcs.findIndex(
+    (a) => currentChapter >= a.chapterRange![0] && currentChapter <= a.chapterRange![1],
+  );
+  if (hitIdx !== -1) {
+    return { current: arcs[hitIdx], next: arcs[hitIdx + 1] ?? null };
+  }
+
+  // 2. fallback:已跨过起始但落在间隙 → 最后一个 range[0] <= currentChapter 的 arc
+  const started = arcs.filter((a) => currentChapter >= a.chapterRange![0]);
+  if (started.length) {
+    const cur = started[started.length - 1];
+    const idx = arcs.indexOf(cur);
+    return { current: cur, next: arcs[idx + 1] ?? null };
+  }
+
+  // 3. fallback:早于所有 arc 起始 → 第一卷
+  return { current: arcs[0], next: arcs[1] ?? null };
 }

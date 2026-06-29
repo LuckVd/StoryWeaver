@@ -8,7 +8,7 @@ import {
   AuditorAgent,
   routeUserMessage,
   buildInjection,
-  getOutlineNeighbors,
+  getActiveArc,
   type LLMClient,
   type AgentName,
   type Message,
@@ -136,20 +136,19 @@ export class ChatService {
           this.loadChapterTail(chapterRef),
         ]);
 
-      const outlineNeighbors = chapterRef
-        ? getOutlineNeighbors(outlineTree, chapterRef, 1, 1)
-        : { current: null, before: [], after: [] };
-      const entities = extractRecentKeywords(summaries);
       const currentChapter = summaries.length
         ? Math.max(...summaries.map((s) => s.chapter))
         : chapterRef ?? 0;
+      // 大纲:按"正在写的章"(chapterRef 优先,否则已发布进度)定位当前剧情卷 + 下一卷
+      const activeArc = getActiveArc(outlineTree, chapterRef ?? currentChapter);
+      const entities = extractRecentKeywords(summaries);
       const dialogChars = session.messages.reduce((n, m) => n + m.content.length, 0);
 
       // 四档注入(恒定→当前→相关→填充,全局预算协调)
       const injection = buildInjection({
         model: process.env.OPENAI_MODEL ?? 'gpt-4o',
         chapter: chapterData,
-        outlineNeighbors,
+        activeArc,
         rules,
         storyState,
         searchEngine: this.searchEngine,

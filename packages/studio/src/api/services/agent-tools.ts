@@ -1,5 +1,7 @@
 import {
-  getOutlineNeighbors,
+  getActiveArc,
+  getArcsFlat,
+  type OutlineNode,
   type ToolDefinition,
   type ToolCall,
   type InMemorySearchEngine,
@@ -63,12 +65,11 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'get_outline_node',
-    description: '查询大纲节点(按章节号或标题关键词),了解这章及前后章节的计划。',
+    description: '查询剧情卷方向(粗粒度大纲):传章节号返回当前卷+下一卷方向;不传则列出所有剧情卷概要。',
     parameters: {
       type: 'object',
       properties: {
-        chapterId: { type: 'number', description: '章节号(可选)' },
-        title: { type: 'string', description: '标题关键词(可选)' },
+        chapterId: { type: 'number', description: '当前章节号(可选,用于定位当前卷)' },
       },
     },
   },
@@ -175,31 +176,18 @@ async function runGetOutlineNode(deps: ToolDeps, args: Record<string, unknown>):
   const tree = await deps.knowledgeService.getOutline().catch(() => null);
   if (!tree) return cap({ error: '无大纲' });
   if (typeof args.chapterId === 'number') {
-    const neighbors = getOutlineNeighbors(tree, args.chapterId, 1, 1);
-    return cap({
-      current: neighbors.current
-        ? { title: neighbors.current.title, summary: neighbors.current.summary }
-        : null,
-      before: neighbors.before.map((n) => ({ title: n.title, summary: n.summary })),
-      after: neighbors.after.map((n) => ({ title: n.title, summary: n.summary })),
-    });
+    // 传章节号:定位当前卷 + 下一卷方向
+    const arc = getActiveArc(tree, args.chapterId);
+    const pick = (n: OutlineNode | null) =>
+      n ? { title: n.title, summary: n.summary, chapterRange: n.chapterRange } : null;
+    return cap({ current: pick(arc.current), next: pick(arc.next) });
   }
-  const titleKw = str(args.title).trim();
-  if (titleKw) {
-    const nodes = collectChapters(tree)
-      .filter((n) => (n.title + (n.summary ?? '')).includes(titleKw))
-      .slice(0, 5);
-    return cap({ nodes });
-  }
-  return cap({ error: '需提供 chapterId 或 title' });
-}
-
-/** 递归收集大纲里所有 chapter 节点 */
-function collectChapters(
-  node: { type?: string; title: string; summary?: string; children?: unknown[] },
-): Array<{ title: string; summary?: string }> {
-  const out: Array<{ title: string; summary?: string }> = [];
-  if (node.type === 'chapter') out.push({ title: node.title, summary: node.summary });
-  (node.children ?? []).forEach((c) => out.push(...collectChapters(c as typeof node)));
-  return out;
+  // 不传章节号:列出所有剧情卷概要(紧凑蓝图)
+  return cap({
+    arcs: getArcsFlat(tree).map((a) => ({
+      title: a.title,
+      summary: a.summary,
+      chapterRange: a.chapterRange,
+    })),
+  });
 }

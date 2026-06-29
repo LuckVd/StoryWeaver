@@ -1,14 +1,13 @@
 import type { ChapterSummary, BatchSummary } from '../models/memory.js';
-import type { Hook, OutlineNode } from '../models/knowledge.js';
+import type { Hook } from '../models/knowledge.js';
 
 /**
  * 远期记忆检索策略（G03-S06）
  *
- * 四套策略组合，产出可注入 Layer3 的远期记忆文本。见 tech-spec §5.6。
+ * 三套策略组合，产出可注入 Layer3 的远期记忆文本。见 tech-spec §5.6。
  * 1. 角色/地点关联 — 含关键词的章节摘要
  * 2. 伏笔驱动 — active 且沉默超阈值的伏笔优先回收
- * 3. 大纲指引 — 大纲中标注「回顾/呼应/伏笔」的节点
- * 4. 综合总结兜底 — 最近 2-3 个 BatchSummary
+ * 3. 综合总结兜底 — 最近 2-3 个 BatchSummary
  */
 
 /** 伏笔沉默判定阈值（章） */
@@ -21,8 +20,6 @@ export interface RetrievalInput {
   summaries: ChapterSummary[];
   /** 伏笔列表 */
   hooks?: Hook[];
-  /** 大纲节点（树状） */
-  outline?: OutlineNode[];
   /** 综合总结（兜底） */
   batchSummaries?: BatchSummary[];
   /** 当前写到第几章（伏笔沉默判定基准） */
@@ -37,7 +34,6 @@ export function retrieveRemoteMemory(input: RetrievalInput): string {
     keywords,
     summaries,
     hooks = [],
-    outline = [],
     batchSummaries = [],
     currentChapter = 0,
     maxTokens = 4000,
@@ -80,18 +76,7 @@ export function retrieveRemoteMemory(input: RetrievalInput): string {
     );
   }
 
-  // 策略 3：大纲指引
-  const guideNodes = flattenOutline(outline).filter((n) =>
-    /回顾|呼应|伏笔|前文|之前|延续/.test(`${n.title} ${n.summary ?? ''}`),
-  );
-  if (guideNodes.length) {
-    parts.push(
-      '【大纲指引】\n' +
-        guideNodes.slice(0, 3).map((n) => `• ${n.title}：${n.summary ?? ''}`).join('\n'),
-    );
-  }
-
-  // 策略 4：综合总结兜底（最近 3 个）
+  // 策略 3：综合总结兜底（最近 3 个）
   if (batchSummaries.length) {
     const recent = [...batchSummaries]
       .sort((a, b) => b.chapterRange[0] - a.chapterRange[0])
@@ -115,14 +100,4 @@ function lastMentionChapter(hook: Hook, summaries: ChapterSummary[]): number {
     .filter((s) => s.hooksAdvanced.includes(hook.name) || s.hooksPlanted.includes(hook.name))
     .map((s) => s.chapter);
   return mentioned.length ? Math.max(...mentioned) : hook.plantedAt;
-}
-
-/** 展平大纲树（递归 children） */
-function flattenOutline(nodes: OutlineNode[]): OutlineNode[] {
-  const result: OutlineNode[] = [];
-  for (const n of nodes) {
-    result.push(n);
-    if (n.children?.length) result.push(...flattenOutline(n.children));
-  }
-  return result;
 }

@@ -38,10 +38,11 @@ function removeFromTree(node: OutlineNode, id: string): OutlineNode {
 }
 
 /**
- * 大纲编辑器(G05-S04)
+ * 大纲编辑器(G05-S04)—— 剧情方向把控层
  *
- * 树状展示全书 > 卷 > 章节,支持编辑 title/summary、添加子节点、删除、
- * chapter 节点关联 chapterId(与正文章节联动)。整树保存到 knowledge/outline.json。
+ * 树状展示全书 > 剧情卷(arc) > 大事件(milestone),编辑 title/方向概要、
+ * 添加子节点、删除;arc 标注覆盖章节范围 [起,止](供 AI 按当前章定位当前卷)。
+ * 整树保存到 knowledge/outline.json。
  */
 export function OutlinePage() {
   const [tree, setTree] = useState<OutlineNode | null>(null);
@@ -87,12 +88,12 @@ export function OutlinePage() {
   const updateNode = (id: string, patch: Partial<OutlineNode>) =>
     setTree((t) => (t ? patchNode(t, id, patch) : t));
 
-  const addChild = (parentId: string, type: 'volume' | 'chapter') => {
+  const addChild = (parentId: string, type: 'arc' | 'milestone') => {
     ensureRoot();
     const node: OutlineNode = {
       id: crypto.randomUUID(),
       type,
-      title: type === 'volume' ? '新卷' : '新章节',
+      title: type === 'arc' ? '新卷' : '新大事件',
       sortOrder: Date.now(),
     };
     setTree((t) => (t ? insertChild(t, parentId, node) : insertChild(
@@ -179,11 +180,13 @@ function NodeTree({
         onClick={() => onSelect(node.id)}
       >
         <span className="mr-2 text-xs text-muted-foreground">
-          {node.type === 'book' ? '📕' : node.type === 'volume' ? '📂' : '📄'}
+          {node.type === 'book' ? '📕' : node.type === 'arc' ? '⛰️' : '🔶'}
         </span>
         <span className={node.type === 'book' ? 'font-semibold' : ''}>{node.title || '(无标题)'}</span>
-        {node.chapterId != null && (
-          <span className="ml-2 text-xs text-muted-foreground">→ 第{node.chapterId}章</span>
+        {node.type === 'arc' && node.chapterRange && (
+          <span className="ml-2 text-xs text-muted-foreground">
+            [第{node.chapterRange[0]}-{node.chapterRange[1]}章]
+          </span>
         )}
       </div>
       {(node.children ?? [])
@@ -210,14 +213,16 @@ function NodeEditor({
 }: {
   node: OutlineNode;
   onChange: (patch: Partial<OutlineNode>) => void;
-  onAddChild: (type: 'volume' | 'chapter') => void;
+  onAddChild: (type: 'arc' | 'milestone') => void;
   onRemove: () => void;
 }) {
-  const canHaveChildren = node.type === 'book' || node.type === 'volume';
+  const canHaveChildren = node.type === 'book' || node.type === 'arc';
+  const summaryHint =
+    node.type === 'arc' ? '本卷方向(目标/冲突/走向,AI 写作时据此把控剧情)' : '该大事件要点';
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">
-        编辑{node.type === 'book' ? '书籍' : node.type === 'volume' ? '卷' : '章节'}
+        编辑{node.type === 'book' ? '书籍' : node.type === 'arc' ? '剧情卷' : '大事件'}
       </h2>
       <label className="block text-sm">
         <span className="text-muted-foreground">标题</span>
@@ -228,38 +233,56 @@ function NodeEditor({
         />
       </label>
       <label className="block text-sm">
-        <span className="text-muted-foreground">概要</span>
+        <span className="text-muted-foreground">概要 · {summaryHint}</span>
         <textarea
           className="mt-1 h-32 w-full rounded border px-2 py-1"
           value={node.summary ?? ''}
           onChange={(e) => onChange({ summary: e.target.value })}
         />
       </label>
-      {node.type === 'chapter' && (
+      {node.type === 'arc' && (
         <label className="block text-sm">
-          <span className="text-muted-foreground">关联章节 ID</span>
-          <input
-            type="number"
-            className="mt-1 w-full rounded border px-2 py-1"
-            value={node.chapterId ?? ''}
-            onChange={(e) =>
-              onChange({ chapterId: e.target.value ? Number(e.target.value) : undefined })
-            }
-          />
+          <span className="text-muted-foreground">覆盖章节范围 [起 - 止](AI 据当前章定位当前卷)</span>
+          <div className="mt-1 flex gap-2">
+            <input
+              type="number"
+              className="w-full rounded border px-2 py-1"
+              placeholder="起始章"
+              value={node.chapterRange?.[0] ?? ''}
+              onChange={(e) =>
+                onChange({
+                  chapterRange: [
+                    e.target.value ? Number(e.target.value) : 0,
+                    node.chapterRange?.[1] ?? 0,
+                  ],
+                })
+              }
+            />
+            <input
+              type="number"
+              className="w-full rounded border px-2 py-1"
+              placeholder="结束章"
+              value={node.chapterRange?.[1] ?? ''}
+              onChange={(e) =>
+                onChange({
+                  chapterRange: [
+                    node.chapterRange?.[0] ?? 0,
+                    e.target.value ? Number(e.target.value) : 0,
+                  ],
+                })
+              }
+            />
+          </div>
         </label>
       )}
       <div className="flex flex-wrap gap-2">
         {canHaveChildren && (
-          <>
-            {node.type === 'book' && (
-              <button onClick={() => onAddChild('volume')} className="rounded border px-2 py-1 text-sm">
-                + 添加卷
-              </button>
-            )}
-            <button onClick={() => onAddChild('chapter')} className="rounded border px-2 py-1 text-sm">
-              + 添加章节节点
-            </button>
-          </>
+          <button
+            onClick={() => onAddChild(node.type === 'book' ? 'arc' : 'milestone')}
+            className="rounded border px-2 py-1 text-sm"
+          >
+            + 添加{node.type === 'book' ? '卷' : '大事件'}
+          </button>
         )}
         {node.type !== 'book' && (
           <button onClick={onRemove} className="rounded border px-2 py-1 text-sm text-destructive">
