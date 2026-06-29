@@ -86,7 +86,7 @@ describe('agent-tools', () => {
     expect(JSON.parse(r).error).toBe('无大纲');
   });
 
-  it('get_outline_node 传章节号返回当前卷+下一卷方向', async () => {
+  it('get_outline_node 传章节号返回当前卷+后续规划', async () => {
     const tree = {
       id: 'root',
       type: 'book',
@@ -99,10 +99,11 @@ describe('agent-tools', () => {
     };
     const ks = { listHooks: vi.fn(async () => []), getOutline: vi.fn(async () => tree) };
     const executor = createToolExecutor(mockDeps({ knowledgeService: ks }));
-    const r = await executor(mkCall('get_outline_node', { chapterId: 20 }));
+    const r = await executor(mkCall('get_outline_node', { chapterId: 5 }));
     const parsed = JSON.parse(r);
-    expect(parsed.current.title).toBe('第二卷');
-    expect(parsed.next).toBeNull();
+    expect(parsed.current.title).toBe('第一卷');
+    expect(parsed.upcoming).toHaveLength(1);
+    expect(parsed.upcoming[0].title).toBe('第二卷');
   });
 
   it('get_outline_node 不传章节号列出所有卷概要', async () => {

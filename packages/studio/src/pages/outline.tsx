@@ -202,10 +202,12 @@ function NodeTree({
   onSelect: (id: string) => void;
 }) {
   const rangeLabel =
-    node.type === 'arc' && node.chapterRange
-      ? node.chapterRange[1] == null
-        ? `[第${node.chapterRange[0]}- 进行中]`
-        : `[第${node.chapterRange[0]}-${node.chapterRange[1]}章]`
+    node.type === 'arc'
+      ? !node.chapterRange
+        ? '(未定章)'
+        : node.chapterRange[1] == null
+          ? `[第${node.chapterRange[0]}- 进行中]`
+          : `[第${node.chapterRange[0]}-${node.chapterRange[1]}章]`
       : null;
   return (
     <div>
@@ -299,7 +301,7 @@ function NodeEditor({
             />
           </div>
           <span className="mt-1 block text-xs text-muted-foreground">
-            起始章必填;结束章留空 = 本卷进行中(新增下一卷时自动回填为「其起始−1」)
+            起始章必填;结束章留空 = 本卷进行中(新增下一卷时自动回填为「其起始−1」)。未来卷可不填范围(纯方向规划,AI 会作为「后续规划」参考)。
           </span>
         </div>
       )}

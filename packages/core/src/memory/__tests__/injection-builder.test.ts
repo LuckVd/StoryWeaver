@@ -41,7 +41,7 @@ function baseInput(overrides: Partial<InjectionInput> = {}): InjectionInput {
     model: 'glm-4',
     systemPrompt: '你是写作助手',
     chapter: null,
-    activeArc: { current: null, next: null },
+    activeArc: { current: null, upcoming: [] },
     rules: [],
     storyState: null,
     entities: [],
@@ -83,7 +83,7 @@ describe('injection-builder', () => {
           rules: [mkRule('r1', '禁穿越', 'high'), mkRule('r2', '人称', 'low')],
           activeArc: {
             current: mkArc(3, '第二卷·抗争', '与反派冲突', [15, 40]),
-            next: mkArc(4, '第三卷·陨落', '代价与重生', [41, 60]),
+            upcoming: [mkArc(4, '第三卷·陨落', '代价与重生', [41, 60])],
           },
           storyState: {
             lastPublishedChapter: 2,
@@ -101,21 +101,22 @@ describe('injection-builder', () => {
       expect(r.constant).toContain('人称');
       expect(r.constant).toContain('[当前卷] 第二卷·抗争(第15-40章)');
       expect(r.constant).toContain('方向: 与反派冲突');
-      expect(r.constant).toContain('[下一卷] 第三卷·陨落');
+      expect(r.constant).toContain('[后续规划]');
+      expect(r.constant).toContain('第三卷·陨落');
       expect(r.constant).toContain('当前主线:主线');
     });
 
-    it('① 进行中卷(无结束章)显示"(第N章起·进行中)"且无下一卷时不输出下一卷', () => {
+    it('① 进行中卷(无结束章)显示"(第N章起·进行中)",无后续卷时不输出[后续规划]', () => {
       const r = buildInjection(
         baseInput({
           activeArc: {
             current: mkArc(3, '第二卷·抗争', '进行中', [15]),
-            next: null,
+            upcoming: [],
           },
         }),
       );
       expect(r.constant).toContain('[当前卷] 第二卷·抗争(第15章起·进行中)');
-      expect(r.constant).not.toContain('下一卷');
+      expect(r.constant).not.toContain('[后续规划]');
     });
 
     it('规则按优先级排序(high 在前)', () => {

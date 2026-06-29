@@ -147,17 +147,25 @@ function buildConstant(input: InjectionInput): string {
 
 function formatArcDirection(a: ActiveArc): string {
   if (!a.current) return '';
-  const fmt = (n: OutlineNode, tag: string): string => {
-    const range = n.chapterRange
+  const rangeOf = (n: OutlineNode): string =>
+    n.chapterRange
       ? n.chapterRange[1] == null
         ? `(第${n.chapterRange[0]}章起·进行中)`
         : `(第${n.chapterRange[0]}-${n.chapterRange[1]}章)`
       : '';
-    return `[${tag}] ${n.title}${range}\n  方向: ${n.summary ?? ''}`;
-  };
   const lines: string[] = ['【剧情方向(前方规划)】'];
-  lines.push(fmt(a.current, '当前卷'));
-  if (a.next) lines.push(fmt(a.next, '下一卷'));
+  lines.push(`[当前卷] ${a.current.title}${rangeOf(a.current)}\n  方向: ${a.current.summary ?? ''}`);
+  if (a.upcoming.length) {
+    lines.push('[后续规划]');
+    a.upcoming.forEach((u) => {
+      const r = u.chapterRange
+        ? u.chapterRange[1] == null
+          ? `(第${u.chapterRange[0]}章起)`
+          : `(第${u.chapterRange[0]}-${u.chapterRange[1]}章)`
+        : '(未定章)';
+      lines.push(`  · ${u.title}${r}:${u.summary ?? ''}`);
+    });
+  }
   return lines.join('\n');
 }
 

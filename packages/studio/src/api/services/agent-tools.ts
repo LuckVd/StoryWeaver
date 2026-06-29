@@ -176,11 +176,11 @@ async function runGetOutlineNode(deps: ToolDeps, args: Record<string, unknown>):
   const tree = await deps.knowledgeService.getOutline().catch(() => null);
   if (!tree) return cap({ error: '无大纲' });
   if (typeof args.chapterId === 'number') {
-    // 传章节号:定位当前卷 + 下一卷方向
+    // 传章节号:定位当前卷 + 后续规划卷
     const arc = getActiveArc(tree, args.chapterId);
     const pick = (n: OutlineNode | null) =>
       n ? { title: n.title, summary: n.summary, chapterRange: n.chapterRange } : null;
-    return cap({ current: pick(arc.current), next: pick(arc.next) });
+    return cap({ current: pick(arc.current), upcoming: arc.upcoming.map(pick) });
   }
   // 不传章节号:列出所有剧情卷概要(紧凑蓝图)
   return cap({
