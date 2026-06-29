@@ -9,6 +9,7 @@ import { BookEditDialog, type BookMeta } from '@/components/book-edit-dialog';
 import { ActivityGraph } from '@/components/activity-graph';
 import { Pen, Trash2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiBase } from '@/lib/api-client';
 import type { BookshelfItem } from '@storyweaver/core';
 import type { FormEvent } from 'react';
 
@@ -324,7 +325,8 @@ function NewBookForm({
 
 /** 导出指定书为文件(文件名用书名) */
 async function downloadExport(slug: string, format: 'txt' | 'md', title: string) {
-  const res = await fetch(`/api/v1/library/${slug}/export?format=${format}`);
+  // 走统一 apiBase:桌面版用注入的 loopback 基址,web 版回退 /api/v1 代理(裸 /api 在桌面版 renderer 会拿到 HTML)
+  const res = await fetch(`${apiBase}/library/${slug}/export?format=${format}`);
   if (!res.ok) {
     alert('导出失败');
     return;

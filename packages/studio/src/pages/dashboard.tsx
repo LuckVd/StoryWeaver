@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useBookStore } from '@/stores/book-store';
+import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 
 interface BookStats {
@@ -22,10 +23,9 @@ export function DashboardPage() {
   }, [fetchBook]);
 
   useEffect(() => {
-    fetch('/api/v1/stats')
-      .then((r) => r.json())
-      .then(setStats)
-      .catch(() => {});
+    // 走 api-client:桌面版用 preload 注入的 loopback 基址,web 版回退 /api/v1 代理。
+    // 切勿用裸 fetch('/api/v1/stats') —— 桌面版 renderer dev server(:5173)无 /api 代理会拿到 HTML。
+    api.get<BookStats>('/stats').then(setStats).catch(() => {});
   }, []);
 
   if (loading && !book) {
