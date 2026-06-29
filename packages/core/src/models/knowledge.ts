@@ -92,8 +92,8 @@ export interface OutlineNode {
   title: string;
   /** 概要:arc=本卷方向(目标/冲突/走向);milestone=该大事件要点 */
   summary?: string;
-  /** 仅 arc:覆盖的正文章节范围 [起, 止],用于按当前章定位当前卷 */
-  chapterRange?: [number, number];
+  /** 仅 arc:覆盖的正文章节范围 [起, 止?],结束章留空=进行中(定位器视为 +∞) */
+  chapterRange?: [number, number?];
   /** 子节点:book→arc;arc→milestone */
   children?: OutlineNode[];
   sortOrder: number;

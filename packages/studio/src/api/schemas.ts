@@ -167,7 +167,9 @@ export const outlineSchema: z.ZodType = z.object({
   type: z.enum(['book', 'arc', 'milestone']),
   title: z.string().min(1),
   summary: z.string().optional(),
-  chapterRange: z.tuple([z.number().int(), z.number().int()]).optional(),
+  chapterRange: z
+    .union([z.tuple([z.number().int()]), z.tuple([z.number().int(), z.number().int()])])
+    .optional(),
   children: z.lazy(() => z.array(outlineSchema)).optional(),
   sortOrder: z.number().int().min(0),
 });

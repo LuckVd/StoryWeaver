@@ -114,5 +114,47 @@ describe('outline-locator', () => {
     it('空树 / null → {null,null}', () => {
       expect(getActiveArc(null, 5)).toEqual({ current: null, next: null });
     });
+
+    it('尾卷开放(无结束章):写在其起始后 → current=该卷,next=null', () => {
+      const tree: OutlineNode = {
+        id: 'root',
+        type: 'book',
+        title: 't',
+        sortOrder: 0,
+        children: [
+          { id: 'a1', type: 'arc', title: '一', chapterRange: [1, 14], sortOrder: 0 },
+          { id: 'a2', type: 'arc', title: '二', chapterRange: [15, 40], sortOrder: 1 },
+          { id: 'a3', type: 'arc', title: '三', chapterRange: [41], sortOrder: 2 },
+        ],
+      };
+      expect(getActiveArc(tree, 50).current?.id).toBe('a3');
+      expect(getActiveArc(tree, 50).next).toBeNull();
+      // 远超任何卷,仍被开放尾卷吞掉
+      expect(getActiveArc(tree, 999).current?.id).toBe('a3');
+    });
+
+    it('中间卷开放:被起始更靠后的有界卷覆盖时取后者', () => {
+      const tree: OutlineNode = {
+        id: 'root',
+        type: 'book',
+        title: 't',
+        sortOrder: 0,
+        children: [
+          { id: 'a1', type: 'arc', title: '一', chapterRange: [1], sortOrder: 0 }, // 开放
+          { id: 'a2', type: 'arc', title: '二', chapterRange: [5, 10], sortOrder: 1 },
+        ],
+      };
+      // ch=7 同时被 a1(开放)与 a2[5,10] 覆盖 → 取更具体的 a2
+      expect(getActiveArc(tree, 7).current?.id).toBe('a2');
+      // ch=3 只被 a1(开放)覆盖
+      expect(getActiveArc(tree, 3).current?.id).toBe('a1');
+      expect(getActiveArc(tree, 3).next?.id).toBe('a2');
+    });
+
+    it('全有界、写到所有卷之后 → current=最后一卷(已写过的最后一个)', () => {
+      // buildTree 的 a3 为 [41,60];ch=100 已超过 → 无 covering,last started=a3
+      expect(getActiveArc(buildTree(), 100).current?.id).toBe('a3');
+      expect(getActiveArc(buildTree(), 100).next).toBeNull();
+    });
   });
 });

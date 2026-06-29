@@ -148,7 +148,11 @@ function buildConstant(input: InjectionInput): string {
 function formatArcDirection(a: ActiveArc): string {
   if (!a.current) return '';
   const fmt = (n: OutlineNode, tag: string): string => {
-    const range = n.chapterRange ? `(第${n.chapterRange[0]}-${n.chapterRange[1]}章)` : '';
+    const range = n.chapterRange
+      ? n.chapterRange[1] == null
+        ? `(第${n.chapterRange[0]}章起·进行中)`
+        : `(第${n.chapterRange[0]}-${n.chapterRange[1]}章)`
+      : '';
     return `[${tag}] ${n.title}${range}\n  方向: ${n.summary ?? ''}`;
   };
   const lines: string[] = ['【剧情方向(前方规划)】'];

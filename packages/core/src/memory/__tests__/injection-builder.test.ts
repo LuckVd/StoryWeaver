@@ -105,6 +105,19 @@ describe('injection-builder', () => {
       expect(r.constant).toContain('当前主线:主线');
     });
 
+    it('① 进行中卷(无结束章)显示"(第N章起·进行中)"且无下一卷时不输出下一卷', () => {
+      const r = buildInjection(
+        baseInput({
+          activeArc: {
+            current: mkArc(3, '第二卷·抗争', '进行中', [15]),
+            next: null,
+          },
+        }),
+      );
+      expect(r.constant).toContain('[当前卷] 第二卷·抗争(第15章起·进行中)');
+      expect(r.constant).not.toContain('下一卷');
+    });
+
     it('规则按优先级排序(high 在前)', () => {
       const r = buildInjection(
         baseInput({ rules: [mkRule('r1', '低优', 'low'), mkRule('r2', '高优', 'high')] }),
