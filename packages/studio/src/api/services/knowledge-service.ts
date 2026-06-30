@@ -1,4 +1,10 @@
-import { KnowledgeStorage, OutlineStorage, RelationStorage } from '@storyweaver/core';
+import {
+  KnowledgeStorage,
+  OutlineStorage,
+  RelationStorage,
+  createLLMClient,
+  CuratorAgent,
+} from '@storyweaver/core';
 import type {
   Character,
   WorldEntry,
@@ -9,7 +15,11 @@ import type {
   CustomKnowledge,
   OutlineNode,
   RelationEdge,
+  ModelConfig,
+  LLMClient,
+  SuggestedEntitiesFull,
 } from '@storyweaver/core';
+import type { ModelService } from './model-service.js';
 
 /**
  * 知识库业务逻辑层
@@ -22,6 +32,7 @@ export class KnowledgeService {
     private readonly knowledgeStorage: KnowledgeStorage,
     private readonly outlineStorage: OutlineStorage,
     private readonly relationStorage: RelationStorage,
+    private readonly modelService?: ModelService,
   ) {}
 
   // ── 概览 ──
@@ -195,5 +206,32 @@ export class KnowledgeService {
 
   async deleteRelation(id: string): Promise<boolean> {
     return this.relationStorage.delete(id);
+  }
+
+  // ── AI 智能提取(知识库「AI 智能录入」入口;无状态,不落库) ──
+
+  /** 解析 curator 的 LLM client + 模型 id(assignment 优先,回退 env) */
+  private async resolveClient(): Promise<{ client: LLMClient; modelId: string }> {
+    const resolved = this.modelService ? await this.modelService.resolveModelForAgent('curator') : null;
+    if (resolved) return { client: createLLMClient(resolved), modelId: resolved.id };
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OPENAI_API_KEY 未配置,无法调用 AI');
+    const model = process.env.OPENAI_MODEL ?? 'gpt-4o';
+    const baseUrl = process.env.OPENAI_BASE_URL;
+    const config: ModelConfig = {
+      id: model,
+      name: model,
+      service: 'openai',
+      apiKey,
+      ...(baseUrl ? { baseUrl } : {}),
+    };
+    return { client: createLLMClient(config), modelId: model };
+  }
+
+  /** 从任意文本提取知识库实体(角色/伏笔/世界观/规则 4 类),不落库,由前端确认后逐条入库 */
+  async extractEntities(text: string): Promise<SuggestedEntitiesFull> {
+    const { client, modelId } = await this.resolveClient();
+    const agent = new CuratorAgent(client, { model: modelId, temperature: 0.3 });
+    return agent.suggestEntitiesWithRules([{ role: 'user', content: text }]);
   }
 }

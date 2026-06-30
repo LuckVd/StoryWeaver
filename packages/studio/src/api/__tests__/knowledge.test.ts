@@ -330,4 +330,46 @@ describe('Knowledge API', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  // ── AI 智能提取(无 LLM,仅测校验与降级;成功路径由 core/curator-agent 覆盖) ──
+
+  describe('AI Extract', () => {
+    let prevKey: string | undefined;
+
+    beforeAll(() => {
+      prevKey = process.env.OPENAI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+    });
+
+    afterAll(() => {
+      if (prevKey !== undefined) process.env.OPENAI_API_KEY = prevKey;
+    });
+
+    it('空文本 → 400', async () => {
+      const res = await app.request('/api/v1/knowledge/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: '' }),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('超长文本 → 400', async () => {
+      const res = await app.request('/api/v1/knowledge/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'x'.repeat(20001) }),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('未配置 AI → 502 降级', async () => {
+      const res = await app.request('/api/v1/knowledge/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: '一段设定文字' }),
+      });
+      expect(res.status).toBe(502);
+    });
+  });
 });

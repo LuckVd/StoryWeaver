@@ -3,6 +3,9 @@ import { useKnowledgeStore } from '@/stores/knowledge-store';
 import { RelationGraph } from '@/components/knowledge/relation-graph';
 import { EntityList, type ColumnDef } from '@/components/knowledge/entity-list';
 import { EntityFormDialog, type FieldDef } from '@/components/knowledge/entity-form-dialog';
+import { ExtractDialog } from '@/components/knowledge/extract-dialog';
+import { Button } from '@/components/ui/button';
+import { WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type {
   Character,
@@ -226,6 +229,7 @@ export function KnowledgePage() {
 
   // Dialog 状态
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [extractOpen, setExtractOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValues, setEditValues] = useState<Record<string, unknown>>({});
 
@@ -415,6 +419,9 @@ export function KnowledgePage() {
             {tab.label}
           </button>
         ))}
+        <Button variant="vermilion" size="sm" className="ml-auto my-2" onClick={() => setExtractOpen(true)}>
+          <WandSparkles /> AI 智能录入
+        </Button>
       </div>
 
       {/* Tab 内容 */}
@@ -581,6 +588,8 @@ export function KnowledgePage() {
         onSubmit={handleSubmit}
         onClose={() => setDialogOpen(false)}
       />
+
+      <ExtractDialog open={extractOpen} onClose={() => setExtractOpen(false)} />
     </div>
   );
 }

@@ -29,7 +29,15 @@ export class ModelService {
       );
       if (existing) model = { ...model, apiKey: existing.apiKey };
     }
+    model = { ...model, baseUrl: this.normalizeBaseUrl(model.baseUrl) };
     return (await this.configStorage.upsertModel(this.projectRoot, model)).map((m) => this.mask(m));
+  }
+
+  /** 规范化 baseUrl:去掉末尾误填的 /chat/completions 或 /completions(OpenAI SDK 会自动追加) */
+  private normalizeBaseUrl(baseUrl?: string): string | undefined {
+    if (!baseUrl) return baseUrl;
+    const trimmed = baseUrl.trim().replace(/\/(?:chat\/)?completions\/?$/i, '');
+    return trimmed || undefined;
   }
 
   /** 删除模型 */
@@ -50,7 +58,13 @@ export class ModelService {
       );
       return { ok: true, message: `连接成功:${r.content.slice(0, 50)}` };
     } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : String(e) };
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        ok: false,
+        message: /premature close/i.test(msg)
+          ? `${msg}（服务端中途断开，常见于推理模型/网关超时，不代表模型不可用）`
+          : msg,
+      };
     }
   }
 
@@ -61,13 +75,56 @@ export class ModelService {
       name: '__probe__',
       service,
       apiKey,
-      baseUrl,
+      baseUrl: this.normalizeBaseUrl(baseUrl),
     };
     const client = createLLMClient(config);
     if (!client.listModels) {
       throw new Error(`供应商 "${service}" 不支持列出模型`);
     }
     return client.listModels();
+  }
+
+  /**
+   * 用指定凭证 + modelId 测连接(添加/编辑表单用,无需先保存)。
+   * apiKey 缺失或脱敏且提供 id 时,回退存储里的真 key(编辑留空保留原 key 场景)。
+   */
+  async testConfig(input: {
+    id?: string;
+    service: string;
+    apiKey?: string;
+    baseUrl?: string;
+    modelId: string;
+  }): Promise<{ ok: boolean; message: string }> {
+    let apiKey = input.apiKey?.trim();
+    if ((!apiKey || apiKey.startsWith('***')) && input.id) {
+      const existing = (await this.configStorage.listModels(this.projectRoot)).find(
+        (m) => m.id === input.id,
+      );
+      apiKey = existing?.apiKey;
+    }
+    const config: ModelConfig = {
+      id: input.modelId,
+      name: input.modelId,
+      service: input.service,
+      apiKey: apiKey ?? '',
+      baseUrl: this.normalizeBaseUrl(input.baseUrl),
+    };
+    try {
+      const client = createLLMClient(config);
+      const r = await client.chatCompletion(
+        [{ role: 'user', content: '请回复"ok"' }],
+        { model: input.modelId, maxTokens: 16 },
+      );
+      return { ok: true, message: `连接成功:${r.content.slice(0, 50)}` };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        ok: false,
+        message: /premature close/i.test(msg)
+          ? `${msg}（服务端中途断开，常见于推理模型/网关超时，不代表模型不可用）`
+          : msg,
+      };
+    }
   }
 
   // ── Agent 模型分配(G05-S03)──

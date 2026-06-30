@@ -250,8 +250,10 @@ function ModelForm({
   const [fetchedModels, setFetchedModels] = useState<AvailableModel[] | null>(null);
   const [modelId, setModelId] = useState(editing ? initial.id : '');
   const [modelName, setModelName] = useState(editing ? initial.name : '');
-  const [manualMode, setManualMode] = useState(false);
+  const [manualMode, setManualMode] = useState(editing);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testRes, setTestRes] = useState<TestResp | null>(null);
 
   const preset = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0];
   const PresetIcon = PROVIDER_ICON[preset.id];
@@ -280,7 +282,8 @@ function ModelForm({
     }
   };
 
-  const canSave = !!modelId && (!preset.needKey || !!apiKey);
+  // 编辑时 key 可留空(后端脱敏回填旧 key),故 editing 放行 needKey 校验
+  const canSave = !!modelId && (!preset.needKey || !!apiKey || editing);
 
   const save = async () => {
     setSaving(true);
@@ -297,6 +300,26 @@ function ModelForm({
       onSaved();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestConnect = async () => {
+    if (!modelId) return;
+    setTesting(true);
+    setTestRes(null);
+    try {
+      const r = await api.post<TestResp>('/models/test-config', {
+        id: editing ? initial.id : undefined,
+        service: provider,
+        apiKey: apiKey || undefined,
+        baseUrl: baseUrl || undefined,
+        modelId,
+      });
+      setTestRes(r);
+    } catch (e) {
+      setTestRes({ ok: false, message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -356,7 +379,7 @@ function ModelForm({
                   </Label>
                   <Input
                     type="password"
-                    placeholder={editing ? '留空则保留原 key' : 'sk-...'}
+                    placeholder={editing && initial.apiKey ? `留空保留原 key（${initial.apiKey}）` : 'sk-...'}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                   />
@@ -369,10 +392,16 @@ function ModelForm({
                     baseUrl {preset.id === 'openai' && <span className="text-destructive">*</span>}
                   </Label>
                   <Input
-                    placeholder={preset.baseUrl ?? 'https://...'}
+                    placeholder={preset.baseUrl ?? 'https://your-host/v1'}
                     value={baseUrl}
                     onChange={(e) => setBaseUrl(e.target.value)}
                   />
+                  {preset.id === 'openai' && (
+                    <p className="text-xs text-muted-foreground">
+                      填到 <code className="rounded bg-muted px-1">/v1</code> 为止即可,无需
+                      <code className="rounded bg-muted px-1">/chat/completions</code>(SDK 自动追加;误填会被自动去除)
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -426,6 +455,18 @@ function ModelForm({
                       }}
                     />
                   </div>
+                )}
+              </div>
+
+              {/* 测试连接(用当前表单值,无需先保存) */}
+              <div className="space-y-1.5">
+                <Button variant="outline" size="sm" disabled={testing || !modelId} onClick={handleTestConnect}>
+                  {testing ? '测试中…' : '⚡ 测试连接'}
+                </Button>
+                {testRes && (
+                  <p className={cn('text-xs', testRes.ok ? 'text-green-600' : 'text-destructive')}>
+                    {testRes.ok ? '✓' : '✗'} {testRes.message}
+                  </p>
                 )}
               </div>
 

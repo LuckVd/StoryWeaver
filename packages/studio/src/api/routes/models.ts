@@ -46,6 +46,24 @@ export function modelsRoute(service: ModelService) {
     }
   });
 
+  /** 测试连接(添加/编辑表单用,无需先保存;POST 避免 key 落 URL) */
+  app.post('/test-config', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const parsed = z
+      .object({
+        id: z.string().optional(),
+        service: z.string().min(1),
+        apiKey: z.string().optional(),
+        baseUrl: z.string().optional(),
+        modelId: z.string().min(1),
+      })
+      .safeParse(body);
+    if (!parsed.success) {
+      return c.json({ ok: false, message: '参数无效(需 service + modelId)' }, 200);
+    }
+    return c.json(await service.testConfig(parsed.data));
+  });
+
   /** 删除模型 */
   app.delete('/:id', async (c) => c.json({ models: await service.delete(c.req.param('id')) }));
 

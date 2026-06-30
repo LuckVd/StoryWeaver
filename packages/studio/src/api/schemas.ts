@@ -162,6 +162,12 @@ export const updateCustomSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+// --- Knowledge: AI 智能提取 ---
+
+export const extractEntitiesSchema = z.object({
+  text: z.string().min(1, '文本不能为空').max(20000, '文本过长，请分段提取（上限 2 万字）'),
+});
+
 export const outlineSchema: z.ZodType = z.object({
   id: z.string().min(1),
   type: z.enum(['book', 'arc', 'milestone']),

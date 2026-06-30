@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { fetch as undiciFetch } from 'undici';
 import type { Message } from '../models/index.js';
 import type { LLMClient, LLMProvider, ChatOptions, ChatResult, TokenUsage, ToolDefinition } from './types.js';
 
@@ -94,6 +95,9 @@ export class OpenAIClient implements LLMClient {
     this.client = new OpenAI({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
+      // 注入最新 undici 的 fetch,绕过宿主(Electron 内置 Node 的旧版 undici)
+      // 与 Cloudflare 等 HTTP/2 网关的 "Premature close" 兼容问题
+      fetch: undiciFetch as unknown as typeof globalThis.fetch,
     });
     this.defaultModel = defaultModel;
   }

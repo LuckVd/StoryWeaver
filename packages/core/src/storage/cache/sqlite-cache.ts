@@ -116,17 +116,17 @@ export class SqliteCache {
 
   /** 执行写操作(INSERT/UPDATE/DELETE),返回影响行数等 */
   run(sql: string, params: unknown[] = []): RunResult {
-    return this.stmt(sql).run(...params) as RunResult;
+    return this.stmt(sql).run(...(params as never[])) as RunResult;
   }
 
   /** 查询单行,无结果返回 undefined */
   queryOne<T>(sql: string, params: unknown[] = []): T | undefined {
-    return this.stmt(sql).get(...params) as T | undefined;
+    return this.stmt(sql).get(...(params as never[])) as T | undefined;
   }
 
   /** 查询所有行 */
   queryAll<T>(sql: string, params: unknown[] = []): T[] {
-    return this.stmt(sql).all(...params) as T[];
+    return this.stmt(sql).all(...(params as never[])) as T[];
   }
 
   /**

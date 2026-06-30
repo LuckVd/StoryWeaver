@@ -53,10 +53,12 @@ export function createServer(projectRoot: string = process.cwd()) {
   // 服务层
   const bookService = new BookService(bookStorage);
   const chapterService = new ChapterService(indexStorage, chapterStorage, versionStorage, projectRoot);
+  const modelService = new ModelService(new ConfigStorage(), projectRoot);
   const knowledgeService = new KnowledgeService(
     new KnowledgeStorage(projectRoot),
     new OutlineStorage(projectRoot),
     new RelationStorage(projectRoot),
+    modelService,
   );
   // SQLite 缓存(G04):summaries 高频读取的索引层;文件仍为主存储
   const cache = SqliteCache.openSync(join(projectRoot, 'memory', '.cache', 'cache.db'));
@@ -68,7 +70,6 @@ export function createServer(projectRoot: string = process.cwd()) {
   summaryStorage.rebuildLogsCache(projectRoot).catch((e) =>
     console.error('[cache] logs rebuild 失败:', e instanceof Error ? e.message : e),
   );
-  const modelService = new ModelService(new ConfigStorage(), projectRoot);
   // 搜索引擎（全局共享实例;注入 SQLite 索引缓存,G04-S03 启动可从缓存恢复)
   // 在 ChatService 之前创建,以便注入供四档注入的③相关性检索使用
   const searchEngine = new InMemorySearchEngine(new CacheStore(cache, 'search-documents'));

@@ -21,6 +21,7 @@ import {
   updateRelationSchema,
   validateWorldSub,
   customNameSchema,
+  extractEntitiesSchema,
 } from '../schemas.js';
 
 /**
@@ -58,6 +59,7 @@ import {
  * POST   /knowledge/relations              — 创建关系
  * PUT    /knowledge/relations/:id          — 更新关系
  * DELETE /knowledge/relations/:id          — 删除关系
+ * POST   /knowledge/extract                — AI 智能提取实体(不落库)
  */
 export function knowledgeRoute(service: KnowledgeService): Hono {
   const app = new Hono();
@@ -274,6 +276,28 @@ export function knowledgeRoute(service: KnowledgeService): Hono {
     const deleted = await service.deleteRelation(c.req.param('id'));
     if (!deleted) throw new APIError(ErrorCode.NOT_FOUND, `关系不存在`);
     return c.json({ ok: true });
+  });
+
+  // ── AI 智能提取(不落库,前端确认后逐条入库) ──
+
+  app.post('/extract', validate(extractEntitiesSchema), async (c) => {
+    const { text } = c.get('validated');
+    try {
+      const result = await service.extractEntities(text);
+      return c.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '提取失败';
+      if (msg.includes('OPENAI_API_KEY')) {
+        throw new APIError(
+          ErrorCode.LLM_CONNECTION_FAILED,
+          '未配置 AI 模型,无法提取。请在设置中配置模型或环境变量 OPENAI_API_KEY。',
+        );
+      }
+      if (/retry|retries|Failed to get structured/i.test(msg)) {
+        throw new APIError(ErrorCode.LLM_INVALID_RESPONSE, 'AI 输出格式异常,请重试或换一段文本。');
+      }
+      throw new APIError(ErrorCode.LLM_CONNECTION_FAILED, msg);
+    }
   });
 
   return app;
