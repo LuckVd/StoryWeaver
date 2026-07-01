@@ -1,5 +1,30 @@
 # Change Log
 
+## 2026-07-01 — 知识库「AI 智能录入」完整链路
+
+- Commits: `12fb140`(链路)+ `aa2d6b6`(弹窗自适应 + gitignore 修复)
+- Summary: 知识库此前纯手动录入。新增「AI 智能录入」——贴入文本,AI 抽取角色/伏笔/世界观/规则 4 类实体(含写作规则),前端 Confirm 面板逐项确认后入库。
+- 改动:
+  - core:`CuratorAgent` 新增 `suggestEntitiesWithRules`(4 类含规则;原 `suggestEntities` 保持 3 类供 summary-service 章节自动提取,向后兼容);新增 `suggestedRuleSchema`(对齐 Rule 模型)。顺带修 `openai-provider`(undici fetch 注入,修 Electron 下 HTTP/2 断连)、`sqlite-cache` 类型转换
+  - studio:`POST /knowledge/extract` + `knowledge-service` 注入 LLM;知识库页加「AI 智能录入」按钮;新增 `components/knowledge/extract-dialog.tsx`(自适应窗口高度、紧凑行 + 点击展开编辑、同时只展开一项);模型设置页加测试连接 + baseUrl 规范化 + 手动模式默认开启;修 `packages/studio/.gitignore`(`knowledge/` 无锚点误拦 `src/components/knowledge/` 目录)
+- Impact: core(`agents/{curator-agent,index}`、`llm/openai-provider`、`storage/cache/sqlite-cache`、`agents/__tests__/curator-agent`)+ studio(`api/{routes/{knowledge,models},schemas,server,services/{knowledge-service,model-service}}`、`pages/{knowledge,settings}`、`components/knowledge/extract-dialog`🆕、`api/__tests__/knowledge`)
+- 验收:测试绿(curator-agent 补 `suggestEntitiesWithRules` 用例、knowledge 补 extract 用例);tsc 通过
+- Commit Status: 合并 main(`12fb140`、`aa2d6b6`)
+
+## 2026-07-01 — 大纲重构为「剧情方向把控层」(卷 + 大事件) + 未来卷喂给 AI
+
+- Commits: `a4e089a`(重构)→ `c61239b`(隐藏根 + 开放卷)→ `af0d05c`(未来卷 upcoming)
+- 背景:章节摘要(实际发生)+ StoryState(当前状态)已覆盖"写过什么/走到哪",大纲仍按章计划、职责重复。重构为粗粒度前方规划层,三者分工:**大纲=往哪走(人工)/ StoryState=走到哪(AI 自动)/ 摘要=写过什么(AI 自动)**。
+- 模型变更:`OutlineNode.type` `book|volume|chapter` → `book|arc|milestone`;删 `chapterId`,arc 改 `chapterRange:[起,止]`(后放宽为 `[起,止?]` 支持开放卷);根节点自动创建并 UI 隐藏。
+- 定位:`outline-locator` 重写为 `getActiveArc`,返回 `{current, upcoming[]}`——按当前章落在哪卷范围定位当前卷,其后全部卷(含未绑章的纯规划卷,上限 5)入 upcoming。
+- 注入:①恒定档 `formatOutlineNav`(前/本/后章)→ `formatArcDirection`(当前卷 + 后续规划列表);进行中卷标"(第N章起·进行中)"。
+- 工具:`get_outline_node` 改为查剧情卷方向(传章节号定位 / 不传列全部卷),返回 `{current, upcoming}`。
+- 清死代码:`retriever` 策略3"大纲指引"(从未启用,一直传 `outline:[]`)+ `flattenOutline`。
+- 迁移:`OutlineStorage.read` 读到旧结构自动归档 `outline.legacy.json`,新树从空开始。
+- Impact: core(`models/knowledge`、`memory/{outline-locator,injection-builder,retriever,index}`、`storage/{outline-storage,path}`、对应 `__tests__`)+ studio(`api/{schemas,server,services/{chat-service,agent-tools}}`、`pages/outline`、`api/__tests__/agent-tools`)
+- 验收:tsc 通过;core + studio 测试绿(outline-locator/outline-storage/injection-builder/retriever/agent-tools 均重写)
+- Commit Status: 合并 main(`a4e089a`、`c61239b`、`af0d05c`)
+
 ## 2026-06-24 — 多模型端到端接入 + 原生 GLM CodePlan / DeepSeek
 
 - Goal ID: G05-S03 接入补全 + G05-S01 增强(非新 roadmap 子目标,在 feat/g06-polish 分支提交)

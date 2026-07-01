@@ -17,6 +17,26 @@ G06 — Phase 6:打磨(2026-06-24)。视觉基础(衬线标题 + 纸张纹理 + 
 
 > 用户目标(完成到 G06)已达成。G07 为发布就绪阶段,待用户决定是否启动。
 
+## 特性记录:大纲重构为「剧情方向把控层」(2026-06-29 ~ 07-01)
+
+**背景**:章节摘要(实际发生)+ StoryState(当前状态)已覆盖"写过什么/走到哪",大纲仍按章计划、职责重复。重构为粗粒度前方规划层,三者分工:大纲=往哪走(人工)/ StoryState=走到哪(AI 自动)/ 摘要=写过什么(AI 自动)。
+
+**实现**:`OutlineNode.type` book|volume|chapter → book|arc|milestone,删 chapterId、arc 改 `chapterRange:[起,止?]`(开放卷支持);`outline-locator` 重写为 `getActiveArc` 返回 `{current, upcoming[]}` —— 未绑章的未来卷入 upcoming(上限 5)作为「后续规划」喂 AI;①恒定档注入 `formatOutlineNav` → `formatArcDirection`;`get_outline_node` 工具改查卷方向;清死代码 retriever 策略3 + `flattenOutline`;旧结构自动归档 `outline.legacy.json`。
+
+**修改文件**:core(`models/knowledge`、`memory/{outline-locator,injection-builder,retriever,index}`、`storage/{outline-storage,path}`)+ studio(`api/{schemas,server,services/{chat-service,agent-tools}}`、`pages/outline`)
+
+**验收**:tsc 通过;core + studio 测试绿。详见 change-log 2026-07-01。
+
+## 特性记录:知识库「AI 智能录入」(2026-07-01)
+
+**背景**:知识库此前纯手动录入。新增 AI 智能录入:贴入文本 → AI 抽取角色/伏笔/世界观/规则 4 类实体(含写作规则)→ 前端 Confirm 面板逐项确认/编辑后入库。
+
+**实现**:`CuratorAgent` 新增 `suggestEntitiesWithRules`(4 类含规则;原 `suggestEntities` 保持 3 类供 summary-service 章节自动提取,向后兼容);`POST /knowledge/extract` + `knowledge-service` 注入 LLM;新增 `components/knowledge/extract-dialog.tsx`(自适应高度、紧凑行 + 点击展开编辑、同时只展开一项)。顺带修 `openai-provider`(Electron 下 undici fetch 注入修 HTTP/2 断连)、`sqlite-cache` 类型转换、studio `.gitignore`(`knowledge/` 无锚点误拦组件目录)。
+
+**修改文件**:core(`agents/{curator-agent,index}`、`llm/openai-provider`、`storage/cache/sqlite-cache`)+ studio(`api/{routes/{knowledge,models},schemas,server,services/{knowledge-service,model-service}}`、`pages/{knowledge,settings}`、`components/knowledge/extract-dialog`🆕)
+
+**验收**:测试绿;tsc 通过。详见 change-log 2026-07-01。
+
 ## 特性记录:大纲接通 AI 上下文(2026-06-27)
 
 **背景**:审查发现大纲(outline)是"建好管道未接通"的孤立功能 —— 有完整存储层(`OutlineStorage`→`knowledge/outline.json`)、CRUD API(`GET/PUT /knowledge/outline`)、前端树形编辑器(`/outline`),且 `retriever` 策略3「大纲指引」预留了消费逻辑(展平大纲树、筛含「回顾/呼应/伏笔/前文/之前/延续」的节点注入 AI 上下文),但 `chat-service.buildMemoryContext()` 调 `retrieveRemoteMemory` 时**从不传 outline**,致策略3永远拿空数组、事实上的死代码;且大纲与正文无双向联动、搜索引擎不索引。

@@ -1,5 +1,5 @@
 goal_id: null
-title: "无活跃目标 — G06 + 多书支持/大纲接通 已合并 main,G07 生产化待启动"
+title: "无活跃目标 — 大纲重构(剧情方向层)+ 知识库 AI 智能录入已合并 main;G07 生产化待启动"
 stage: idle
 status: waiting
 selected_option: null
@@ -11,6 +11,8 @@ implementation_steps: []
 test_scope: []
 test_result: "core 301 + studio 153 全绿(main,2026-06-27)"
 recent_completed:
+  - "知识库 AI 智能录入完整链路(CuratorAgent.suggestEntitiesWithRules 4 类含规则 + POST /knowledge/extract + 前端 Confirm 面板,2026-07-01,合并 main 12fb140/aa2d6b6)"
+  - "大纲重构为剧情方向把控层(OutlineNode book|arc|milestone + getActiveArc current/upcoming + 未来卷喂 AI + 清 retriever 策略3 死代码,2026-06-29~07-01,合并 main a4e089a/c61239b/af0d05c)"
   - "多书支持(书架模式)+ 大纲接通 AI 上下文(2026-06-27,合并 main c055903)"
   - "G04 Phase 4 SQLite 缓存层(4 子目标,2de629a)"
   - "G05 Phase 5 多模型 + 高级特性(8/9,S07 暂缓;多模型端到端接入 + GLM/DeepSeek 原生,4e389b4)"
@@ -20,4 +22,4 @@ dead_code_actions: []
 goal_candidates:
   - "G07 — Phase 7 生产化(待用户决定)"
 sync_status: done
-last_check_at: "2026-06-27"
+last_check_at: "2026-07-01"

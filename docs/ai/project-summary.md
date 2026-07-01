@@ -1,6 +1,6 @@
 # Project Summary
 
-Status: active（Phase 2 完成，进入 Phase 3 长篇记忆）
+Status: active（G06 Phase 6 打磨完成、用户目标达成；大纲重构为「剧情方向把控层」+ 知识库「AI 智能录入」已并入 main；G07 生产化待启动）
 
 ## Purpose
 
@@ -34,6 +34,8 @@ StoryWeaver — AI 辅助小说创作系统。通过多 Agent 协作实现「构
 
 ## Recent Maintenance Notes
 
+- 2026-07-01：两条主线合并 main —— ①大纲从"按章计划"重构为「剧情方向把控层」(OutlineNode `book|volume|chapter`→`book|arc|milestone`,删 chapterId 改 chapterRange,旧数据自动归档 `outline.legacy.json`;定位器 `getActiveArc` 返回 current+upcoming,未绑章的未来卷作为「后续规划」喂 AI;清死代码 retriever 策略3);②知识库「AI 智能录入」(CuratorAgent 新增 `suggestEntitiesWithRules` 抽 4 类含规则,POST `/knowledge/extract`,前端 Confirm 面板逐项确认入库)。详见 change-log 2026-07-01 两条目。
+- 2026-06-27：多书支持(书架模式 `~/.storyweaver/books/<slug>`,一次打开一本,切书重建 server)+ 大纲接通 AI 上下文(chat-service.buildMemoryContext 补 outline)+ 书籍信息编辑/作者字段。
 - 2026-06-18：大批 bugfix + 功能并已推送 main（5 提交）——审稿实质化 + AI 修订 diff、章节摘要（发布生成 + generating 状态持久化 + 独立页 + 重新生成）、全文搜索（去 slice 截断 + 摘要索引 + 卡片高亮分页）、章节编号连续 / 状态回退 draft / 删除限制（最新+未发布）、知识库注入对话、`ConfirmDialog` 替代 window.confirm、版本 diff 视图、`chatStructured` JSON 容错
 - 2026-06-14：chat 路由测试修复，vitest 316 passed
 - 2026-06-02：G02-S11 知识库前端管理 UI 完成
