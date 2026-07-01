@@ -13,5 +13,9 @@ export function summariesRoute(summaryService: SummaryService): Hono {
     return c.json(await summaryService.listSummaries());
   });
 
+  app.get('/batch', async (c) => {
+    return c.json(await summaryService.listBatchSummaries());
+  });
+
   return app;
 }

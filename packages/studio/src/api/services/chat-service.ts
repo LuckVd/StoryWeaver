@@ -124,7 +124,7 @@ export class ChatService {
 
       // 并行收集四档注入所需数据(各源失败均降级为空,不阻断对话)
       const chapterRef = context?.chapterRef ?? session.chapterId;
-      const [outlineTree, rules, storyState, summaries, characterStates, hooks, batchSummaries, chapterData] =
+      const [outlineTree, rules, storyState, summaries, characterStates, hooks, batchSummaries, chapterData, allChapters] =
         await Promise.all([
           this.knowledgeService.getOutline().catch(() => null),
           this.knowledgeService.listRules().catch(() => []),
@@ -134,7 +134,14 @@ export class ChatService {
           this.knowledgeService.listHooks().catch(() => []),
           this.summaryStorage.listBatchSummaries(this.projectRoot).catch(() => []),
           this.loadChapterTail(chapterRef),
+          this.chapterService.list().catch(() => []),
         ]);
+
+      // 计算 chapterId → 展示序号映射(全书连续编号)
+      const chapterOrder: Record<number, number> = {};
+      [...allChapters].sort((a, b) => a.id - b.id).forEach((ch, i) => {
+        chapterOrder[ch.id] = i + 1;
+      });
 
       const currentChapter = summaries.length
         ? Math.max(...summaries.map((s) => s.chapter))
@@ -159,6 +166,7 @@ export class ChatService {
         characterStates,
         dialogChars,
         currentChapter,
+        chapterOrder,
       });
 
       // 组装 messages:四档 system(按优先级)+ 滑动窗口对话历史
@@ -181,7 +189,7 @@ export class ChatService {
           knowledgeService: this.knowledgeService,
           summaryStorage: this.summaryStorage,
           projectRoot: this.projectRoot,
-        });
+        }, chapterOrder);
         stream = getStreamWithTools(agent, messages, executor, agentName, this.sseEmitter);
       } else {
         stream = getStream(agent, messages);

@@ -76,7 +76,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
 ];
 
 /** 创建工具执行器:按 toolCall.name 分发到对应 service,异常回填错误不中断循环 */
-export function createToolExecutor(deps: ToolDeps): (call: ToolCall) => Promise<string> {
+export function createToolExecutor(deps: ToolDeps, chapterOrder?: Record<number, number>): (call: ToolCall) => Promise<string> {
   return async (call) => {
     let args: Record<string, unknown> = {};
     try {
@@ -89,13 +89,13 @@ export function createToolExecutor(deps: ToolDeps): (call: ToolCall) => Promise<
         case 'search_knowledge':
           return await runSearchKnowledge(deps, args);
         case 'get_character_history':
-          return await runGetCharacterHistory(deps, args);
+          return await runGetCharacterHistory(deps, args, chapterOrder);
         case 'search_chapters':
           return await runSearchChapters(deps, args);
         case 'get_hook_detail':
           return await runGetHookDetail(deps, args);
         case 'get_outline_node':
-          return await runGetOutlineNode(deps, args);
+          return await runGetOutlineNode(deps, args, chapterOrder);
         default:
           return cap({ error: `未知工具: ${call.name}` });
       }
@@ -126,9 +126,11 @@ async function runSearchKnowledge(deps: ToolDeps, args: Record<string, unknown>)
 async function runGetCharacterHistory(
   deps: ToolDeps,
   args: Record<string, unknown>,
+  chapterOrder?: Record<number, number>,
 ): Promise<string> {
   const name = str(args.name).trim();
   if (!name) return cap({ error: '缺少 name 参数' });
+  const d = (id: number) => chapterOrder?.[id] ?? id;
   const [states, summaries] = await Promise.all([
     deps.summaryStorage.getCharacterStates(deps.projectRoot).catch(() => null),
     deps.summaryStorage.listChapterSummaries(deps.projectRoot).catch(() => []),
@@ -138,7 +140,7 @@ async function runGetCharacterHistory(
     .filter((s) => s.charactersPresent.some((c) => c.includes(name)))
     .sort((a, b) => a.chapter - b.chapter)
     .slice(-5)
-    .map((s) => `第${s.chapter}章:${s.plotOutcome}`);
+    .map((s) => `第${d(s.chapter)}章:${s.plotOutcome}`);
   return cap({ name, currentState: state?.currentState ?? {}, recentAppearances: appearances });
 }
 
@@ -172,12 +174,20 @@ async function runGetHookDetail(deps: ToolDeps, args: Record<string, unknown>): 
   });
 }
 
-async function runGetOutlineNode(deps: ToolDeps, args: Record<string, unknown>): Promise<string> {
+async function runGetOutlineNode(deps: ToolDeps, args: Record<string, unknown>, chapterOrder?: Record<number, number>): Promise<string> {
   const tree = await deps.knowledgeService.getOutline().catch(() => null);
   if (!tree) return cap({ error: '无大纲' });
   if (typeof args.chapterId === 'number') {
-    // 传章节号:定位当前卷 + 后续规划卷
-    const arc = getActiveArc(tree, args.chapterId);
+    // 解析章节号：AI 上下文使用展示序号，故先尝试反查 chapterId；解析不到则原值传入
+    let resolvedId = args.chapterId;
+    if (chapterOrder) {
+      const reverse = new Map<number, number>();
+      for (const [k, v] of Object.entries(chapterOrder)) {
+        reverse.set(v, Number(k));
+      }
+      resolvedId = reverse.get(args.chapterId) ?? args.chapterId;
+    }
+    const arc = getActiveArc(tree, resolvedId);
     const pick = (n: OutlineNode | null) =>
       n ? { title: n.title, summary: n.summary, chapterRange: n.chapterRange } : null;
     return cap({ current: pick(arc.current), upcoming: arc.upcoming.map(pick) });

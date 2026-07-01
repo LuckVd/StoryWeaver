@@ -48,8 +48,10 @@ export interface InjectionInput {
   characterStates?: CharacterStates | null;
   /** 对话历史字符数(预算 D) */
   dialogChars: number;
-  /** 当前章节号(伏笔沉默判定基准) */
+  /** 当前章节号(伏笔沉默判定基准，内部使用 chapterId) */
   currentChapter: number;
+  /** chapterId → 展示序号映射（前端连续编号），用于 AI 可见文本中的章节号 */
+  chapterOrder?: Record<number, number>;
 }
 
 /** 四档注入结果 */
@@ -108,20 +110,21 @@ export function coordinateBudget(
 
 /** 组装四档注入文本 */
 export function buildInjection(input: InjectionInput): InjectionResult {
-  const constant = buildConstant(input);
+  const { chapterOrder } = input;
+  const constant = buildConstant(input, chapterOrder);
   const budget = coordinateBudget(input.model, estimateChars(constant), input.dialogChars);
 
   const chapterContext = input.chapter
-    ? truncate(buildChapterContext(input.chapter), budget.chapterContext)
+    ? truncate(buildChapterContext(input.chapter, chapterOrder), budget.chapterContext)
     : '';
-  const retrieved = truncate(buildRetrieved(input), budget.retrieved);
-  const budgetFill = truncate(buildBudgetFill(input.summaries), budget.budgetFill);
+  const retrieved = truncate(buildRetrieved(input, chapterOrder), budget.retrieved);
+  const budgetFill = truncate(buildBudgetFill(input.summaries, chapterOrder), budget.budgetFill);
 
   return { constant, chapterContext, retrieved, budgetFill, budget };
 }
 
 // ── ① 恒定(不截断) ──
-function buildConstant(input: InjectionInput): string {
+function buildConstant(input: InjectionInput, chapterOrder?: Record<number, number>): string {
   const parts: string[] = [];
   if (input.systemPrompt) parts.push(input.systemPrompt);
 
@@ -137,7 +140,7 @@ function buildConstant(input: InjectionInput): string {
     );
   }
 
-  const arcText = formatArcDirection(input.activeArc);
+  const arcText = formatArcDirection(input.activeArc, chapterOrder);
   if (arcText) parts.push(arcText);
 
   if (input.storyState) parts.push(formatStoryState(input.storyState));
@@ -145,13 +148,14 @@ function buildConstant(input: InjectionInput): string {
   return parts.filter(Boolean).join('\n\n');
 }
 
-function formatArcDirection(a: ActiveArc): string {
+function formatArcDirection(a: ActiveArc, chapterOrder?: Record<number, number>): string {
   if (!a.current) return '';
+  const d = (id: number) => chapterOrder?.[id] ?? id;
   const rangeOf = (n: OutlineNode): string =>
     n.chapterRange
       ? n.chapterRange[1] == null
-        ? `(第${n.chapterRange[0]}章起·进行中)`
-        : `(第${n.chapterRange[0]}-${n.chapterRange[1]}章)`
+        ? `(第${d(n.chapterRange[0])}章起·进行中)`
+        : `(第${d(n.chapterRange[0])}-${d(n.chapterRange[1])}章)`
       : '';
   const lines: string[] = ['【剧情方向(前方规划)】'];
   lines.push(`[当前卷] ${a.current.title}${rangeOf(a.current)}\n  方向: ${a.current.summary ?? ''}`);
@@ -160,8 +164,8 @@ function formatArcDirection(a: ActiveArc): string {
     a.upcoming.forEach((u) => {
       const r = u.chapterRange
         ? u.chapterRange[1] == null
-          ? `(第${u.chapterRange[0]}章起)`
-          : `(第${u.chapterRange[0]}-${u.chapterRange[1]}章)`
+          ? `(第${d(u.chapterRange[0])}章起)`
+          : `(第${d(u.chapterRange[0])}-${d(u.chapterRange[1])}章)`
         : '(未定章)';
       lines.push(`  · ${u.title}${r}:${u.summary ?? ''}`);
     });
@@ -183,15 +187,16 @@ function formatStoryState(s: StoryStateSnapshot): string {
 }
 
 // ── ② 当前章上下文 ──
-function buildChapterContext(ch: InjectionChapter): string {
+function buildChapterContext(ch: InjectionChapter, chapterOrder?: Record<number, number>): string {
+  const dId = chapterOrder?.[ch.id] ?? ch.id;
   const header = ch.volumeTitle
-    ? `第${ch.id}章「${ch.title}」(${ch.volumeTitle})`
-    : `第${ch.id}章「${ch.title}」`;
+    ? `第${dId}章「${ch.title}」(${ch.volumeTitle})`
+    : `第${dId}章「${ch.title}」`;
   return `${header}\n已有正文(尾部,接续点):\n${ch.contentTail}`;
 }
 
 // ── ③ 相关性检索 ──
-function buildRetrieved(input: InjectionInput): string {
+function buildRetrieved(input: InjectionInput, chapterOrder?: Record<number, number>): string {
   const parts: string[] = [];
 
   // 相关知识库设定(按当前章实体检索,替代旧的全量注入)
@@ -210,6 +215,7 @@ function buildRetrieved(input: InjectionInput): string {
     batchSummaries: input.batchSummaries ?? [],
     currentChapter: input.currentChapter,
     maxTokens: 4000,
+    chapterOrder,
   });
   if (remote) parts.push(remote);
 
@@ -236,11 +242,12 @@ function formatCharacterStates(cs: CharacterStates): string {
 }
 
 // ── ④ 预算填充(近章摘要,近→远,truncate 保留最近) ──
-function buildBudgetFill(summaries: ChapterSummary[]): string {
+function buildBudgetFill(summaries: ChapterSummary[], chapterOrder?: Record<number, number>): string {
   if (!summaries.length) return '';
+  const d = (id: number) => chapterOrder?.[id] ?? id;
   const sorted = [...summaries].sort((a, b) => b.chapter - a.chapter).slice(0, 20);
   return (
     '【近期章节摘要】\n' +
-    sorted.map((s) => `第${s.chapter}章 ${s.title}:${s.plotOutcome}`).join('\n')
+    sorted.map((s) => `第${d(s.chapter)}章 ${s.title}:${s.plotOutcome}`).join('\n')
   );
 }

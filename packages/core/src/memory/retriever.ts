@@ -22,10 +22,12 @@ export interface RetrievalInput {
   hooks?: Hook[];
   /** 综合总结（兜底） */
   batchSummaries?: BatchSummary[];
-  /** 当前写到第几章（伏笔沉默判定基准） */
+  /** 当前写到第几章（伏笔沉默判定基准，内部使用 chapterId） */
   currentChapter?: number;
   /** Layer3 token 预算上限 */
   maxTokens?: number;
+  /** chapterId → 展示序号映射（前端连续编号），用于 AI 可见文本中的章节号 */
+  chapterOrder?: Record<number, number>;
 }
 
 /** 执行四策略检索，返回组装好的远期记忆文本 */
@@ -37,9 +39,11 @@ export function retrieveRemoteMemory(input: RetrievalInput): string {
     batchSummaries = [],
     currentChapter = 0,
     maxTokens = 4000,
+    chapterOrder,
   } = input;
   const maxChars = maxTokens * 2;
   const parts: string[] = [];
+  const d = (id: number) => chapterOrder?.[id] ?? id;
 
   // 策略 1：角色/地点关联（过滤过短关键词，减少单字误召回）
   const kws = keywords.filter((k) => k && k.length >= 2);
@@ -56,7 +60,7 @@ export function retrieveRemoteMemory(input: RetrievalInput): string {
   if (related.length) {
     parts.push(
       '【相关章节回顾】\n' +
-        related.slice(-5).map((s) => `第${s.chapter}章 ${s.title}：${s.plotOutcome}`).join('\n'),
+        related.slice(-5).map((s) => `第${d(s.chapter)}章 ${s.title}：${s.plotOutcome}`).join('\n'),
     );
   }
 
@@ -71,7 +75,7 @@ export function retrieveRemoteMemory(input: RetrievalInput): string {
       '【待回收伏笔】\n' +
         dormant
           .slice(0, 5)
-          .map(({ h }) => `「${h.name}」(沉默至第${currentChapter}章)：${h.description}`)
+          .map(({ h }) => `「${h.name}」(沉默至第${d(currentChapter)}章)：${h.description}`)
           .join('\n'),
     );
   }
@@ -84,7 +88,7 @@ export function retrieveRemoteMemory(input: RetrievalInput): string {
     parts.push(
       '【近期综合总结】\n' +
         recent
-          .map((b) => `第${b.chapterRange[0]}-${b.chapterRange[1]}章：${b.narrativeArc}`)
+          .map((b) => `第${d(b.chapterRange[0])}-${d(b.chapterRange[1])}章：${b.narrativeArc}`)
           .join('\n'),
     );
   }

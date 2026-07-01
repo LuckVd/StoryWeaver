@@ -6,6 +6,7 @@ import {
   aggregateHooksTracking,
   type LLMClient,
   type ModelConfig,
+  type BatchSummary,
   type ChapterSummary,
   type CurationSuggestion,
   type CurationSuggestions,
@@ -105,6 +106,11 @@ export class SummaryService {
     this.summarizeChapter(volume, chapterId)
       .catch((err) => console.error('[summary] 生成失败:', err instanceof Error ? err.message : err))
       .finally(() => this.generating.delete(chapterId));
+  }
+
+  /** 列出所有综合总结 */
+  async listBatchSummaries(): Promise<BatchSummary[]> {
+    return this.summaryStorage.listBatchSummaries(this.projectRoot);
   }
 
   /** 列出所有已发布章节及其摘要（无摘要的 summary=null，便于前端显示"生成/重新生成"） */

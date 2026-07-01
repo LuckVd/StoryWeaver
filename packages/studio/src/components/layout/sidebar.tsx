@@ -12,7 +12,7 @@ const navItems = [
   { to: '/outline', label: '大纲', icon: ListTree },
   { to: '/chat', label: 'AI 对话', icon: MessageSquare },
   { to: '/knowledge', label: '知识库', icon: Network },
-  { to: '/summaries', label: '章节摘要', icon: FileText },
+  { to: '/summaries', label: '摘要', icon: FileText },
   { to: '/memory', label: 'AI 记忆', icon: Brain },
   { to: '/search', label: '搜索', icon: Search },
   { to: '/settings', label: '设置', icon: Settings },
