@@ -101,6 +101,7 @@ export function chaptersRoute(bookService: BookService, chapterService: ChapterS
       if (!deleted) {
         throw new APIError(ErrorCode.CHAPTER_NOT_FOUND, `章节 ${chapterId} 不存在`);
       }
+      summaryService.cleanupAfterChapterDelete(chapterId).catch(() => {});
       return c.json({ ok: true });
     } catch (err) {
       if (err instanceof Error && err.message === 'CHAPTER_LOCKED') {

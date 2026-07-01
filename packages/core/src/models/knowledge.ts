@@ -58,6 +58,8 @@ export interface WorldEntry {
   name: string;
   content: string;
   tags?: string[];
+  /** 首次出现章节（AI 提取入库时自动设置） */
+  firstAppearance?: number;
   createdAt: string;
   updatedAt: string;
 }

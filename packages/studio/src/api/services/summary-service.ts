@@ -12,6 +12,7 @@ import {
   type CurationSuggestions,
   type HookTracking,
   type ActionLogEntry,
+  type WorldEntry,
   type WorldSubCategory,
 } from '@storyweaver/core';
 import type { ChapterService } from './chapter-service.js';
@@ -249,13 +250,91 @@ export class SummaryService {
       await this.knowledgeService.createCharacter({ name: c.name, description: c.description, firstAppearance: chapter });
     } else if (type === 'worldEntries') {
       const w = entity as { name: string; category: string; content: string };
-      await this.knowledgeService.createWorld(w.category as WorldSubCategory, { category: w.category as WorldSubCategory, name: w.name, content: w.content });
+      await this.knowledgeService.createWorld(w.category as WorldSubCategory, { category: w.category as WorldSubCategory, name: w.name, content: w.content, firstAppearance: chapter });
     } else {
       const h = entity as { name: string; description: string };
       await this.knowledgeService.createHook({ name: h.name, description: h.description, status: 'active', plantedAt: chapter });
     }
     await this.summaryStorage.removeCurationEntity(this.projectRoot, chapter, type, name);
     await this.appendAction({ action: 'curation_accept', target: name, chapter, category: type });
+  }
+
+  /** 删除章节后的清理：删除派生数据 + 排他性检查后清理知识库实体 */
+  async cleanupAfterChapterDelete(chapterId: number): Promise<void> {
+    const deletedSummary = await this.summaryStorage.deleteChapterSummary(this.projectRoot, chapterId);
+
+    const suggestions = await this.summaryStorage.getCurationSuggestions(this.projectRoot);
+    if (suggestions) {
+      const before = suggestions.suggestions.length;
+      suggestions.suggestions = suggestions.suggestions.filter((s) => s.chapter !== chapterId);
+      if (suggestions.suggestions.length !== before) {
+        suggestions.updatedAt = new Date().toISOString();
+        await this.summaryStorage.saveCurationSuggestions(this.projectRoot, suggestions);
+      }
+    }
+
+    const allSubs: WorldSubCategory[] = ['geography', 'power-system', 'factions', 'history', 'glossary'];
+
+    const [allCharacters, allHooks, ...worldBySub] = await Promise.all([
+      this.knowledgeService.listCharacters().catch(() => []),
+      this.knowledgeService.listHooks().catch(() => []),
+      ...allSubs.map((sub) => this.knowledgeService.listWorld(sub).catch(() => [] as WorldEntry[])),
+    ]);
+    const allWorld = worldBySub.flat();
+
+    const otherSummaries = await this.summaryStorage.listChapterSummaries(this.projectRoot);
+
+    const toDeleteCharacters = allCharacters.filter(
+      (c) => c.firstAppearance === chapterId && !otherSummaries.some(
+        (s) => s.chapter !== chapterId && s.charactersPresent.some((name) => name.includes(c.name)),
+      ),
+    );
+
+    const toDeleteHooks = allHooks.filter(
+      (h) => h.plantedAt === chapterId && !otherSummaries.some(
+        (s) => s.chapter !== chapterId && (
+          s.hooksPlanted.some((name) => name === h.name) ||
+          s.hooksAdvanced.some((name) => name === h.name)
+        ),
+      ),
+    );
+
+    const toDeleteWorld = allWorld.filter(
+      (w) => w.firstAppearance === chapterId && !otherSummaries.some(
+        (s) => s.chapter !== chapterId && (
+          s.locationsUsed.some((loc) => loc.includes(w.name)) ||
+          s.newRevealedInfo.some((info) => info.includes(w.name)) ||
+          s.plotEvents.some((e) => e.includes(w.name))
+        ),
+      ),
+    );
+
+    const entityIds = new Set([
+      ...toDeleteCharacters.map((c) => c.id),
+      ...toDeleteHooks.map((h) => h.id),
+      ...toDeleteWorld.map((w) => w.id),
+    ]);
+
+    const allRelations = await this.knowledgeService.listRelations().catch(() => []);
+    const orphanRelations = allRelations.filter(
+      (r) => entityIds.has(r.from) || entityIds.has(r.to),
+    );
+
+    await Promise.all([
+      ...toDeleteCharacters.map((c) => this.knowledgeService.deleteCharacter(c.id).catch(() => {})),
+      ...toDeleteHooks.map((h) => this.knowledgeService.deleteHook(h.id).catch(() => {})),
+      ...toDeleteWorld.map((w) => {
+        const sub = allSubs.find((s) => {
+          const matches = worldBySub[allSubs.indexOf(s)];
+          return matches?.some((e) => e.id === w.id);
+        });
+        if (sub) return this.knowledgeService.deleteWorld(sub, w.id).catch(() => {});
+        return Promise.resolve();
+      }),
+      ...orphanRelations.map((r) => this.knowledgeService.deleteRelation(r.id).catch(() => {})),
+    ]);
+
+    await this.summaryStorage.rebuildCharacterStates(this.projectRoot).catch(() => {});
   }
 
   /** 放弃实体建议：移除 + 记录（留痕可追溯） */
