@@ -8,4 +8,5 @@ export { AnthropicProvider } from './anthropic-provider.js';
 export { OllamaProvider } from './ollama-provider.js';
 export { GLMProvider } from './glm-provider.js';
 export { DeepSeekProvider } from './deepseek-provider.js';
+export { OpenCodeGoProvider } from './opencode-go-provider.js';
 export { createLLMClient, registerProvider } from './factory.js';

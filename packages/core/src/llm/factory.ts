@@ -5,11 +5,13 @@ import { AnthropicProvider } from './anthropic-provider.js';
 import { OllamaProvider } from './ollama-provider.js';
 import { GLMProvider } from './glm-provider.js';
 import { DeepSeekProvider } from './deepseek-provider.js';
+import { OpenCodeGoProvider } from './opencode-go-provider.js';
 
 /**
  * 已注册的 Provider 列表
  *
- * openai(含兼容 baseUrl)、anthropic、ollama(本地)、glm(智谱 CodePlan)、deepseek。
+ * openai(含兼容 baseUrl)、anthropic、ollama(本地)、glm(智谱 CodePlan)、deepseek、
+ * opencode-go(OpenCode zen/go 多模型套餐)。
  */
 const providers: Record<string, LLMProvider> = {
   openai: new OpenAIProvider(),
@@ -17,6 +19,7 @@ const providers: Record<string, LLMProvider> = {
   ollama: new OllamaProvider(),
   glm: new GLMProvider(),
   deepseek: new DeepSeekProvider(),
+  'opencode-go': new OpenCodeGoProvider(),
 };
 
 /**

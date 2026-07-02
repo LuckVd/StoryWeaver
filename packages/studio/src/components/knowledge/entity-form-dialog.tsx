@@ -96,12 +96,13 @@ export function EntityFormDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg"
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border bg-background p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-4 text-lg font-semibold">{title}</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {fields.map((f) => {
+        <h2 className="mb-4 shrink-0 text-lg font-semibold">{title}</h2>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+            {fields.map((f) => {
             const isDisabled = f.disabledOnEdit && editing;
             return (
               <div key={f.name} className="space-y-1">
@@ -276,7 +277,8 @@ export function EntityFormDialog({
             );
           })}
 
-          <div className="flex justify-end gap-2 pt-2">
+          </div>
+          <div className="flex shrink-0 justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               取消
             </Button>

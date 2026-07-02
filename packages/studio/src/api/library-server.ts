@@ -1,9 +1,11 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { LibraryStorage, libraryDir, ErrorCode } from '@storyweaver/core';
+import { LibraryStorage, libraryDir, ErrorCode, ConfigStorage } from '@storyweaver/core';
 import { createServer } from './server.js';
 import { libraryRoute } from './routes/library.js';
+import { modelsRoute } from './routes/models.js';
 import { LibraryService } from './services/library-service.js';
+import { ModelService } from './services/model-service.js';
 import { APIError, errorHandler } from './error-handler.js';
 
 interface ActiveApp {
@@ -97,6 +99,10 @@ export function createLibraryServer(libraryRoot: string = libraryDir()): Library
   front.use('/api/v1/*', cors({ origin: '*' }));
   // 书架路由始终可用(即使尚未打开任何书)
   front.route('/api/v1/library', libraryRoute(libraryService, switchBook, deleteBook));
+  // 模型配置全局化:与"当前书"解耦——无书架/空书架时也可读写模型,
+  // 注册在 front.all('/api/v1/*') 委托之前,故不会落到"尚无打开的书"拦截
+  const globalModelService = new ModelService(new ConfigStorage());
+  front.route('/api/v1/models', modelsRoute(globalModelService));
   front.get('/api/v1/health', (c) => c.json({ status: 'ok' }));
   // 其余 /api/v1/* 委托给当前书的 app;无书时提示去书架
   front.all('/api/v1/*', async (c) => {

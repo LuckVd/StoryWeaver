@@ -205,12 +205,12 @@ function ExportBookDialog({ book, onClose }: { book: BookshelfItem; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <Card className="w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <Card className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <CardHeader className="items-center text-center">
           <div className="mx-auto mb-1 h-px w-12 bg-vermilion" />
           <CardTitle>导出《{book.title}》</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="min-h-0 flex-1 overflow-y-auto space-y-4">
           <div className="space-y-2">
             <Label>选择格式</Label>
             <div className="grid grid-cols-2 gap-2">

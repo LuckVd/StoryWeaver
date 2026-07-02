@@ -7,11 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Seal } from '@/components/ui/seal';
-import { Plus, Lightbulb, Pen, FileCheck, FileText, Microscope } from 'lucide-react';
+import { Plus, Lightbulb, Pen, FileCheck, FileText, Microscope, Rocket } from 'lucide-react';
 import { Zhipu, DeepSeek, OpenAI, Anthropic, Ollama } from '@lobehub/icons';
 
 /** 供应商预设(添加模型向导 Step1 卡片 + Step2 表单 + 保存回填都用它) */
-type ProviderId = 'glm' | 'deepseek' | 'openai' | 'anthropic' | 'ollama';
+type ProviderId = 'glm' | 'deepseek' | 'openai' | 'anthropic' | 'ollama' | 'opencode-go';
 interface ProviderPreset {
   id: ProviderId;
   label: string;
@@ -27,6 +27,7 @@ const PROVIDERS: ProviderPreset[] = [
   { id: 'openai', label: '自定义 OpenAI 兼容', desc: '任意兼容端点', icon: '🔌', needKey: true, needBaseUrl: true },
   { id: 'anthropic', label: 'Anthropic', desc: 'Claude', icon: '🅰', baseUrl: 'https://api.anthropic.com', needKey: true, needBaseUrl: false },
   { id: 'ollama', label: 'Ollama', desc: '本地部署', icon: '🦙', baseUrl: 'http://localhost:11434', needKey: false, needBaseUrl: true },
+  { id: 'opencode-go', label: 'OpenCode Go', desc: 'DeepSeek/GPT/Claude 多模型套餐', icon: '🚀', baseUrl: 'https://opencode.ai/zen/go/v1', needKey: true, needBaseUrl: false },
 ];
 
 /** 供应商品牌图标(@lobehub/icons 官方 logo,优先 Color 品牌色变体,无则 Mono) */
@@ -40,6 +41,7 @@ const PROVIDER_ICON: Record<ProviderId, ComponentType<{ size?: number }>> = {
   openai: brandIcon(OpenAI),
   anthropic: brandIcon(Anthropic),
   ollama: brandIcon(Ollama),
+  'opencode-go': Rocket,
 };
 
 interface ModelsResp {
@@ -325,14 +327,14 @@ function ModelForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
-      <Card className="w-full max-w-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <CardHeader>
+      <Card className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <CardHeader className="shrink-0">
           <CardTitle className="text-lg">{editing ? '编辑模型' : '添加模型'}</CardTitle>
           <CardDescription>
             {step === 1 ? '选择 LLM 供应商' : `配置 ${preset.label} 并选择模型`}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="min-h-0 flex-1 overflow-y-auto space-y-4">
           {step === 1 ? (
             <div className="grid grid-cols-2 gap-3">
               {PROVIDERS.map((p) => {

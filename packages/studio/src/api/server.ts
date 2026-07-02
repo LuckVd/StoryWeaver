@@ -39,7 +39,7 @@ import { promptsRoute } from './routes/prompts.js';
  * 组装中间件（CORS）、服务层和路由，注册全局错误处理器，
  * 导出 app + sseEmitter + aiQueue 供外部使用。
  */
-export function createServer(projectRoot: string = process.cwd()) {
+export function createServer(projectRoot: string = process.cwd(), configRoot?: string) {
   const app = new Hono();
   const sseEmitter = new SSEEmitter();
   const aiQueue = new AIOperationQueue();
@@ -53,7 +53,8 @@ export function createServer(projectRoot: string = process.cwd()) {
   // 服务层
   const bookService = new BookService(bookStorage);
   const chapterService = new ChapterService(indexStorage, chapterStorage, versionStorage, projectRoot);
-  const modelService = new ModelService(new ConfigStorage(), projectRoot);
+  // 模型配置全局化:configRoot 缺省=全局 ~/.storyweaver/config(与书无关);测试可注入隔离
+  const modelService = new ModelService(new ConfigStorage(configRoot));
   const knowledgeService = new KnowledgeService(
     new KnowledgeStorage(projectRoot),
     new OutlineStorage(projectRoot),

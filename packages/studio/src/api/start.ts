@@ -5,7 +5,7 @@ import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
 import { libraryDir } from '@storyweaver/core';
 import { createLibraryServer } from './library-server.js';
-import { migrateLegacyBookIfNeeded } from './migrate.js';
+import { migrateLegacyBookIfNeeded, migrateModelsToGlobal } from './migrate.js';
 
 export interface LaunchOptions {
   /** 监听端口,默认 API_PORT ?? 3001;0 = 系统分配随机端口(Electron 用) */
@@ -51,6 +51,7 @@ export async function launchServer(opts: LaunchOptions = {}): Promise<LaunchedSe
   // Electron renderer(file:// 或 vite dev server)跨域 fetch loopback 后端,放开 CORS
   handle.app.use('*', cors({ origin: '*' }));
   await migrateLegacyBookIfNeeded(projectRoot, handle.libraryStorage);
+  await migrateModelsToGlobal(handle.libraryStorage);
   await handle.restoreActive();
 
   return await new Promise<LaunchedServer>((resolveServe, reject) => {

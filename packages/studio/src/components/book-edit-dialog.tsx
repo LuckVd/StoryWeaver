@@ -50,12 +50,12 @@ export function BookEditDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <Card className="w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <CardHeader className="items-center text-center">
+      <Card className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <CardHeader className="shrink-0 items-center text-center">
           <div className="mx-auto mb-1 h-px w-12 bg-vermilion" />
           <CardTitle>编辑书籍信息</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">书名</Label>

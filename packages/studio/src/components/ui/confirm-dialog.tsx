@@ -33,12 +33,12 @@ export function ConfirmDialog({
       onClick={() => !loading && onClose()}
     >
       <div
-        className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-lg"
+        className="flex max-h-[85vh] w-full max-w-sm flex-col overflow-hidden rounded-lg border bg-background p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-2 text-lg font-semibold">{title}</h2>
-        <p className="mb-5 whitespace-pre-line text-sm text-muted-foreground">{message}</p>
-        <div className="flex justify-end gap-2">
+        <h2 className="mb-2 shrink-0 text-lg font-semibold">{title}</h2>
+        <p className="mb-5 min-h-0 flex-1 overflow-y-auto whitespace-pre-line text-sm text-muted-foreground">{message}</p>
+        <div className="flex shrink-0 justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={loading}>
             {cancelText}
           </Button>

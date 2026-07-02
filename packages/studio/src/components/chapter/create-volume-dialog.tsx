@@ -26,7 +26,7 @@ export function CreateVolumeDialog({ open, onClose, onSubmit, loading }: CreateV
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+      <Card className="flex max-h-[85vh] w-full max-w-sm flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <CardHeader>
           <CardTitle>创建卷宗</CardTitle>
         </CardHeader>

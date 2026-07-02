@@ -274,6 +274,17 @@ export function libraryDir(): string {
 }
 
 /**
+ * 全局配置目录(跨书共享,如模型配置):与书架根同源。
+ *
+ * 默认 ~/.storyweaver/config(= libraryDir 的父级 /config);STORYWEAVER_LIBRARY
+ * 覆盖书架根时,全局配置跟随其父级,便于测试隔离。模型配置与"当前打开哪本书"
+ * 无关,统一存此处,无书架/空书架时也可读写。
+ */
+export function globalConfigDir(): string {
+  return resolve(libraryDir(), '..', 'config');
+}
+
+/**
  * 书架根下的"当前书"指针文件:<libraryRoot>/.current-book
  * 内容为当前打开书的 slug。
  */

@@ -6,13 +6,18 @@ import { createServer } from '../server.js';
 
 describe('models route (G05-S02)', () => {
   let projectRoot: string;
+  let configRoot: string;
   let app: ReturnType<typeof createServer>['app'];
 
   beforeAll(() => {
     projectRoot = mkdtempSync(join(tmpdir(), 'sw-models-'));
-    app = createServer(projectRoot).app;
+    configRoot = mkdtempSync(join(tmpdir(), 'sw-models-cfg-'));
+    app = createServer(projectRoot, configRoot).app;
   });
-  afterAll(() => rmSync(projectRoot, { recursive: true, force: true }));
+  afterAll(() => {
+    rmSync(projectRoot, { recursive: true, force: true });
+    rmSync(configRoot, { recursive: true, force: true });
+  });
 
   it('GET 空列表', async () => {
     const res = await app.request('/api/v1/models');

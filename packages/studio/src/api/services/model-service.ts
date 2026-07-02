@@ -7,14 +7,11 @@ import { ConfigStorage, createLLMClient, type ModelConfig, type AgentModelConfig
  * 对外(前端)返回脱敏 apiKey;upsert 收到脱敏 key 时保留旧 key。
  */
 export class ModelService {
-  constructor(
-    private readonly configStorage: ConfigStorage,
-    private readonly projectRoot: string,
-  ) {}
+  constructor(private readonly configStorage: ConfigStorage) {}
 
   /** 列出全部模型(脱敏) */
   async list(): Promise<ModelConfig[]> {
-    return (await this.configStorage.listModels(this.projectRoot)).map((m) => this.mask(m));
+    return (await this.configStorage.listModels()).map((m) => this.mask(m));
   }
 
   private mask(m: ModelConfig): ModelConfig {
@@ -24,13 +21,13 @@ export class ModelService {
   /** 新增/更新模型(脱敏 key 自动回填旧值) */
   async upsert(model: ModelConfig): Promise<ModelConfig[]> {
     if (model.apiKey.startsWith('***')) {
-      const existing = (await this.configStorage.listModels(this.projectRoot)).find(
+      const existing = (await this.configStorage.listModels()).find(
         (x) => x.id === model.id,
       );
       if (existing) model = { ...model, apiKey: existing.apiKey };
     }
     model = { ...model, baseUrl: this.normalizeBaseUrl(model.baseUrl) };
-    return (await this.configStorage.upsertModel(this.projectRoot, model)).map((m) => this.mask(m));
+    return (await this.configStorage.upsertModel(model)).map((m) => this.mask(m));
   }
 
   /** 规范化 baseUrl:去掉末尾误填的 /chat/completions 或 /completions(OpenAI SDK 会自动追加) */
@@ -42,12 +39,12 @@ export class ModelService {
 
   /** 删除模型 */
   async delete(id: string): Promise<ModelConfig[]> {
-    return (await this.configStorage.deleteModel(this.projectRoot, id)).map((m) => this.mask(m));
+    return (await this.configStorage.deleteModel(id)).map((m) => this.mask(m));
   }
 
   /** 测试连接:用该模型发一条简单消息,返回成败与回显 */
   async test(id: string): Promise<{ ok: boolean; message: string }> {
-    const models = await this.configStorage.listModels(this.projectRoot);
+    const models = await this.configStorage.listModels();
     const model = models.find((m) => m.id === id);
     if (!model) return { ok: false, message: '模型不存在' };
     try {
@@ -97,7 +94,7 @@ export class ModelService {
   }): Promise<{ ok: boolean; message: string }> {
     let apiKey = input.apiKey?.trim();
     if ((!apiKey || apiKey.startsWith('***')) && input.id) {
-      const existing = (await this.configStorage.listModels(this.projectRoot)).find(
+      const existing = (await this.configStorage.listModels()).find(
         (m) => m.id === input.id,
       );
       apiKey = existing?.apiKey;
@@ -131,12 +128,12 @@ export class ModelService {
 
   /** 读取 Agent 模型分配 */
   async getAssignment(): Promise<AgentModelConfig> {
-    return this.configStorage.getAssignment(this.projectRoot);
+    return this.configStorage.getAssignment();
   }
 
   /** 设置 Agent 模型分配 */
   async setAssignment(assignment: AgentModelConfig): Promise<AgentModelConfig> {
-    return this.configStorage.setAssignment(this.projectRoot, assignment);
+    return this.configStorage.setAssignment(assignment);
   }
 
   /**
@@ -145,8 +142,8 @@ export class ModelService {
    */
   async resolveModelForAgent(agent: string): Promise<ModelConfig | null> {
     const [assignment, models] = await Promise.all([
-      this.configStorage.getAssignment(this.projectRoot),
-      this.configStorage.listModels(this.projectRoot),
+      this.configStorage.getAssignment(),
+      this.configStorage.listModels(),
     ]);
     const overrides = assignment.overrides ?? {};
     const id = (overrides as Record<string, string | undefined>)[agent] ?? assignment.default;
