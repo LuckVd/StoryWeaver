@@ -21,7 +21,10 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild"
-    ]
+    ],
+    "overrides": {
+      "@electron/get": "^5.0.0"
+    }
   },
   "dependencies": {
     "@tiptap/pm": "^3.23.6",

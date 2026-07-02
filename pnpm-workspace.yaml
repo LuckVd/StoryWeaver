@@ -8,3 +8,5 @@ onlyBuiltDependencies:
   - esbuild
   - msw
 verifyDepsBeforeRun: false
+overrides:
+  '@electron/get': ^5.0.0

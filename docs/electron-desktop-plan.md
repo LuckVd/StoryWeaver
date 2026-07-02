@@ -88,3 +88,43 @@ StoryWeaver.exe(Electron 应用,electron-builder 打 NSIS 安装包)
 ## 七、参考
 - DeepSeek-Reasonix `desktop/`(Wails):`single_instance.go` / `tray.go` / `updater.go` / crash / 多 workspace —— 桌面能力清单来源。
 - electron-builder、electron-updater 官方文档。
+
+## 八、WSL 交叉打包 Win 笔记(2026-07-02 实操)
+
+开发在 WSL,需交叉打包 Win 桌面包。**直接 `electron-builder --win` 会稳定卡死**在 packaging 阶段——复制 electron-win 二进制时 hang(进程 CPU 仅 ~1s 却空跑数分钟,无 7z/wine 子进程),即使网络通、`~/.cache/electron` 与 `~/.cache/electron-builder` 缓存完整也复现。`pnpm run electron:build` 不带 `--win` 时默认打当前平台 = linux(WSL 下产物无用)。
+
+### 绕过(electron 版本不变 → 运行时不变,只换应用代码 app.asar)
+
+```bash
+# 1. 构建产物
+pnpm --filter @storyweaver/core run build
+pnpm exec electron-vite build            # 出 out/(main/preload/renderer)
+
+# 2. 手动重建 app.asar(项目无 native 模块,纯 JS 跨平台通用)
+ASAR=node_modules/.pnpm/@electron+asar@3.4.1/node_modules/@electron/asar/bin/asar.js
+rm -rf /tmp/asar-src && mkdir -p /tmp/asar-src
+cp package.json /tmp/asar-src/ && cp -r out /tmp/asar-src/out
+node "$ASAR" pack /tmp/asar-src release/win-unpacked/resources/app.asar
+
+# 3. 清残留(否则 electron-builder skip archiving 复用旧包,或把 .bak 打进 installer)
+rm -f release/win-unpacked/resources/app.asar.bak release/*.nsis.7z
+
+# 4. 只跑 nsis(跳过卡死的 packaging,约 1-2 分钟)
+pnpm exec electron-builder --prepackaged release/win-unpacked --win nsis
+```
+
+### 验证 installer 含新代码
+
+```bash
+Z7=~/.cache/electron-builder/7zip@1.0.0/7zip-linux-x64-16wjr/bin/7za
+rm -rf /tmp/inst && mkdir /tmp/inst
+"$Z7" x "release/StoryWeaver Setup 0.1.0.exe" -o/tmp/inst -y
+"$Z7" l '/tmp/inst/$PLUGINSDIR/app-64.7z' | grep app.asar   # 字节数应 = 新 asar
+```
+
+### 注意
+
+- **首次**打包(electron 缓存为空)仍需完整 `electron-builder --win` 跑通一次,生成 `release/win-unpacked/`(electron 运行时);之后只要 electron 版本不变,都用上面「换 app.asar + --prepackaged」。
+- electron 升级后运行时要重新生成(完整 --win,需原生 Windows 或 WSL packaging 不卡时)。
+- 图标:无 `build/icon.ico` → 用默认 electron 图标。
+- 卡的只有完整 packaging;`--prepackaged` 只跑 nsis 编译,稳定不卡。
